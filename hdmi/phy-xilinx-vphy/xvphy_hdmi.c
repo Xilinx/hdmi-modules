@@ -1915,7 +1915,8 @@ u32 XVphy_HdmiQpllParam(XVphy *InstancePtr, u8 QuadId, XVphy_ChannelId ChId,
 			}
 
 			/* Check Userclock Frequency */
-			if (297000000 <
+            /* (297 MHz + 0.5%) + 10 KHz (Clkdet accuracy) */
+			if (298495000 <
 					(XVphy_GetLineRateHz(InstancePtr, QuadId,
 							XVPHY_CHANNEL_ID_CH1) /
 					(InstancePtr->Config.TransceiverWidth * 10))) {
@@ -2181,7 +2182,8 @@ u32 XVphy_HdmiCpllParam(XVphy *InstancePtr, u8 QuadId, XVphy_ChannelId ChId,
 			}
 
 			/* Check Userclock Frequency */
-			if (297000000 <
+            /* (297 MHz + 0.5%) + 10 KHz (Clkdet accuracy) */
+			if (298495000 <
 					(XVphy_GetLineRateHz(InstancePtr, QuadId,
 							XVPHY_CHANNEL_ID_CH1) /
 					(InstancePtr->Config.TransceiverWidth * 10))) {
