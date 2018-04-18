@@ -507,32 +507,34 @@ static int xvphy_probe(struct platform_device *pdev)
 	XVphy_ConfigTable[instance].DrpClkFreq = axi_lite_rate;
 
 	/* dru-clk is used for the nidru block for low res support */
-	vphydev->clkp = devm_clk_get(&pdev->dev, "dru-clk");
-	if (IS_ERR(vphydev->clkp)) {
-		ret = PTR_ERR(vphydev->clkp);
-		vphydev->clkp = NULL;
-		if (ret == -EPROBE_DEFER)
-			dev_info(&pdev->dev, "dru-clk not ready -EPROBE_DEFER\n");
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to get the nidru clk.\n");
-		return ret;
-	}
-
-	ret = clk_prepare_enable(vphydev->clkp);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to enable nidru clk\n");
-		return ret;
-	}
-
-	dru_clk_rate = clk_get_rate(vphydev->clkp);
-	dev_dbg(vphydev->dev,"default dru-clk rate = %lu\n", dru_clk_rate);
-	if (dru_clk_rate != XVPHY_DRU_REF_CLK_HZ) {
-		ret = clk_set_rate(vphydev->clkp, XVPHY_DRU_REF_CLK_HZ);
-		if (ret != 0) {
-			dev_err(&pdev->dev, "Cannot set rate : %d\n", ret);
+	if (vphydev->xvphy.Config.DruIsPresent == (TRUE)) {
+		vphydev->clkp = devm_clk_get(&pdev->dev, "dru-clk");
+		if (IS_ERR(vphydev->clkp)) {
+			ret = PTR_ERR(vphydev->clkp);
+			vphydev->clkp = NULL;
+			if (ret == -EPROBE_DEFER)
+				dev_info(&pdev->dev, "dru-clk not ready -EPROBE_DEFER\n");
+			if (ret != -EPROBE_DEFER)
+				dev_err(&pdev->dev, "failed to get the nidru clk.\n");
+			return ret;
 		}
+
+		ret = clk_prepare_enable(vphydev->clkp);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to enable nidru clk\n");
+			return ret;
+		}
+
 		dru_clk_rate = clk_get_rate(vphydev->clkp);
-		dev_dbg(vphydev->dev,"ref dru-clk rate = %lu\n", dru_clk_rate);
+		dev_dbg(vphydev->dev,"default dru-clk rate = %lu\n", dru_clk_rate);
+		if (dru_clk_rate != XVPHY_DRU_REF_CLK_HZ) {
+			ret = clk_set_rate(vphydev->clkp, XVPHY_DRU_REF_CLK_HZ);
+			if (ret != 0) {
+				dev_err(&pdev->dev, "Cannot set rate : %d\n", ret);
+			}
+			dru_clk_rate = clk_get_rate(vphydev->clkp);
+			dev_dbg(vphydev->dev,"ref dru-clk rate = %lu\n", dru_clk_rate);
+		}
 	}
 
 	provider = devm_of_phy_provider_register(&pdev->dev, xvphy_xlate);
