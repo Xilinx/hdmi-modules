@@ -1003,7 +1003,9 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	/* Disable TX TDMS clock */
 	XVphy_Clkout1OBufTdsEnable(VphyPtr, XVPHY_DIR_TX, (FALSE));
 
-	VmId = XVidC_GetVideoModeIdExtensive(&vt, mode->vrefresh, FALSE, FALSE);
+	/* The isExtensive is made true to get the correct video timing by matching
+	 * all the parameters */
+	VmId = XVidC_GetVideoModeIdExtensive(&vt, mode->vrefresh, FALSE, TRUE);
 
 	dev_dbg(xhdmi->dev,"VmId = %d\n", VmId);
 	if (VmId == XVIDC_VM_NOT_SUPPORTED) { //no match found in timing table
