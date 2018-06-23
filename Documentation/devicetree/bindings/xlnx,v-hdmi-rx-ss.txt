@@ -51,6 +51,9 @@ Required Properties:
 		If present indicates inclusion of the optional core
  - xlnx,include-hdcp-2-2: Boolean parameter that denotes if hdcp22 is included.
 		If present indicates inclusion of the optional core
+ - xlnx,audio-enabled: Boolean parameter to convey that design has audio
+		functionality
+ - xlnx,aes_parser: alias to audio channel status extractor block
  - ports: Video ports, using the DT bindings defined in ../video-interfaces.txt.
           The Rx only has an output port (0).
  
@@ -61,6 +64,10 @@ added to the device tree
 	hdmi_input_hdcp_keymngmt_blk_top_1: hdcp_keymngmt_blk_top@a0270000 {
 		compatible = "xlnx,hdcp-keymngmt-blk-top-1.0";
 		reg = <0x0 0xa0270000 0x0 0x10000>;
+	};
+
+	hdmi_audio_aes_parser_0: hdmi_audio_aes_parser@a00b0000 {
+		reg = <0x0 0xa00b0000 0x0 0x10000>;
 	};
 
 	hdmi_input_v_hdmi_rx_ss_0: v_hdmi_rx_ss@a0000000 {
@@ -79,7 +86,8 @@ added to the device tree
 		xlnx,edid-ram-size = <0x100>;
 		xlnx,include-hdcp-1-4;
 		xlnx,include-hdcp-2-2;
-
+		xlnx,audio-enabled	= "true";
+		xlnx,aes_parser = <&hdmi_audio_aes_parser_0>;
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;

@@ -39,6 +39,7 @@
 /* for the HMAC, using password to decrypt HDCP keys */
 #include "phy-xilinx-vphy/xhdcp22_common.h"
 #include "phy-xilinx-vphy/aes256.h"
+#include "xlnx_hdmirx_audio.h"
 
 #define hdmi_mutex_lock(x) mutex_lock(x)
 #define hdmi_mutex_unlock(x) mutex_unlock(x)
@@ -128,6 +129,12 @@ struct xhdmi_device {
 	u8 Hdcp22PrivateKey[902];
 	u8 Hdcp14KeyA[328];
 	u8 Hdcp14KeyB[328];
+	/* flag to indicate audio is enabled in device tree */
+	bool audio_enabled;
+	/* flag to indicate audio is initialized */
+	bool audio_init;
+	/* audio data to be shared with audio module */
+	struct xlnx_hdmirx_audio_data *rx_audio_data;
 };
 
 // Xilinx EDID
@@ -814,6 +821,11 @@ static void RxStreamUpCallback(void *CallbackRef)
 	/* notify source format change event */
 	v4l2_subdev_notify_event(&xhdmi->subdev, &xhdmi_ev_fmt);
 
+	/* TODO: As subsystem API XV_HdmiRxSs_AudioEnable is not available,
+	 *  core API is used currently.
+	 */
+	if (xhdmi->audio_init)
+		XV_HdmiRx_AudioEnable(HdmiRxSsPtr->HdmiRxPtr);
 #ifdef DEBUG
 	v4l2_print_dv_timings("xilinx-hdmi-rx", "", & xhdmi->detected_timings, 1);
 #endif
@@ -1586,6 +1598,8 @@ static int xhdmi_parse_of(struct xhdmi_device *xhdmi, XV_HdmiRxSs_Config *config
 
 	isHdcp14_en = of_property_read_bool(node, "xlnx,include-hdcp-1-4");
 	isHdcp22_en = of_property_read_bool(node, "xlnx,include-hdcp-2-2");
+	xhdmi->audio_enabled =
+		of_property_read_bool(node, "xlnx,audio-enabled");
 
 	if (isHdcp14_en) {
 		/* HDCP14 Core */
@@ -1638,6 +1652,16 @@ static int xhdmi_parse_of(struct xhdmi_device *xhdmi, XV_HdmiRxSs_Config *config
 		XHdcp22_Rng_ConfigTable[XPAR_XHDCP22_RNG_NUM_INSTANCES/2 + instance].BaseAddress = RX_HDCP22_RNG_OFFSET;
 	}
 
+	if (xhdmi->audio_enabled) {
+		xhdmi->rx_audio_data->aes_base = hdmirx_parse_aud_dt(dev);
+		if (!xhdmi->rx_audio_data->aes_base) {
+			xhdmi->audio_init = false;
+			dev_err(dev, "audio rx: aes parser not found!\n");
+		}
+	} else {
+		dev_info(dev, "hdmi rx audio disabled in DT\n");
+	}
+
 	return 0;
 
 error_dt:
@@ -1666,6 +1690,12 @@ static int xhdmi_probe(struct platform_device *pdev)
 	xhdmi = devm_kzalloc(&pdev->dev, sizeof(*xhdmi), GFP_KERNEL);
 	if (!xhdmi)
 		return -ENOMEM;
+	xhdmi->rx_audio_data =
+		devm_kzalloc(&pdev->dev, sizeof(struct xlnx_hdmirx_audio_data),
+			     GFP_KERNEL);
+	if (!xhdmi->rx_audio_data)
+		return -ENOMEM;
+
 	/* store pointer of the real device inside platform device */
 	xhdmi->dev = &pdev->dev;
 
@@ -2002,12 +2032,22 @@ static int xhdmi_probe(struct platform_device *pdev)
 	spin_lock_irqsave(&xhdmi->irq_lock, flags);
 	XV_HdmiRxSs_IntrEnable(HdmiRxSsPtr);
 	spin_unlock_irqrestore(&xhdmi->irq_lock, flags);
-	
+
 	/* probe has succeeded for this instance, increment instance index */
 	instance++;
-    dev_info(xhdmi->dev, "probe successful\n");
 
+	if (xhdmi->audio_enabled && xhdmi->rx_audio_data->aes_base) {
+		ret = hdmirx_register_aud_dev(xhdmi->dev);
+		if (ret < 0) {
+			xhdmi->audio_init = false;
+			dev_err(xhdmi->dev, "hdmi rx audio init failed\n");
+		} else {
+			xhdmi->audio_init = true;
+			dev_info(xhdmi->dev, "hdmi rx audio initialized\n");
+		}
+	}
 	/* return success */
+	dev_info(xhdmi->dev, "probe successful\n");
 	return 0;
 
 error:
@@ -2048,6 +2088,8 @@ static int xhdmi_remove(struct platform_device *pdev)
 	v4l2_ctrl_handler_free(&xhdmi->ctrl_handler);
 	media_entity_cleanup(&subdev->entity);
 	clk_disable_unprepare(xhdmi->clk);
+	if (xhdmi->audio_init)
+		hdmirx_unregister_aud_dev(&pdev->dev);
 	dev_dbg(xhdmi->dev,"removed.\n");
 	return 0;
 }
@@ -2069,6 +2111,40 @@ static struct platform_driver xhdmi_driver = {
 	.probe			= xhdmi_probe,
 	.remove			= xhdmi_remove,
 };
+
+struct xlnx_hdmirx_audio_data *hdmirx_get_audio_data(struct device *dev)
+{
+	struct xhdmi_device *xhdmi = dev_get_drvdata(dev);
+
+	if (!xhdmi)
+		return NULL;
+	else
+		return xhdmi->rx_audio_data;
+}
+
+u32 hdmirx_audio_startup(struct device *dev)
+{
+	u32 channel_count;
+	struct xhdmi_device *xhdmi = dev_get_drvdata(dev);
+	XV_HdmiRxSs *HdmiRxSsPtr = &xhdmi->xv_hdmirxss;
+
+	hdmi_mutex_lock(&xhdmi->xhdmi_mutex);
+	XV_HdmiRx_AudioEnable(HdmiRxSsPtr->HdmiRxPtr);
+	channel_count =  XV_HdmiRxSs_GetAudioChannels(HdmiRxSsPtr);
+	hdmi_mutex_unlock(&xhdmi->xhdmi_mutex);
+
+	return channel_count;
+}
+
+void hdmirx_audio_shutdown(struct device *dev)
+{
+	struct xhdmi_device *xhdmi = dev_get_drvdata(dev);
+	XV_HdmiRxSs *HdmiRxSsPtr = &xhdmi->xv_hdmirxss;
+
+	hdmi_mutex_lock(&xhdmi->xhdmi_mutex);
+	XV_HdmiRx_AudioDisable(HdmiRxSsPtr->HdmiRxPtr);
+	hdmi_mutex_unlock(&xhdmi->xhdmi_mutex);
+}
 
 module_platform_driver(xhdmi_driver);
 
