@@ -1,9 +1,18 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * Xilinx ALSA SoC HDMI audio capture support
  *
  * Copyright (C) 2017-2018 Xilinx, Inc.
  *
+ * Author: Maruthi Srinivas Bayyavarapu <maruthis@xilinx.com>
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/of_address.h>
@@ -158,6 +167,8 @@ static int xlnx_rx_pcm_startup(struct snd_pcm_substream *substream,
 
 	channels = hdmirx_audio_startup(dai->dev);
 
+	srate = 0;
+	sig_bits = 0;
 	reg1_val = readl(adata->aes_base + XV_AES_CH_STS_REG1);
 	reg2_val = readl(adata->aes_base + XV_AES_CH_STS_REG2);
 	if (reg1_val & 0x1)

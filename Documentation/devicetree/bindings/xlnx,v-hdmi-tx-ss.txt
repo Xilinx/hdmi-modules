@@ -64,7 +64,10 @@ Required properties:
  - xlnx,hdcp-encrypt: Flag to enable/disable stream encryption
  		Applicable when either hdcp14 or hdcp22 is included in the design
  - xlnx,audio-enabled: Boolean parameter to convey that design has audio
-		functionality
+		functionality. If present, indicates optional audio core needed
+                for audio usecase is included.
+ - xlnx,xlnx-snd-pcm: reference to audio formatter block. Add this if,
+                      audio formatter is going to be used for HDMI audio
  - xlnx,xlnx-hdmi-acr-ctrl: alias to audio clock recovery block
 		
 Sub-Node Properties:
@@ -116,8 +119,9 @@ added to the device tree
 		/* settings for HDCP */
 		xlnx,hdcp-authenticate = <0x1>;
 		xlnx,hdcp-encrypt = <0x1>;
-		xlnx,audio-enabled	= "true";
+		xlnx,audio-enabled;
 		xlnx,xlnx-hdmi-acr-ctrl = <&hdmi_acr_ctrl_0>;
+		xlnx,xlnx-snd-pcm = <&audio_ss_0_audio_formatter_0>;
 
 		ports {
 			#address-cells = <1>;
@@ -145,3 +149,6 @@ added to the device tree
 			};
 		};
 	};
+
+	Documentation of "audio_ss_0_audio_formatter_0" node is located
+	at Documentation/devicetree/bindings/sound/xlnx,audio-formatter.txt
