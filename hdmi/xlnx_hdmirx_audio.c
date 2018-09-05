@@ -25,6 +25,39 @@
 #define XV_AES_CH_STS_REG1 0x50
 #define XV_AES_CH_STS_REG2 0x54
 
+/* audio params macros */
+#define PROF_SAMPLERATE_MASK		GENMASK(7, 6)
+#define PROF_SAMPLERATE_SHIFT		6
+#define PROF_CHANNEL_COUNT_MASK		GENMASK(11, 8)
+#define PROF_CHANNEL_COUNT_SHIFT	8
+#define PROF_MAX_BITDEPTH_MASK		GENMASK(18, 16)
+#define PROF_MAX_BITDEPTH_SHIFT		16
+#define PROF_BITDEPTH_MASK		GENMASK(21, 19)
+#define PROF_BITDEPTH_SHIFT		19
+
+#define AES_FORMAT_MASK			BIT(0)
+#define PROF_SAMPLERATE_UNDEFINED	0
+#define PROF_SAMPLERATE_44100		1
+#define PROF_SAMPLERATE_48000		2
+#define PROF_SAMPLERATE_32000		3
+#define PROF_CHANNELS_UNDEFINED		0
+#define PROF_TWO_CHANNELS		8
+#define PROF_STEREO_CHANNELS		2
+#define PROF_MAX_BITDEPTH_UNDEFINED	0
+#define PROF_MAX_BITDEPTH_20		2
+#define PROF_MAX_BITDEPTH_24		4
+
+#define CON_SAMPLE_RATE_MASK		GENMASK(27, 24)
+#define CON_SAMPLE_RATE_SHIFT		24
+#define CON_CHANNEL_COUNT_MASK		GENMASK(23, 20)
+#define CON_CHANNEL_COUNT_SHIFT		20
+#define CON_MAX_BITDEPTH_MASK		BIT(1)
+#define CON_BITDEPTH_MASK		GENMASK(3, 1)
+#define CON_BITDEPTH_SHIFT		0x1
+
+#define CON_SAMPLERATE_44100		0
+#define CON_SAMPLERATE_48000		2
+#define CON_SAMPLERATE_32000		3
 /* hdmirx_parse_aud_dt - parse AES node from DT
  * @dev: device
  *
@@ -63,85 +96,145 @@ void __iomem *hdmirx_parse_aud_dt(struct device *dev)
 	return aes_base;
 }
 
-/* parse_consumer_format - parse AES stream header
- * @reg1_val: AES register content
- * @reg2_val: AES register content
- * @srate: sampling rate
- * @sig_bits: valid bits in given container format
- *
- * This function parses AES header in consumer format
- */
-static void parse_consumer_format(u32 reg1_val, u32 reg2_val,
-			u32 *srate, u32 *sig_bits)
+static struct audio_params *parse_professional_format(u32 reg1_val,
+						      u32 reg2_val)
 {
-	u32 max_word_length;
+	u32 padded, val;
+	struct audio_params *params;
 
-	switch ((reg1_val & 0x0F000000) >> 24) {
-	case 0:
-		*srate = 44100;
-	break;
+	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	if (!params)
+		return NULL;
+
+	val = (reg1_val & PROF_SAMPLERATE_MASK) >> PROF_SAMPLERATE_SHIFT;
+	switch (val) {
+	case PROF_SAMPLERATE_44100:
+		params->srate = 44100;
+		break;
+	case PROF_SAMPLERATE_48000:
+		params->srate = 48000;
+		break;
+	case PROF_SAMPLERATE_32000:
+		params->srate = 32000;
+		break;
+	case PROF_SAMPLERATE_UNDEFINED:
+	default:
+		/* not indicated */
+		kfree(params);
+		return NULL;
+	}
+
+	val = (reg1_val & PROF_CHANNEL_COUNT_MASK) >> PROF_CHANNEL_COUNT_SHIFT;
+	switch (val) {
+	case PROF_CHANNELS_UNDEFINED:
+	case PROF_STEREO_CHANNELS:
+	case PROF_TWO_CHANNELS:
+		params->channels = 2;
+		break;
+	default:
+		/* TODO: handle more channels in future*/
+		kfree(params);
+		return NULL;
+	}
+
+	val = (reg1_val & PROF_MAX_BITDEPTH_MASK) >> PROF_MAX_BITDEPTH_SHIFT;
+	switch (val) {
+	case PROF_MAX_BITDEPTH_UNDEFINED:
+	case PROF_MAX_BITDEPTH_20:
+		padded = 0;
+		break;
+	case PROF_MAX_BITDEPTH_24:
+		padded = 4;
+		break;
+	default:
+		/* user defined values are not supported */
+		kfree(params);
+		return NULL;
+	}
+
+	val = (reg1_val & PROF_BITDEPTH_MASK) >> PROF_BITDEPTH_SHIFT;
+	switch (val) {
+	case 1:
+		params->sig_bits = 16 + padded;
+		break;
 	case 2:
-		*srate = 48000;
-	break;
-	case 3:
-		*srate = 32000;
-	break;
+		params->sig_bits = 18 + padded;
+		break;
+	case 4:
+		params->sig_bits = 19 + padded;
+		break;
+	case 5:
+		params->sig_bits = 20 + padded;
+		break;
+	case 6:
+		params->sig_bits = 17 + padded;
+		break;
+	case 0:
+	default:
+		kfree(params);
+		return NULL;
 	}
 
-	if (reg2_val & 0x1) {
-		max_word_length = 24;
-		reg2_val = (reg2_val & 0xE) >> 1;
-		switch (reg2_val) {
-		case 0:
-			/* not indicated */
-			*sig_bits = 0;
-		break;
-		case 1:
-			*sig_bits = 20;
-		break;
-		case 6:
-			*sig_bits = 21;
-		break;
-		case 2:
-			*sig_bits = 22;
-		break;
-		case 4:
-			*sig_bits = 23;
-		break;
-		case 5:
-			*sig_bits = 24;
-		break;
-		}
-	} else {
-		max_word_length = 20;
-		reg2_val = (reg2_val & 0xE) >> 1;
-		switch (reg2_val) {
-		case 0:
-			/* not indicated */
-			*sig_bits = 0;
-		break;
-		case 1:
-			*sig_bits = 16;
-		break;
-		case 6:
-			*sig_bits = 17;
-		break;
-		case 2:
-			*sig_bits = 18;
-		break;
-		case 4:
-			*sig_bits = 19;
-		break;
-		case 5:
-			*sig_bits = 20;
-		break;
-		}
-	}
+	return params;
 }
 
-static void parse_professional_format(u32 reg1_val, u32 reg2_val,
-		u32 *srate, u32 *sig_bits)
+static struct audio_params *parse_consumer_format(u32 reg1_val, u32 reg2_val)
 {
+	u32 padded, val;
+	struct audio_params *params;
+
+	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	if (!params)
+		return NULL;
+
+	val = (reg1_val & CON_SAMPLE_RATE_MASK) >> CON_SAMPLE_RATE_SHIFT;
+	switch (val) {
+	case CON_SAMPLERATE_44100:
+		params->srate = 44100;
+		break;
+	case CON_SAMPLERATE_48000:
+		params->srate = 48000;
+		break;
+	case CON_SAMPLERATE_32000:
+		params->srate = 32000;
+		break;
+	default:
+		kfree(params);
+		return NULL;
+	}
+
+	val = (reg1_val & CON_CHANNEL_COUNT_MASK) >> CON_CHANNEL_COUNT_SHIFT;
+	params->channels = val;
+
+	if (reg2_val & CON_MAX_BITDEPTH_MASK)
+		padded = 4;
+	else
+		padded = 0;
+
+	val = (reg2_val & CON_BITDEPTH_MASK) >> CON_BITDEPTH_SHIFT;
+	switch (val) {
+	case 1:
+		params->sig_bits = 16 + padded;
+		break;
+	case 2:
+		params->sig_bits = 18 + padded;
+		break;
+	case 4:
+		params->sig_bits = 19 + padded;
+		break;
+	case 5:
+		params->sig_bits = 20 + padded;
+		break;
+	case 6:
+		params->sig_bits = 17 + padded;
+		break;
+	case 0:
+	default:
+		kfree(params);
+		return NULL;
+	}
+
+	return params;
 }
 
 /* xlnx_rx_pcm_startup - initialze audio during audio usecase
@@ -156,7 +249,7 @@ static int xlnx_rx_pcm_startup(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
 	int rate, err;
-	u32 channels, srate, sig_bits, reg1_val, reg2_val, status;
+	u32 reg1_val, reg2_val;
 
 	struct snd_soc_codec *codec = dai->codec;
 	struct snd_pcm_runtime *rtd = substream->runtime;
@@ -165,23 +258,29 @@ static int xlnx_rx_pcm_startup(struct snd_pcm_substream *substream,
 	if (!adata)
 		return -EINVAL;
 
-	channels = hdmirx_audio_startup(dai->dev);
-
-	srate = 0;
-	sig_bits = 0;
 	reg1_val = readl(adata->aes_base + XV_AES_CH_STS_REG1);
 	reg2_val = readl(adata->aes_base + XV_AES_CH_STS_REG2);
 	if (reg1_val & 0x1)
-		parse_professional_format(reg1_val, reg2_val, &srate,
-						&sig_bits);
+		adata->params = parse_professional_format(reg1_val, reg2_val);
 	else
-		parse_consumer_format(reg1_val, reg2_val, &srate, &sig_bits);
+		adata->params = parse_consumer_format(reg1_val, reg2_val);
+
+	if (!adata->params)
+		return -EINVAL;
+
+	if (!adata->params->channels)
+		adata->params->channels = hdmirx_audio_startup(dai->dev);
+
+	dev_info(codec->dev,
+		 "Audio properties: srate %d sig_bits = %d channels = %d\n",
+		 adata->params->srate, adata->params->sig_bits,
+		 adata->params->channels);
 
 	err = snd_pcm_hw_constraint_minmax(rtd, SNDRV_PCM_HW_PARAM_RATE,
-					srate, srate);
+				adata->params->srate, adata->params->srate);
 	if (err < 0) {
 		dev_err(codec->dev, "failed to constrain samplerate to %dHz\n",
-			srate);
+			adata->params->srate);
 		return err;
 	}
 
@@ -189,25 +288,23 @@ static int xlnx_rx_pcm_startup(struct snd_pcm_substream *substream,
 	 * Out of 24 bits, sig_bits represent valid number of audio bits from
 	 * input stream
 	 */
-	err = snd_pcm_hw_constraint_msbits(rtd, 0, 24, sig_bits);
+	err = snd_pcm_hw_constraint_msbits(rtd, 0, 24, adata->params->sig_bits);
 
 	if (err < 0) {
 		dev_err(codec->dev,
-		"failed to constrain 'bits per sample' %d bits\n", sig_bits);
+		"failed to constrain 'bits per sample' %d bits\n",
+		adata->params->sig_bits);
 		return err;
 	}
 	err = snd_pcm_hw_constraint_minmax(rtd, SNDRV_PCM_HW_PARAM_CHANNELS,
-					channels, channels);
+					   adata->params->channels,
+					   adata->params->channels);
 	if (err < 0) {
 		dev_err(codec->dev,
-		"failed to constrain channel count to %d\n", channels);
+		"failed to constrain channel count to %d\n",
+		adata->params->channels);
 		return err;
 	}
-
-	dev_info(codec->dev, "set samplerate constraint to %dHz\n", srate);
-	dev_info(codec->dev, "set 'bits per sample' constraint to %d\n",
-		sig_bits);
-	dev_info(codec->dev, "set channels constraint to %d\n", channels);
 
 	return 0;
 }
@@ -220,6 +317,9 @@ static int xlnx_rx_pcm_startup(struct snd_pcm_substream *substream,
 static void xlnx_rx_pcm_shutdown(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
+	struct xlnx_hdmirx_audio_data *adata = hdmirx_get_audio_data(dai->dev);
+
+	kfree(adata->params);
 	hdmirx_audio_shutdown(dai->dev);
 }
 
