@@ -507,7 +507,7 @@ static int xvphy_probe(struct platform_device *pdev)
 	XVphy_ConfigTable[instance].DrpClkFreq = axi_lite_rate;
 
 	/* dru-clk is used for the nidru block for low res support */
-	if (vphydev->xvphy.Config.DruIsPresent == (TRUE)) {
+	if (XVphy_ConfigTable[instance].DruIsPresent == (TRUE)) {
 		vphydev->clkp = devm_clk_get(&pdev->dev, "dru-clk");
 		if (IS_ERR(vphydev->clkp)) {
 			ret = PTR_ERR(vphydev->clkp);
@@ -535,6 +535,10 @@ static int xvphy_probe(struct platform_device *pdev)
 			dru_clk_rate = clk_get_rate(vphydev->clkp);
 			dev_dbg(vphydev->dev,"ref dru-clk rate = %lu\n", dru_clk_rate);
 		}
+	}
+	else
+	{
+		dev_dbg(vphydev->dev,"DRU is not enabled from device tree\n");
 	}
 
 	provider = devm_of_phy_provider_register(&pdev->dev, xvphy_xlate);
