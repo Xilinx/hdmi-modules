@@ -130,6 +130,14 @@
 *              01/02/18	Updated function XV_HdmiTxSs_VtcSetup and changed the
 *              				input parameters to it to enable logging of
 *              				unsupported video timing by VTC
+* 5.20  EB     03/08/18 Updated XV_HdmiTxSS_MaskSetRed, XV_HdmiTxSS_MaskSetGreen,
+* 							XV_HdmiTxSS_MaskSetBlue API
+*						Replaced XV_HdmiTx_AudioMute API call with
+* 							XV_HdmiTx_AudioDisable
+*						Replaced XV_HdmiTx_AudioUnmute API call with
+* 							XV_HdmiTx_AudioEnable
+*						Replaced XV_HdmiTx_AudioUnmute API call with
+* 		MMO    11/08/18 Added Bridge Overflow and Bridge Underflow Interrupt
 * </pre>
 *
 ******************************************************************************/
@@ -196,9 +204,13 @@ static u32 XV_HdmiTxSS_SetTMDS(XV_HdmiTxSs *InstancePtr,
 static void XV_HdmiTxSs_ConnectCallback(void *CallbackRef);
 static void XV_HdmiTxSs_ToggleCallback(void *CallbackRef);
 static void XV_HdmiTxSs_BrdgUnlockedCallback(void *CallbackRef);
+static void XV_HdmiTxSs_BrdgOverflowCallback(void *CallbackRef);
+static void XV_HdmiTxSs_BrdgUnderflowCallback(void *CallbackRef);
 static void XV_HdmiTxSs_VsCallback(void *CallbackRef);
 static void XV_HdmiTxSs_StreamUpCallback(void *CallbackRef);
 static void XV_HdmiTxSs_StreamDownCallback(void *CallbackRef);
+static u32 XV_HdmiTxSS_GetVidMaskColorValue(XV_HdmiTxSs *InstancePtr,
+											u16 Value);
 
 static void XV_HdmiTxSs_ReportCoreInfo(XV_HdmiTxSs *InstancePtr);
 static void XV_HdmiTxSs_ReportTiming(XV_HdmiTxSs *InstancePtr);
@@ -352,6 +364,16 @@ static int XV_HdmiTxSs_RegisterSubsysCallbacks(XV_HdmiTxSs *InstancePtr)
     XV_HdmiTx_SetCallback(HdmiTxSsPtr->HdmiTxPtr,
                           XV_HDMITX_HANDLER_BRDGUNLOCK,
 						  (void *)XV_HdmiTxSs_BrdgUnlockedCallback,
+						  (void *)InstancePtr);
+
+    XV_HdmiTx_SetCallback(HdmiTxSsPtr->HdmiTxPtr,
+                          XV_HDMITX_HANDLER_BRDGOVERFLOW,
+						  (void *)XV_HdmiTxSs_BrdgOverflowCallback,
+						  (void *)InstancePtr);
+
+    XV_HdmiTx_SetCallback(HdmiTxSsPtr->HdmiTxPtr,
+                          XV_HDMITX_HANDLER_BRDGUNDERFLOW,
+						  (void *)XV_HdmiTxSs_BrdgUnderflowCallback,
 						  (void *)InstancePtr);
 
     XV_HdmiTx_SetCallback(HdmiTxSsPtr->HdmiTxPtr,
@@ -849,9 +871,9 @@ static int XV_HdmiTxSs_VtcSetup(XV_HdmiTxSs *HdmiTxSsPtr)
 
     /* 4 pixels per clock */
     if (HdmiTxSsPtr->HdmiTxPtr->Stream.Video.PixPerClk == XVIDC_PPC_4) {
-		/* If the parameters below are not divisible by the current PPC setting,
-		* log an error as VTC does not support such video timing
-		*/
+    	/* If the parameters below are not divisible by the current PPC setting,
+    	 * log an error as VTC does not support such video timing
+    	 */
 		if (VideoTiming.HActiveVideo & 0x3 || VideoTiming.HFrontPorch & 0x3 ||
 				VideoTiming.HBackPorch & 0x3 || VideoTiming.HSyncWidth & 0x3) {
 #ifdef XV_HDMITXSS_LOG_ENABLE
@@ -867,9 +889,9 @@ static int XV_HdmiTxSs_VtcSetup(XV_HdmiTxSs *HdmiTxSsPtr)
 
     /* 2 pixels per clock */
     else if (HdmiTxSsPtr->HdmiTxPtr->Stream.Video.PixPerClk == XVIDC_PPC_2) {
-		/* If the parameters below are not divisible by the current PPC setting,
-		* log an error as VTC does not support such video timing
-		*/
+    	/* If the parameters below are not divisible by the current PPC setting,
+    	 * log an error as VTC does not support such video timing
+    	 */
 		if (VideoTiming.HActiveVideo & 0x1 || VideoTiming.HFrontPorch & 0x1 ||
 				VideoTiming.HBackPorch & 0x1 || VideoTiming.HSyncWidth & 0x1) {
 #ifdef XV_HDMITXSS_LOG_ENABLE
@@ -893,9 +915,9 @@ static int XV_HdmiTxSs_VtcSetup(XV_HdmiTxSs *HdmiTxSsPtr)
 
     /* For YUV420 the line width is double there for double the blanking */
     if (HdmiTxSsPtr->HdmiTxPtr->Stream.Video.ColorFormatId == XVIDC_CSF_YCRCB_420) {
-		/* If the parameters below are not divisible by the current PPC setting,
-		* log an error as VTC does not support such video timing
-		*/
+    	/* If the parameters below are not divisible by the current PPC setting,
+    	 * log an error as VTC does not support such video timing
+    	 */
 		if (VideoTiming.HActiveVideo & 0x1 || VideoTiming.HFrontPorch & 0x1 ||
 				VideoTiming.HBackPorch & 0x1 || VideoTiming.HSyncWidth & 0x1) {
 #ifdef XV_HDMITXSS_LOG_ENABLE
@@ -1024,6 +1046,7 @@ static u32 XV_HdmiTxSS_SetTMDS(XV_HdmiTxSs *InstancePtr,
                         XVidC_VideoMode VideoMode,
                         XVidC_ColorFormat ColorFormat,
                         XVidC_ColorDepth Bpc) {
+
     u32 TmdsClk;
 
     TmdsClk = XV_HdmiTx_GetTmdsClk(InstancePtr->HdmiTxPtr,
@@ -1151,9 +1174,58 @@ static void XV_HdmiTxSs_BrdgUnlockedCallback(void *CallbackRef)
 {
   XV_HdmiTxSs *HdmiTxSsPtr = (XV_HdmiTxSs *)CallbackRef;
 
+#ifdef XV_HDMITXSS_LOG_ENABLE
+  XV_HdmiTxSs_LogWrite(HdmiTxSsPtr, XV_HDMITXSS_LOG_EVT_BRDG_UNLOCKED, 0);
+#endif
+
   /* Check if user callback has been registered */
   if (HdmiTxSsPtr->BrdgUnlockedCallback) {
       HdmiTxSsPtr->BrdgUnlockedCallback(HdmiTxSsPtr->BrdgUnlockedRef);
+  }
+}
+
+/*****************************************************************************/
+/**
+*
+* This function is called when a bridge Overflow has occurred.
+*
+* @param  None.
+*
+* @return None.
+*
+* @note   None.
+*
+******************************************************************************/
+static void XV_HdmiTxSs_BrdgOverflowCallback(void *CallbackRef)
+{
+  XV_HdmiTxSs *HdmiTxSsPtr = (XV_HdmiTxSs *)CallbackRef;
+
+  /* Check if user callback has been registered */
+  if (HdmiTxSsPtr->BrdgOverflowCallback) {
+      HdmiTxSsPtr->BrdgOverflowCallback(HdmiTxSsPtr->BrdgOverflowRef);
+  }
+}
+
+
+/*****************************************************************************/
+/**
+*
+* This function is called when a bridge Underflow has occurred.
+*
+* @param  None.
+*
+* @return None.
+*
+* @note   None.
+*
+******************************************************************************/
+static void XV_HdmiTxSs_BrdgUnderflowCallback(void *CallbackRef)
+{
+  XV_HdmiTxSs *HdmiTxSsPtr = (XV_HdmiTxSs *)CallbackRef;
+
+  /* Check if user callback has been registered */
+  if (HdmiTxSsPtr->BrdgUnderflowCallback) {
+      HdmiTxSsPtr->BrdgUnderflowCallback(HdmiTxSsPtr->BrdgUnderflowRef);
   }
 }
 
@@ -1175,7 +1247,7 @@ static void XV_HdmiTxSs_VsCallback(void *CallbackRef)
 
   // Check if user callback has been registered
   if (HdmiTxSsPtr->VsCallback) {
-	HdmiTxSsPtr->VsCallback(HdmiTxSsPtr->VsRef);
+      HdmiTxSsPtr->VsCallback(HdmiTxSsPtr->VsRef);
   }
 }
 
@@ -1229,7 +1301,7 @@ static void XV_HdmiTxSs_StreamUpCallback(void *CallbackRef)
   if (HdmiTxSsPtr->AudioEnabled) {
       /* HDMI TX unmute audio */
       HdmiTxSsPtr->AudioMute = (FALSE);
-      XV_HdmiTx_AudioUnmute(HdmiTxSsPtr->HdmiTxPtr);
+      XV_HdmiTx_AudioEnable(HdmiTxSsPtr->HdmiTxPtr);
   }
 
   /* Configure video bridge mode according to HW setting and video format */
@@ -1295,6 +1367,8 @@ static void XV_HdmiTxSs_StreamDownCallback(void *CallbackRef)
 * (XV_HDMITXSS_HANDLER_VS)            VsCallback
 * (XV_HDMITXSS_HANDLER_STREAM_DOWN)   StreamDownCallback
 * (XV_HDMITXSS_HANDLER_STREAM_UP)     StreamUpCallback
+* (XV_HDMITXSS_HANDLER_BRDGOVERFLOW)  BrdgOverflowCallback
+* (XV_HDMITXSS_HANDLER_BRDGUNDERFLOW) BrdgUnderflowCallback
 * (XV_HDMITXSS_HANDLER_HDCP_AUTHENTICATED)
 * (XV_HDMITXSS_HANDLER_HDCP_DOWNSTREAM_TOPOLOGY_AVAILABLE)
 * (XV_HDMITXSS_HANDLER_HDCP_UNAUTHENTICATED)
@@ -1345,8 +1419,25 @@ int XV_HdmiTxSs_SetCallback(XV_HdmiTxSs *InstancePtr,
 
         // Bridge Unlocked
         case (XV_HDMITXSS_HANDLER_BRDGUNLOCK):
-            InstancePtr->BrdgUnlockedCallback = (XV_HdmiTxSs_Callback)CallbackFunc;
+            InstancePtr->BrdgUnlockedCallback =
+			    (XV_HdmiTxSs_Callback)CallbackFunc;
             InstancePtr->BrdgUnlockedRef = CallbackRef;
+            Status = (XST_SUCCESS);
+            break;
+
+        // Bridge Overflow
+        case (XV_HDMITXSS_HANDLER_BRDGOVERFLOW):
+            InstancePtr->BrdgOverflowCallback =
+			    (XV_HdmiTxSs_Callback)CallbackFunc;
+            InstancePtr->BrdgOverflowRef = CallbackRef;
+            Status = (XST_SUCCESS);
+            break;
+
+        // Bridge Underflow
+        case (XV_HDMITXSS_HANDLER_BRDGUNDERFLOW):
+            InstancePtr->BrdgUnderflowCallback =
+			    (XV_HdmiTxSs_Callback)CallbackFunc;
+            InstancePtr->BrdgUnderflowRef = CallbackRef;
             Status = (XST_SUCCESS);
             break;
 
@@ -1595,7 +1686,7 @@ void XV_HdmiTxSs_StreamStart(XV_HdmiTxSs *InstancePtr)
   XV_HdmiTxSs_LogWrite(InstancePtr, XV_HDMITXSS_LOG_EVT_STREAMSTART, 0);
 #endif
   if ((InstancePtr->HdmiTxPtr->Stream.IsHdmi20 == (FALSE))
-		&& (TmdsClk > 340000000)) {
+  		&& (TmdsClk > 340000000)) {
       xdbg_printf(XDBG_DEBUG_GENERAL,
                   "\r\nWarning: Sink does not support HDMI 2.0\r\n");
       xdbg_printf(XDBG_DEBUG_GENERAL,
@@ -1783,7 +1874,7 @@ void XV_HdmiTxSs_SetAudioChannels(XV_HdmiTxSs *InstancePtr, u8 AudioChannels)
 *
 * This function set HDMI TX audio parameters
 *
-* @param  None.
+* @param  Enable 0: Unmute the audio 1: Mute the audio.
 *
 * @return None.
 *
@@ -1794,13 +1885,13 @@ void XV_HdmiTxSs_AudioMute(XV_HdmiTxSs *InstancePtr, u8 Enable)
 {
   //Audio Mute Mode
   if (Enable){
-    XV_HdmiTx_AudioMute(InstancePtr->HdmiTxPtr);
+	XV_HdmiTx_AudioDisable(InstancePtr->HdmiTxPtr);
 #ifdef XV_HDMITXSS_LOG_ENABLE
     XV_HdmiTxSs_LogWrite(InstancePtr, XV_HDMITXSS_LOG_EVT_AUDIOMUTE, 0);
 #endif
   }
   else{
-    XV_HdmiTx_AudioUnmute(InstancePtr->HdmiTxPtr);
+	XV_HdmiTx_AudioEnable(InstancePtr->HdmiTxPtr);
 #ifdef XV_HDMITXSS_LOG_ENABLE
     XV_HdmiTxSs_LogWrite(InstancePtr, XV_HDMITXSS_LOG_EVT_AUDIOUNMUTE, 0);
 #endif
@@ -1942,7 +2033,7 @@ u32 XV_HdmiTxSs_SetStream(XV_HdmiTxSs *InstancePtr,
 #endif
   if(TmdsClock == 0) {
     xdbg_printf(XDBG_DEBUG_GENERAL,
-                "\nWarning: Sink does not support HDMI 2.0\r\n");
+                "\r\nWarning: Sink does not support HDMI 2.0\r\n");
     xdbg_printf(XDBG_DEBUG_GENERAL,
                 "         Connect to HDMI 2.0 Sink or \r\n");
     xdbg_printf(XDBG_DEBUG_GENERAL,
@@ -2042,11 +2133,11 @@ void XV_HdmiTxSs_SetVideoStreamType(XV_HdmiTxSs *InstancePtr, u8 StreamType)
 {
     //InstancePtr->HdmiTxPtr->Stream.IsHdmi = StreamType;
     if (StreamType) {
-		XV_HdmiTxSS_SetHdmiMode(InstancePtr);
-		XV_HdmiTxSs_AudioMute(InstancePtr, FALSE);
+    	XV_HdmiTxSS_SetHdmiMode(InstancePtr);
+    	XV_HdmiTxSs_AudioMute(InstancePtr, FALSE);
     } else {
-		XV_HdmiTxSs_AudioMute(InstancePtr, TRUE);
-		XV_HdmiTxSS_SetDviMode(InstancePtr);
+    	XV_HdmiTxSs_AudioMute(InstancePtr, TRUE);
+    	XV_HdmiTxSS_SetDviMode(InstancePtr);
     }
 }
 
@@ -2164,16 +2255,17 @@ int XV_HdmiTxSs_DetectHdmi20(XV_HdmiTxSs *InstancePtr)
 ******************************************************************************/
 void XV_HdmiTxSs_RefClockChangeInit(XV_HdmiTxSs *InstancePtr)
 {
-	/* Assert VID_IN bridge resets */
-	XV_HdmiTxSs_SYSRST(InstancePtr, TRUE);
-	XV_HdmiTxSs_VRST(InstancePtr, TRUE);
 
-	/* Assert HDMI TXCore resets */
-	XV_HdmiTxSs_TXCore_LRST(InstancePtr, TRUE);
-	XV_HdmiTxSs_TXCore_VRST(InstancePtr, TRUE);
+      /* Assert VID_IN bridge resets */
+      XV_HdmiTxSs_SYSRST(InstancePtr, TRUE);
+      XV_HdmiTxSs_VRST(InstancePtr, TRUE);
 
-	/* Clear variables */
-	XV_HdmiTx_Clear(InstancePtr->HdmiTxPtr);
+      /* Assert HDMI TXCore resets */
+      XV_HdmiTxSs_TXCore_LRST(InstancePtr, TRUE);
+      XV_HdmiTxSs_TXCore_VRST(InstancePtr, TRUE);
+
+      /* Clear variables */
+      XV_HdmiTx_Clear(InstancePtr->HdmiTxPtr);
 }
 
 /*****************************************************************************/
@@ -2409,10 +2501,10 @@ static void XV_HdmiTxSs_ConfigBridgeMode(XV_HdmiTxSs *InstancePtr) {
     // Pixel Repetition factor of 3 and above are not supported by the bridge
     if (AviInfoFramePtr->PixelRepetition > XHDMIC_PIXEL_REPETITION_FACTOR_2) {
 #ifdef XV_HDMITXSS_LOG_ENABLE
-		XV_HdmiTxSs_LogWrite(InstancePtr, XV_HDMITXSS_LOG_EVT_PIX_REPEAT_ERR,
-				AviInfoFramePtr->PixelRepetition);
+    	XV_HdmiTxSs_LogWrite(InstancePtr, XV_HDMITXSS_LOG_EVT_PIX_REPEAT_ERR,
+    			AviInfoFramePtr->PixelRepetition);
 #endif
-		return;
+    	return;
     }
 
     if (HdmiTxSsVidStreamPtr->ColorFormatId == XVIDC_CSF_YCRCB_420) {
@@ -2525,6 +2617,19 @@ void XV_HdmiTxSS_MaskNoise(XV_HdmiTxSs *InstancePtr, u8 Enable)
     XV_HdmiTx_MaskNoise(InstancePtr->HdmiTxPtr, Enable);
 }
 
+static u32 XV_HdmiTxSS_GetVidMaskColorValue(XV_HdmiTxSs *InstancePtr,
+											u16 Value)
+{
+	u32 Data;
+	s8 Temp;
+
+	Temp = InstancePtr->Config.MaxBitsPerPixel -
+				InstancePtr->HdmiTxPtr->Stream.Video.ColorDepth;
+	Data = Value << ((Temp > 0) ? Temp : 0);
+
+	return Data;
+}
+
 /*****************************************************************************/
 /**
 * This function will set the red component in the video mask.
@@ -2541,30 +2646,7 @@ void XV_HdmiTxSS_MaskSetRed(XV_HdmiTxSs *InstancePtr, u16 Value)
 {
     u32 Data;
 
-	switch (InstancePtr->HdmiTxPtr->Stream.Video.ColorDepth) {
-
-      // 10 bpc
-      case XVIDC_BPC_10:
-        // Color depth
-        Data = (Value << 6);
-        break;
-
-      // 12 bpc
-      case XVIDC_BPC_12:
-        // Color depth
-        Data = (Value << 4);
-        break;
-
-      // 16 bpc
-      case XVIDC_BPC_16:
-        // Color depth
-        Data = Value;
-        break;
-
-      default :
-        Data = (Value << 8);
-        break;
-	}
+    Data = XV_HdmiTxSS_GetVidMaskColorValue(InstancePtr, Value);
 
 	XV_HdmiTx_MaskSetRed(InstancePtr->HdmiTxPtr, (Data));
 }
@@ -2586,30 +2668,7 @@ void XV_HdmiTxSS_MaskSetGreen(XV_HdmiTxSs *InstancePtr, u16 Value)
 {
     u32 Data;
 
-	switch (InstancePtr->HdmiTxPtr->Stream.Video.ColorDepth) {
-
-      // 10 bpc
-      case XVIDC_BPC_10:
-        // Color depth
-        Data = (Value << 6);
-        break;
-
-      // 12 bpc
-      case XVIDC_BPC_12:
-        // Color depth
-        Data = (Value << 4);
-        break;
-
-      // 16 bpc
-      case XVIDC_BPC_16:
-        // Color depth
-        Data = Value;
-        break;
-
-      default :
-        Data = (Value << 8);
-        break;
-	}
+    Data = XV_HdmiTxSS_GetVidMaskColorValue(InstancePtr, Value);
 
 	XV_HdmiTx_MaskSetGreen(InstancePtr->HdmiTxPtr, (Data));
 }
@@ -2630,30 +2689,7 @@ void XV_HdmiTxSS_MaskSetBlue(XV_HdmiTxSs *InstancePtr, u16 Value)
 {
     u32 Data;
 
-	switch (InstancePtr->HdmiTxPtr->Stream.Video.ColorDepth) {
-
-      // 10 bpc
-      case XVIDC_BPC_10:
-        // Color depth
-        Data = (Value << 6);
-        break;
-
-      // 12 bpc
-      case XVIDC_BPC_12:
-        // Color depth
-        Data = (Value << 4);
-        break;
-
-      // 16 bpc
-      case XVIDC_BPC_16:
-        // Color depth
-        Data = Value;
-        break;
-
-      default :
-        Data = (Value << 8);
-        break;
-	}
+    Data = XV_HdmiTxSS_GetVidMaskColorValue(InstancePtr, Value);
 
 	XV_HdmiTx_MaskSetBlue(InstancePtr->HdmiTxPtr, (Data));
 }

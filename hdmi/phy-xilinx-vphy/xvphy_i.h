@@ -36,6 +36,8 @@
  * 1.6   gm   06/08/17 Added XVphy_MmcmLocked, XVphy_ErrorHandler and
  *                       XVphy_PllLayoutErrorHandler APIs
  * 1.7   gm   13/09/17 Removed XVphy_MmcmWriteParameters API
+ * 1.8   gm   23/07/18 Moved APIs XVphy_SetTxVoltageSwing and
+ *                       XVphy_SetTxPreEmphasis to xvphy.c/h
  * </pre>
  *
  * @addtogroup xvphy
@@ -70,10 +72,6 @@ u32 XVphy_PllCalculator(XVphy *InstancePtr, u8 QuadId,
 /* xvphy.c: Voltage swing and preemphasis. */
 void XVphy_SetRxLpm(XVphy *InstancePtr, u8 QuadId, XVphy_ChannelId ChId,
 		XVphy_DirectionType Dir, u8 Enable);
-void XVphy_SetTxVoltageSwing(XVphy *InstancePtr, u8 QuadId,
-		XVphy_ChannelId ChId, u8 Vs);
-void XVphy_SetTxPreEmphasis(XVphy *InstancePtr, u8 QuadId, XVphy_ChannelId ChId,
-		u8 Pe);
 
 /* xvphy.c: Channel configuration functions - setters. */
 u32 XVphy_WriteCfgRefClkSelReg(XVphy *InstancePtr, u8 QuadId);

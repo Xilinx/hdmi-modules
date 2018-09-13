@@ -101,6 +101,7 @@
 *                           for cleaner HPD flow during transition from HDMI2.0
 *                           to HDMI1.4
 *       YH     13/04/18 Fixed a bug in XV_HdmiRxSs_BrdgOverflowCallback
+* 5.20	EB     03/08/18 Added function XV_HdmiRxSs_AudioMute
 ******************************************************************************/
 
 /***************************** Include Files *********************************/
@@ -174,7 +175,7 @@ static void XV_HdmiRxSs_ConfigBridgeMode(XV_HdmiRxSs *InstancePtr);
 /**
 * This macros selects the bridge pixel repeat mode
 *
-* @param  InstancePtr is a pointer to the HDMI TX Subsystem
+* @param  InstancePtr is a pointer to the HDMI RX Subsystem
 *
 *****************************************************************************/
 #define XV_HdmiRxSs_BridgePixelDrop(InstancePtr,Enable) \
@@ -195,7 +196,8 @@ void XV_HdmiRxSs_ReportInfo(XV_HdmiRxSs *InstancePtr)
     xil_printf("HDMI RX Mode - ");
     if (InstancePtr->HdmiRxPtr->Stream.IsHdmi == (TRUE)) {
         xil_printf("HDMI\r\n");
-    } else {
+    }
+    else {
         xil_printf("DVI\r\n");
     }
     xil_printf("------------\r\n");
@@ -2218,4 +2220,25 @@ int XV_HdmiRxSs_ShowInfo(XV_HdmiRxSs *InstancePtr, char *buff, int buff_size)
 	XV_HdmiRx_ClearLinkStatus(InstancePtr->HdmiRxPtr);
 
   return strSize;
+}
+
+/*
+* This function set HDMI RX audio parameters
+*
+* @param  Enable 0: Unmute the audio 1: Mute the audio.
+*
+* @return None.
+*
+* @note   None.
+*
+******************************************************************************/
+void XV_HdmiRxSs_AudioMute(XV_HdmiRxSs *InstancePtr, u8 Enable)
+{
+  //Audio Mute Mode
+  if (Enable){
+	XV_HdmiRx_AudioDisable(InstancePtr->HdmiRxPtr);
+  }
+  else{
+	XV_HdmiRx_AudioEnable(InstancePtr->HdmiRxPtr);
+  }
 }

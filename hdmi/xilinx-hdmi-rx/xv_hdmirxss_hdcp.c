@@ -507,6 +507,7 @@ static int XV_HdmiRxSs_HdcpProcessEvents(XV_HdmiRxSs *InstancePtr)
 #endif
       break;
 
+#ifdef USE_HDCP_14_PROT_EVT_ENUM
     // HDCP 1.4 protocol event
     // Enable HDCP 1.4
     case XV_HDMIRXSS_HDCP_1_PROT_EVT :
@@ -518,7 +519,9 @@ static int XV_HdmiRxSs_HdcpProcessEvents(XV_HdmiRxSs *InstancePtr)
       }
 #endif
       break;
+#endif
 
+#ifdef USE_HDCP_22_PROT_EVT_ENUM
     // HDCP 2.2 protocol event
     // Enable HDCP 2.2
     case XV_HDMIRXSS_HDCP_2_PROT_EVT :
@@ -530,6 +533,7 @@ static int XV_HdmiRxSs_HdcpProcessEvents(XV_HdmiRxSs *InstancePtr)
       }
 #endif
       break;
+#endif
 
     // DVI mode event
     case XV_HDMIRXSS_HDCP_DVI_MODE_EVT:
@@ -560,11 +564,11 @@ static int XV_HdmiRxSs_HdcpProcessEvents(XV_HdmiRxSs *InstancePtr)
 
       // Sync est/recover event
       case XV_HDMIRXSS_HDCP_SYNC_EST_EVT:
-#ifdef XPAR_XHDCP_NUM_INSTANCES
+  #ifdef XPAR_XHDCP_NUM_INSTANCES
         if (InstancePtr->Hdcp14Ptr) {
           XHdcp1x_SetHdmiMode(InstancePtr->Hdcp14Ptr, TRUE);
         }
-#endif
+  #endif
         break;
 
     default :
