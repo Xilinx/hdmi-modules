@@ -55,7 +55,7 @@ Required Properties:
 		functionality. If present, indicates optional audio core needed
 		for audio usecase is included.
  - xlnx,aes_parser: alias to audio channel status extractor block
- - xlnx,xlnx-snd-pcm: reference to audio formatter block. Add this if,
+ - xlnx,snd-pcm: reference to audio formatter block. Add this if,
 	              audio formatter is going to be used for HDMI audio.
  - ports: Video ports, using the DT bindings defined in ../video-interfaces.txt.
           The Rx only has an output port (0).
@@ -91,7 +91,7 @@ added to the device tree
 		xlnx,include-hdcp-2-2;
 		xlnx,audio-enabled;
 		xlnx,aes_parser = <&hdmi_audio_aes_parser_0>;
-		xlnx,xlnx-snd-pcm = <&audio_ss_0_audio_formatter_0>;
+		xlnx,snd-pcm = <&audio_ss_0_audio_formatter_0>;
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
