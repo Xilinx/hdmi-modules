@@ -951,7 +951,7 @@ static u32 hdmitx_find_media_bus(u32 drm_fourcc)
 		return XVIDC_CSF_YCRCB_420;
 
 	default:
-		printk("Error: Unknown drm_fourcc format code: %d\n", drm_fourcc);
+		printk("Warning: Unknown drm_fourcc format code: %d\n", drm_fourcc);
 		return XVIDC_CSF_RGB;
 	}
 }
