@@ -591,6 +591,12 @@ static void TxStreamUpCallback(void *CallbackRef)
 	if (xhdmi->hdcp_authenticate) {
 		XHdcp_Authenticate(HdmiTxSsPtr);
 	}
+
+	/* Enable Audio */
+	if (xhdmi->audio_enabled) {
+		XV_HdmiTxSs_AudioMute(HdmiTxSsPtr, 0);
+	}
+
 	dev_dbg(xhdmi->dev,"TxStreamUpCallback(): done\n");
 }
 
