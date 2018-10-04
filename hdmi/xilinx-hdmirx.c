@@ -1653,15 +1653,6 @@ static int xhdmi_parse_of(struct xhdmi_device *xhdmi, XV_HdmiRxSs_Config *config
 		XHdcp22_Rng_ConfigTable[XPAR_XHDCP22_RNG_NUM_INSTANCES/2 + instance].BaseAddress = RX_HDCP22_RNG_OFFSET;
 	}
 
-	if (xhdmi->audio_enabled) {
-		xhdmi->rx_audio_data->aes_base = hdmirx_parse_aud_dt(dev);
-		if (!xhdmi->rx_audio_data->aes_base) {
-			xhdmi->audio_init = false;
-			dev_err(dev, "audio rx: aes parser not found!\n");
-		}
-	} else {
-		dev_info(dev, "hdmi rx audio disabled in DT\n");
-	}
 
 	return 0;
 
@@ -2037,7 +2028,7 @@ static int xhdmi_probe(struct platform_device *pdev)
 	/* probe has succeeded for this instance, increment instance index */
 	instance++;
 
-	if (xhdmi->audio_enabled && xhdmi->rx_audio_data->aes_base) {
+	if (xhdmi->audio_enabled) {
 		ret = hdmirx_register_aud_dev(xhdmi->dev);
 		if (ret < 0) {
 			xhdmi->audio_init = false;
