@@ -844,15 +844,19 @@ static void RxAudCallback(void *CallbackRef)
 {
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)CallbackRef;
 	XV_HdmiRxSs *HdmiRxSsPtr = &xhdmi->xv_hdmirxss;
-	XV_HdmiRx_AudioFormatType format;
-	u8 NumChannels;
+	struct xlnx_hdmirx_audio_data *adata = xhdmi->rx_audio_data;
 
 	dev_dbg(xhdmi->dev,"%s()\n", __func__);
-	format = XV_HdmiRxSs_GetAudioFormat(HdmiRxSsPtr);
-	NumChannels = XV_HdmiRxSs_GetAudioChannels(HdmiRxSsPtr);
+	adata->format = XV_HdmiRxSs_GetAudioFormat(HdmiRxSsPtr);
+	adata->num_channels = XV_HdmiRxSs_GetAudioChannels(HdmiRxSsPtr);
 	//ToDo: Insert registered ALSA driver call-back
-	dev_dbg(xhdmi->dev, "Channels = %d\n", NumChannels);
-	dev_dbg(xhdmi->dev, "Format   = %d\n", format);
+	if (xhdmi->audio_init && adata->num_channels >= 2) {
+		adata->audio_detected = true;
+		wake_up_interruptible(&adata->audio_update_q);
+	}
+
+	dev_dbg(xhdmi->dev, "Channels = %d\n", adata->num_channels);
+	dev_dbg(xhdmi->dev, "Format   = %d\n", adata->format);
 }
 
 static void RxAuxCallback(void *CallbackRef)
@@ -1675,6 +1679,7 @@ static int xhdmi_probe(struct platform_device *pdev)
 	unsigned long axi_clk_rate;
 
 	XV_HdmiRxSs *HdmiRxSsPtr;
+	struct xlnx_hdmirx_audio_data *adata;
 	u32 Status;
 
 	dev_info(&pdev->dev, "probed\n");
@@ -1688,6 +1693,7 @@ static int xhdmi_probe(struct platform_device *pdev)
 	if (!xhdmi->rx_audio_data)
 		return -ENOMEM;
 
+	adata = xhdmi->rx_audio_data;
 	/* store pointer of the real device inside platform device */
 	xhdmi->dev = &pdev->dev;
 
@@ -2035,6 +2041,7 @@ static int xhdmi_probe(struct platform_device *pdev)
 			dev_err(xhdmi->dev, "hdmi rx audio init failed\n");
 		} else {
 			xhdmi->audio_init = true;
+			init_waitqueue_head(&adata->audio_update_q);
 			dev_info(xhdmi->dev, "hdmi rx audio initialized\n");
 		}
 	}
@@ -2116,16 +2123,26 @@ struct xlnx_hdmirx_audio_data *hdmirx_get_audio_data(struct device *dev)
 
 u32 hdmirx_audio_startup(struct device *dev)
 {
-	u32 channel_count;
+	int err;
+	struct xlnx_hdmirx_audio_data *adata;
+	unsigned long jiffies = msecs_to_jiffies(XHDMI_AUDIO_DETECT_TIMEOUT);
 	struct xhdmi_device *xhdmi = dev_get_drvdata(dev);
 	XV_HdmiRxSs *HdmiRxSsPtr = &xhdmi->xv_hdmirxss;
+	adata = xhdmi->rx_audio_data;
 
 	hdmi_mutex_lock(&xhdmi->xhdmi_mutex);
 	XV_HdmiRx_AudioEnable(HdmiRxSsPtr->HdmiRxPtr);
-	channel_count =  XV_HdmiRxSs_GetAudioChannels(HdmiRxSsPtr);
 	hdmi_mutex_unlock(&xhdmi->xhdmi_mutex);
 
-	return channel_count;
+	err = wait_event_interruptible_timeout(adata->audio_update_q,
+					       adata->audio_detected,
+					       jiffies);
+	if (!err) {
+		dev_err(dev, "No audio detected in input stream\n");
+		return 0;
+	}
+
+	return adata->num_channels;
 }
 
 void hdmirx_audio_shutdown(struct device *dev)

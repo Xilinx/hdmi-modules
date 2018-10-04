@@ -18,6 +18,8 @@
 #ifndef __XILINX_HDMI_RX_AUD_H__
 #define __XILINX_HDMI_RX_AUD_H__
 
+#define XHDMI_AUDIO_DETECT_TIMEOUT 50
+
 struct xlnx_hdmirx_audio_data *hdmirx_get_audio_data(struct device *dev);
 int hdmirx_register_aud_dev(struct device *dev);
 void hdmirx_unregister_aud_dev(struct device *dev);
@@ -26,5 +28,9 @@ void hdmirx_audio_shutdown(struct device *dev);
 
 struct xlnx_hdmirx_audio_data {
 	void __iomem *aes_base;
+	bool audio_detected;
+	wait_queue_head_t audio_update_q;
+	int format;
+	u8 num_channels;
 };
 #endif /* __XILINX_HDMI_RX_AUD_H__ */
