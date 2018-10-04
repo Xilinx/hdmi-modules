@@ -552,9 +552,11 @@ static void TxStreamUpCallback(void *CallbackRef)
 		 (HdmiTxSsVidStreamPtr->VmId == XVIDC_VM_1440x576_50_I) ) {
 		AVIInfoFramePtr->PixelRepetition =
 				XHDMIC_PIXEL_REPETITION_FACTOR_2;
+		dev_dbg(xhdmi->dev,"Pixel repetition set to 2\n");
 	} else {
 		AVIInfoFramePtr->PixelRepetition =
 				XHDMIC_PIXEL_REPETITION_FACTOR_1;
+		dev_dbg(xhdmi->dev,"Pixel repetition set to 1\n");
 	}
 
 	xvphy_mutex_lock(xhdmi->phy[0]);
@@ -791,6 +793,16 @@ static int xlnx_drm_hdmi_connector_mode_valid(struct drm_connector *connector,
 	enum drm_mode_status status = MODE_OK;
 
 	dev_dbg(xhdmi->dev, "%s\n", __func__);
+
+	/* This is done to make the functionality similar as BM code in which the
+	 * timing table has vdisplay value of 540 for 1080i usecase.
+	 * By this change, doing modetest -M xlnx, will give vdisplay 540 instead of
+	 * 1080 */
+	if(mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		mode->vdisplay = mode->vdisplay / 2;
+		dev_dbg(xhdmi->dev, "For interlaced, divide mode->vdisplay %d\n", mode->vdisplay);
+	}
+
 	drm_mode_debug_printmodeline(mode);
 	hdmi_mutex_lock(&xhdmi->hdmi_mutex);
 	/* HDMI 2.0 sink connected? */
@@ -990,7 +1002,6 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	u32 PrevPhyTxRefClock = 0;
 	u32 Result;
 	u32 drm_fourcc;
-	XVidC_VideoMode VmId;
 	XVidC_ColorDepth ColorDepth;
 	int ret;
 
@@ -1020,6 +1031,8 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	dev_dbg(xhdmi->dev,"mode->htotal = %d\n", mode->htotal);
 	dev_dbg(xhdmi->dev,"mode->vtotal = %d\n", mode->vtotal);
 	dev_dbg(xhdmi->dev,"mode->vrefresh = %d\n", mode->vrefresh);
+	dev_dbg(xhdmi->dev,"mode->flags = %d interlace = %d\n", mode->flags,
+			!!(mode->flags & DRM_MODE_FLAG_INTERLACE));
 
 	/* see slide 20 of http://events.linuxfoundation.org/sites/events/files/slides/brezillon-drm-kms.pdf */
 	vt.HActive = mode->hdisplay;
@@ -1029,17 +1042,47 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	vt.HTotal = mode->htotal;
 	vt.HSyncPolarity = !!(mode->flags & DRM_MODE_FLAG_PHSYNC);
 
+	/* Enable this code for debugging of NTSC and PAL resolution */
+#if 0
+	if((mode->hdisplay == 720) && (mode->vdisplay == 240) && (mode->vrefresh == 60)
+			&& (mode->flags & DRM_MODE_FLAG_INTERLACE))
+	{
+		dev_dbg(xhdmi->dev,"NTSC/PAL\n\n");
+		vt.HActive *= 2;
+		vt.HFrontPorch *= 2;
+		vt.HSyncWidth *= 2;
+		vt.HBackPorch *= 2;
+		vt.HTotal *= 2;
+	}
+#endif
 	vt.VActive = mode->vdisplay;
 	/* Progressive timing data is stored in field 0 */
 	vt.F0PVFrontPorch = mode->vsync_start - mode->vdisplay;
 	vt.F0PVSyncWidth = mode->vsync_end - mode->vsync_start;
 	vt.F0PVBackPorch = mode->vtotal - mode->vsync_end;
 	vt.F0PVTotal = mode->vtotal;
-	/* Interlaced output is not support - set field 1 to 0 */
-	vt.F1VFrontPorch = 0;
-	vt.F1VSyncWidth = 0;
-	vt.F1VBackPorch = 0;
-	vt.F1VTotal = 0;
+
+	if(mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		dev_dbg(xhdmi->dev,"Programming fields for interlace");
+
+		vt.VActive = mode->vdisplay;
+
+		vt.F0PVFrontPorch = (mode->vsync_start - (mode->vdisplay * 2)) / 2;
+		vt.F0PVSyncWidth = (mode->vsync_end - mode->vsync_start) / 2;
+		vt.F0PVBackPorch = (mode->vtotal - mode->vsync_end) / 2;
+		vt.F0PVTotal = mode->vdisplay + vt.F0PVFrontPorch + vt.F0PVSyncWidth
+				+ vt.F0PVBackPorch;
+
+		if((mode->vtotal - mode->vsync_end) % 2)
+			vt.F1VFrontPorch = 1 + (mode->vsync_start - (mode->vdisplay * 2)) / 2;
+		else
+			vt.F1VFrontPorch = (mode->vsync_start - (mode->vdisplay * 2)) / 2;
+		vt.F1VSyncWidth = (mode->vsync_end - mode->vsync_start) / 2;
+		vt.F1VBackPorch = (mode->vtotal - mode->vsync_end) / 2;
+		vt.F1VTotal = mode->vdisplay + vt.F1VFrontPorch + vt.F1VSyncWidth
+				+ vt.F1VBackPorch;
+	}
+
 	vt.VSyncPolarity = !!(mode->flags & DRM_MODE_FLAG_PVSYNC);
 
 	HdmiTxSsVidStreamPtr = XV_HdmiTxSs_GetVideoStream(HdmiTxSsPtr);
@@ -1059,16 +1102,18 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 
 	/* The isExtensive is made true to get the correct video timing by matching
 	 * all the parameters */
-	VmId = XVidC_GetVideoModeIdExtensive(&vt, mode->vrefresh, FALSE, TRUE);
+	HdmiTxSsVidStreamPtr->VmId = XVidC_GetVideoModeIdExtensive(&vt,
+			mode->vrefresh, !!(mode->flags & DRM_MODE_FLAG_INTERLACE), TRUE);
 
-	dev_dbg(xhdmi->dev,"VmId = %d\n", VmId);
-	if (VmId == XVIDC_VM_NOT_SUPPORTED) { //no match found in timing table
+	dev_dbg(xhdmi->dev,"VmId = %d Interlaced = %d\n", HdmiTxSsVidStreamPtr->VmId, !!(mode->flags & DRM_MODE_FLAG_INTERLACE));
+	if (HdmiTxSsVidStreamPtr->VmId == XVIDC_VM_NOT_SUPPORTED) { //no match found in timing table
 		dev_dbg(xhdmi->dev,"Tx Video Mode not supported. Using DRM Timing\n");
-		VmId = XVIDC_VM_CUSTOM;
+		HdmiTxSsVidStreamPtr->VmId = XVIDC_VM_CUSTOM;
 		HdmiTxSsVidStreamPtr->FrameRate = mode->vrefresh;
 		HdmiTxSsVidStreamPtr->Timing = vt; //overwrite with drm detected timing
+		HdmiTxSsVidStreamPtr->IsInterlaced = (!!(mode->flags & DRM_MODE_FLAG_INTERLACE));
 #ifdef DEBUG
-		XVidC_ReportTiming(&HdmiTxSsVidStreamPtr->Timing, FALSE);
+		XVidC_ReportTiming(&HdmiTxSsVidStreamPtr->Timing, !!(mode->flags & DRM_MODE_FLAG_INTERLACE));
 #endif
 	}
 
@@ -1090,7 +1135,7 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 			break;
 	}
 
-	TmdsClock = XV_HdmiTxSs_SetStream(HdmiTxSsPtr, VmId, xhdmi->xvidc_colorfmt,
+	TmdsClock = XV_HdmiTxSs_SetStream(HdmiTxSsPtr, HdmiTxSsVidStreamPtr->VmId, xhdmi->xvidc_colorfmt,
 						ColorDepth, NULL);
 
 	//Update AVI InfoFrame
@@ -1111,7 +1156,6 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 					HdmiTxSsVidStreamPtr->PixPerClk,
 					HdmiTxSsVidStreamPtr->ColorDepth,
 					HdmiTxSsVidStreamPtr->ColorFormatId);
-
 	if (Result == (XST_FAILURE)) {
 		dev_dbg(xhdmi->dev,"Unable to set requested TX video resolution.\n\r");
 		xvphy_mutex_unlock(xhdmi->phy[0]);
@@ -1867,7 +1911,7 @@ static int xlnx_drm_hdmi_create_connector(struct drm_encoder *encoder)
 						DRM_CONNECTOR_POLL_CONNECT |
 						DRM_CONNECTOR_POLL_DISCONNECT;
 
-	connector->interlace_allowed = false;
+	connector->interlace_allowed = true;
 	ret = drm_connector_init(encoder->dev, connector,
 				 &xlnx_drm_hdmi_connector_funcs,
 				 DRM_MODE_CONNECTOR_HDMIA);

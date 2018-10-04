@@ -736,7 +736,10 @@ static void RxStreamUpCallback(void *CallbackRef)
 	xhdmi->detected_format.width = Stream->Timing.HActive;
 	xhdmi->detected_format.height = Stream->Timing.VActive;
 
-	xhdmi->detected_format.field = Stream->IsInterlaced? V4L2_FIELD_INTERLACED: V4L2_FIELD_NONE;
+	/* There is no point in setting feild V4L2_FIELD_INTERLACED as it is not getting used */
+	//xhdmi->detected_format.field = Stream->IsInterlaced? V4L2_FIELD_INTERLACED: V4L2_FIELD_NONE;
+	xhdmi->detected_format.field = V4L2_FIELD_NONE;
+
 	/* https://linuxtv.org/downloads/v4l-dvb-apis/ch02s05.html#v4l2-colorspace */
 	if (Stream->ColorFormatId == XVIDC_CSF_RGB) {
 		dev_dbg(xhdmi->dev,"xhdmi->detected_format.colorspace = V4L2_COLORSPACE_SRGB\n");
