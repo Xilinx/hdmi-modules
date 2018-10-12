@@ -1,6 +1,5 @@
 SRC := $(shell pwd)
 
-obj-m	+= clk/
 obj-m	+= hdmi/
 obj-m	+= misc/
 
