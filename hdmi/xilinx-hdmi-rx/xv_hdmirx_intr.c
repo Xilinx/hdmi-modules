@@ -47,6 +47,12 @@
 *                           each clock domain
 *       MMO    08/02/18 Adding proper handling for Sync Loss/Sync Recover
 * 2.10  YH     13/04/18 Fixed a bug in PioIntrHandler
+* 2.20  EB     16/08/18 Replaced TIME_10MS, TIME_16MS, TIME_200MS with
+*                           XV_HdmiRx_GetTime10Ms, XV_HdmiRx_GetTime16Ms
+*                           XV_HdmiRx_GetTime200Ms
+*       YB     08/15/18 Added new cases for HDCP 1.4 & 2.2 protocol events in
+*                           XV_HdmiRx_SetCallback function.
+*                       Updated the HdmiRx_DdcIntrHandler() function.
 * </pre>
 *
 ******************************************************************************/
@@ -286,12 +292,28 @@ int XV_HdmiRx_SetCallback(XV_HdmiRx *InstancePtr, u32 HandlerType, void *Callbac
             Status = (XST_SUCCESS);
             break;
 
-		case (XV_HDMIRX_HANDLER_LINK_ERROR):
-			InstancePtr->LinkErrorCallback = (XV_HdmiRx_Callback)CallbackFunc;
-			InstancePtr->LinkErrorRef = CallbackRef;
-			InstancePtr->IsLinkErrorCallbackSet = (TRUE);
+        // HDCP 1.4 Event
+        case (XV_HDMIRX_HANDLER_DDC_HDCP_14_PROT):
+       	    InstancePtr->Hdcp14ProtEvtCallback = (XV_HdmiRx_Callback)CallbackFunc;
+       	    InstancePtr->Hdcp14ProtEvtRef = CallbackRef;
+       	    InstancePtr->IsHdcp14ProtEvtCallbackSet = (TRUE);
 			Status = (XST_SUCCESS);
-			break;
+       	    break;
+
+        // HDCP 2.2 Event
+        case (XV_HDMIRX_HANDLER_DDC_HDCP_22_PROT):
+       	    InstancePtr->Hdcp22ProtEvtCallback = (XV_HdmiRx_Callback)CallbackFunc;
+	    	InstancePtr->Hdcp22ProtEvtRef = CallbackRef;
+	    	InstancePtr->IsHdcp22ProtEvtCallbackSet = (TRUE);
+			Status = (XST_SUCCESS);
+	    break;
+
+        case (XV_HDMIRX_HANDLER_LINK_ERROR):
+            InstancePtr->LinkErrorCallback = (XV_HdmiRx_Callback)CallbackFunc;
+            InstancePtr->LinkErrorRef = CallbackRef;
+            InstancePtr->IsLinkErrorCallbackSet = (TRUE);
+            Status = (XST_SUCCESS);
+            break;
 
         // Bridge FIFO Overflow
         case (XV_HDMIRX_HANDLER_BRDG_OVERFLOW):
@@ -394,8 +416,8 @@ void HdmiRx_VtdIntrHandler(XV_HdmiRx *InstancePtr)
                 InstancePtr->Stream.State = XV_HDMIRX_STATE_STREAM_LOCK;
 
             } else if (InstancePtr->Stream.SyncStatus == XV_HDMIRX_SYNCSTAT_SYNC_LOSS) {
-				// Sync Est/Recover Flag
-				InstancePtr->Stream.SyncStatus = XV_HDMIRX_SYNCSTAT_SYNC_EST;
+            	// Sync Est/Recover Flag
+            	InstancePtr->Stream.SyncStatus = XV_HDMIRX_SYNCSTAT_SYNC_EST;
 
 				// Call sync lost callback
 				if (InstancePtr->IsSyncLossCallbackSet) {
@@ -413,8 +435,8 @@ void HdmiRx_VtdIntrHandler(XV_HdmiRx *InstancePtr)
         XV_HdmiRx_WriteReg(InstancePtr->Config.BaseAddress, (XV_HDMIRX_VTD_STA_OFFSET), (XV_HDMIRX_VTD_STA_SYNC_LOSS_EVT_MASK));
 
         if (InstancePtr->Stream.State == XV_HDMIRX_STATE_STREAM_UP) {
-			// Enable the Stream Up + Sync Loss Flag
-			InstancePtr->Stream.SyncStatus = XV_HDMIRX_SYNCSTAT_SYNC_LOSS;
+        	// Enable the Stream Up + Sync Loss Flag
+        	InstancePtr->Stream.SyncStatus = XV_HDMIRX_SYNCSTAT_SYNC_LOSS;
 
 			// Call sync lost callback
 			if (InstancePtr->IsSyncLossCallbackSet) {
@@ -498,8 +520,8 @@ void HdmiRx_DdcIntrHandler(XV_HdmiRx *InstancePtr)
         XV_HdmiRx_WriteReg(InstancePtr->Config.BaseAddress, (XV_HDMIRX_DDC_STA_OFFSET), (XV_HDMIRX_DDC_STA_HDCP_1_PROT_EVT_MASK));
 
         /* Callback */
-        if (InstancePtr->IsHdcpCallbackSet) {
-            InstancePtr->HdcpCallback(InstancePtr->HdcpRef, XV_HDMIRX_DDC_STA_HDCP_1_PROT_EVT_MASK);
+        if (InstancePtr->IsHdcp14ProtEvtCallbackSet) {
+            InstancePtr->Hdcp14ProtEvtCallback(InstancePtr->Hdcp14ProtEvtRef);
         }
     }
 
@@ -510,8 +532,8 @@ void HdmiRx_DdcIntrHandler(XV_HdmiRx *InstancePtr)
         XV_HdmiRx_WriteReg(InstancePtr->Config.BaseAddress, (XV_HDMIRX_DDC_STA_OFFSET), (XV_HDMIRX_DDC_STA_HDCP_2_PROT_EVT_MASK));
 
         /* Callback */
-        if (InstancePtr->IsHdcpCallbackSet) {
-            InstancePtr->HdcpCallback(InstancePtr->HdcpRef, XV_HDMIRX_DDC_STA_HDCP_2_PROT_EVT_MASK);
+        if (InstancePtr->IsHdcp22ProtEvtCallbackSet) {
+            InstancePtr->Hdcp22ProtEvtCallback(InstancePtr->Hdcp22ProtEvtRef);
         }
     }
 
@@ -533,8 +555,6 @@ void HdmiRx_PioIntrHandler(XV_HdmiRx *InstancePtr)
 {
     u32 Event;
     u32 Data;
-	u32 Time_10ms  = InstancePtr->Config.AxiLiteClkFreq/100;
-	u32 Time_200ms = InstancePtr->Config.AxiLiteClkFreq/5;
 
     /* Read PIO IN Event register.*/
     Event = XV_HdmiRx_ReadReg(InstancePtr->Config.BaseAddress, (XV_HDMIRX_PIO_IN_EVT_OFFSET));
@@ -576,7 +596,8 @@ void HdmiRx_PioIntrHandler(XV_HdmiRx *InstancePtr)
         InstancePtr->Stream.State = XV_HDMIRX_STATE_STREAM_IDLE;            // The stream idle
 
         // Load timer
-        XV_HdmiRx_TmrStart(InstancePtr, Time_10ms); // 10 ms
+        XV_HdmiRx_TmrStart(InstancePtr,
+        		XV_HdmiRx_GetTime10Ms(InstancePtr)); // 10 ms
     }
 
     // Video ready event has occurred
@@ -603,8 +624,9 @@ void HdmiRx_PioIntrHandler(XV_HdmiRx *InstancePtr)
 				// Set stream status to arm
                 InstancePtr->Stream.State = XV_HDMIRX_STATE_STREAM_ARM;         // The stream is armed
 
-                // Load timer
-                XV_HdmiRx_TmrStart(InstancePtr, Time_200ms); // 200 ms (one UHD frame is 40 ms, 5 frames)
+                // Load timer - 200 ms (one UHD frame is 40 ms, 5 frames)
+                XV_HdmiRx_TmrStart(InstancePtr,
+                		XV_HdmiRx_GetTime200Ms(InstancePtr));
             }
         }
 
@@ -681,11 +703,12 @@ void HdmiRx_PioIntrHandler(XV_HdmiRx *InstancePtr)
             /* Clear variables */
             XV_HdmiRx_Clear(InstancePtr);
 
-			// Set stream status to idle
+        	// Set stream status to idle
             InstancePtr->Stream.State = XV_HDMIRX_STATE_STREAM_IDLE;
 
             // Load timer
-            XV_HdmiRx_TmrStart(InstancePtr, Time_10ms);           // 10 ms
+            XV_HdmiRx_TmrStart(InstancePtr,
+            		XV_HdmiRx_GetTime10Ms(InstancePtr)); // 10 ms
         }
 
         // Call mode callback
@@ -719,7 +742,6 @@ void HdmiRx_PioIntrHandler(XV_HdmiRx *InstancePtr)
 void HdmiRx_TmrIntrHandler(XV_HdmiRx *InstancePtr)
 {
     u32 Status;
-	u32 Time_200ms = InstancePtr->Config.AxiLiteClkFreq/5;
 
     /* Read Status register */
     Status = XV_HdmiRx_ReadReg(InstancePtr->Config.BaseAddress, (XV_HDMIRX_TMR_STA_OFFSET));
@@ -751,8 +773,9 @@ void HdmiRx_TmrIntrHandler(XV_HdmiRx *InstancePtr)
             // Clear GetVideoPropertiesTries
             InstancePtr->Stream.GetVideoPropertiesTries = 0;
 
-            // Load timer
-            XV_HdmiRx_TmrStart(InstancePtr, Time_200ms); // 200 ms (one UHD frame is 40 ms, 5 frames)
+            // Load timer - 200 ms (one UHD frame is 40 ms, 5 frames)
+            XV_HdmiRx_TmrStart(InstancePtr,
+            		XV_HdmiRx_GetTime200Ms(InstancePtr));
         }
 
         // Init state
@@ -797,8 +820,9 @@ void HdmiRx_TmrIntrHandler(XV_HdmiRx *InstancePtr)
 			}
 
             else {
-		// Load timer
-                XV_HdmiRx_TmrStart(InstancePtr, Time_200ms);  // 200 ms (one UHD frame is 40 ms, 5 frames)
+		// Load timer - 200 ms (one UHD frame is 40 ms, 5 frames)
+                XV_HdmiRx_TmrStart(InstancePtr,
+                		XV_HdmiRx_GetTime200Ms(InstancePtr));
             }
         }
 
@@ -839,12 +863,12 @@ void HdmiRx_AuxIntrHandler(XV_HdmiRx *InstancePtr)
 
     /* Check for GCP colordepth event */
     if ((Status) & (XV_HDMIRX_AUX_STA_GCP_CD_EVT_MASK)) {
-		/* Clear event flag */
-		XV_HdmiRx_WriteReg(InstancePtr->Config.BaseAddress, (XV_HDMIRX_AUX_STA_OFFSET), (XV_HDMIRX_AUX_STA_GCP_CD_EVT_MASK));
+    	/* Clear event flag */
+    	XV_HdmiRx_WriteReg(InstancePtr->Config.BaseAddress, (XV_HDMIRX_AUX_STA_OFFSET), (XV_HDMIRX_AUX_STA_GCP_CD_EVT_MASK));
 
-		if ((Status) & (XV_HDMIRX_AUX_STA_GCP_MASK)) {
-			InstancePtr->Stream.Video.ColorDepth = XV_HdmiRx_GetGcpColorDepth(InstancePtr);
-		}
+    	if ((Status) & (XV_HDMIRX_AUX_STA_GCP_MASK)) {
+    		InstancePtr->Stream.Video.ColorDepth = XV_HdmiRx_GetGcpColorDepth(InstancePtr);
+    	}
     }
 
     /* Check for new packet */

@@ -80,6 +80,11 @@
  * 1.7   gm   13/09/17 Added GTYE4 support
  *                     Added XVphy_SetPolarity, XVphy_SetPrbsSel and
  *                        XVphy_TxPrbsForceError APIs
+ * 1.8   gm   05/14/18 Updated CDR values for DP in xvphy_gtye4.c
+ *                     Removed XVphy_DrpWrite and XVphy_DrpRead APIs
+ *            23/07/18 Added APIs XVphy_SetTxVoltageSwing and
+ *                       XVphy_SetTxPreEmphasis from xvphy_i.c/h
+ *                     Added XVphy_SetTxPostCursor API
  * </pre>
  *
 *******************************************************************************/
@@ -857,12 +862,14 @@ u32 XVphy_SetPrbsSel(XVphy *InstancePtr, u8 QuadId, XVphy_ChannelId ChId,
 		XVphy_DirectionType Dir, XVphy_PrbsPattern Pattern);
 u32 XVphy_TxPrbsForceError(XVphy *InstancePtr, u8 QuadId,
 		XVphy_ChannelId ChId, u8 ForceErr);
+void XVphy_SetTxVoltageSwing(XVphy *InstancePtr, u8 QuadId,
+		XVphy_ChannelId ChId, u8 Vs);
+void XVphy_SetTxPreEmphasis(XVphy *InstancePtr, u8 QuadId,
+        XVphy_ChannelId ChId, u8 Pe);
+void XVphy_SetTxPostCursor(XVphy *InstancePtr, u8 QuadId, XVphy_ChannelId ChId,
+		u8 Pc);
 
 /* xvphy.c: GT/MMCM DRP access. */
-u32 XVphy_DrpWrite(XVphy *InstancePtr, u8 QuadId, XVphy_ChannelId ChId,
-		u16 Addr, u16 Val) __attribute__ ((deprecated));
-u16 XVphy_DrpRead(XVphy *InstancePtr, u8 QuadId, XVphy_ChannelId ChId,
-		u16 Addr) __attribute__ ((deprecated));
 u32 XVphy_DrpWr(XVphy *InstancePtr, u8 QuadId, XVphy_ChannelId ChId,
 		u16 Addr, u16 Val);
 u16 XVphy_DrpRd(XVphy *InstancePtr, u8 QuadId, XVphy_ChannelId ChId,

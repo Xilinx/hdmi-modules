@@ -282,6 +282,10 @@ int XV_HdmiTxSs_LogShow(XV_HdmiTxSs *InstancePtr, char *buff, int buff_size)
 			strSize += scnprintf(buff+strSize, buff_size-strSize,
 					"Unsupported Video by VTC\r\n");
 			break;
+	    case (XV_HDMITXSS_LOG_EVT_BRDG_UNLOCKED):
+			strSize += scnprintf(buff+strSize, buff_size-strSize,
+					"VID Bridge Unlocked\r\n");
+			break;
 		default:
 			strSize += scnprintf(buff+strSize, buff_size-strSize,
 					"Unknown event: %i\r\n", Data);

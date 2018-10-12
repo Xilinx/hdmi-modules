@@ -46,6 +46,9 @@
 *       EB     18/01/18 Moved VicTable to Hdmi Common library
 *       EB     26/01/18 Updated XV_HdmiRx_GetVideoTiming to use
 *                          XVidC_GetVideoModeIdExtensive
+* 2.20  EB     16/08/18 Replaced TIME_10MS, TIME_16MS, TIME_200MS with
+*                          XV_HdmiRx_GetTime10Ms, XV_HdmiRx_GetTime16Ms
+*                          XV_HdmiRx_GetTime200Ms
 * </pre>
 *
 ******************************************************************************/
@@ -97,7 +100,6 @@ static void StubCallback(void *CallbackRef);
 int XV_HdmiRx_CfgInitialize(XV_HdmiRx *InstancePtr, XV_HdmiRx_Config *CfgPtr, UINTPTR EffectiveAddr)
 {
     u32 RegValue;
-	u32 Time_16ms;
 
     /* Verify arguments. */
     Xil_AssertNonvoid(InstancePtr != NULL);
@@ -116,7 +118,6 @@ int XV_HdmiRx_CfgInitialize(XV_HdmiRx *InstancePtr, XV_HdmiRx_Config *CfgPtr, UI
         return (XST_FAILURE);
     }
 
-	Time_16ms = (InstancePtr->Config.AxiLiteClkFreq * 10)/625;
     /*
         Callbacks
         These are placeholders pointing to the StubCallback
@@ -223,8 +224,8 @@ int XV_HdmiRx_CfgInitialize(XV_HdmiRx *InstancePtr, XV_HdmiRx_Config *CfgPtr, UI
         Video Timing detector peripheral
     */
 
-    // Set timebase
-    XV_HdmiRx_VtdSetTimebase(InstancePtr, Time_16ms);  // 16 ms
+    // Set timebase - 16 ms
+    XV_HdmiRx_VtdSetTimebase(InstancePtr, XV_HdmiRx_GetTime16Ms(InstancePtr));
 
     // The VTD run flag is set in the armed state
 
@@ -399,6 +400,7 @@ int XV_HdmiRx_SetStream(XV_HdmiRx *InstancePtr, XVidC_PixelsPerClock Ppc, u32 Cl
 ******************************************************************************/
 void XV_HdmiRx_INT_VRST(XV_HdmiRx *InstancePtr, u8 Reset)
 {
+
     /* Verify argument. */
     Xil_AssertVoid(InstancePtr != NULL);
 
@@ -1727,7 +1729,7 @@ int XV_HdmiRx_GetVideoTiming(XV_HdmiRx *InstancePtr)
             // Lookup the video mode id
             InstancePtr->Stream.Video.VmId =
             XVidC_GetVideoModeIdExtensive(&InstancePtr->Stream.Video.Timing,
-					InstancePtr->Stream.Video.FrameRate,
+            		InstancePtr->Stream.Video.FrameRate,
 					InstancePtr->Stream.Video.IsInterlaced,
 					(TRUE));
 

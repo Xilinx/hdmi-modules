@@ -135,6 +135,9 @@
 *                           XV_HdmiTx_VSIF_3DSampPosToString APIs
 *                       Moved VicTable, XV_HdmiTx_Aux to Hdmi Common library
 *       EB     24/01/18 Added OverrideHdmi14Scrambler to XV_HdmiTx_Stream
+* 2.2   EB     03/08/18 Marked XV_HdmiTx_AudioMute and XV_HdmiTx_AudioUnmute
+*                           as deprecated
+*       MMO    11/08/18 Added Bridge Overflow and Bridge Underflow (PIO IN)
 * </pre>
 *
 ******************************************************************************/
@@ -168,12 +171,14 @@ extern "C" {
 * interrupt requests from peripheral.
 */
 typedef enum {
-    XV_HDMITX_HANDLER_CONNECT = 1,  // Handler for connect
-    XV_HDMITX_HANDLER_TOGGLE,       // Handler for toggle
+	XV_HDMITX_HANDLER_CONNECT = 1,  // Handler for connect
+	XV_HDMITX_HANDLER_TOGGLE,       // Handler for toggle
 	XV_HDMITX_HANDLER_BRDGUNLOCK,   // Handler for bridge unlocked
-    XV_HDMITX_HANDLER_VS,           // Handler for vsync
-    XV_HDMITX_HANDLER_STREAM_DOWN,  // Handler for stream down
-    XV_HDMITX_HANDLER_STREAM_UP     // Handler for stream up
+	XV_HDMITX_HANDLER_BRDGOVERFLOW, // Handler for bridge overflow
+	XV_HDMITX_HANDLER_BRDGUNDERFLOW,// Handler for bridge underflow
+	XV_HDMITX_HANDLER_VS,           // Handler for vsync
+	XV_HDMITX_HANDLER_STREAM_DOWN,  // Handler for stream down
+	XV_HDMITX_HANDLER_STREAM_UP     // Handler for stream up
 } XV_HdmiTx_HandlerType;
 /*@}*/
 
@@ -224,7 +229,8 @@ typedef struct {
     u8                      IsHdmi20;           /**< HDMI 2.0 flag  */
     u8                      IsScrambled;        /**< Scrambler flag
                                 1 - scrambled data , 0 - non scrambled data */
-    u8						OverrideScrambler; /**< Override scramble flag */
+    u8			    OverrideScrambler; /**< Override scramble
+						    flag */
     u32                     TMDSClock;          /**< TMDS clock */
     u8                      TMDSClockRatio;     /**< TMDS clock ration
                                 0 - 1/10, 1 - 1/40 */
@@ -279,11 +285,26 @@ typedef struct {
     u32 IsVsCallbackSet;                    /**< Set flag. This flag is set to
                                 true when the callback has been registered */
 
-    XV_HdmiTx_Callback BrdgUnlockedCallback;   /**< Callback for Bridge UnLocked
-                                                  event interrupt */
+    XV_HdmiTx_Callback BrdgUnlockedCallback;   /**< Callback for Bridge
+                                                 *UnLocked event interrupt */
     void *BrdgUnlockedRef;                  /**< To be passed to the Bridge
                                               Unlocked interrupt callback */
     u32 IsBrdgUnlockedCallbackSet;       /**< Set flag. This flag is set to
+                                true when the callback has been registered */
+
+    XV_HdmiTx_Callback BrdgOverflowCallback;   /**< Callback for Bridge
+                                                  * Overflow event interrupt */
+    void *BrdgOverflowRef;                  /**< To be passed to the Bridge
+                                              Overflow interrupt callback */
+    u32 IsBrdgOverflowCallbackSet;       /**< Set flag. This flag is set to
+                                true when the callback has been registered */
+
+    XV_HdmiTx_Callback BrdgUnderflowCallback;   /**< Callback for Bridge
+                                                  * Underflow event
+                                                  * interrupt */
+    void *BrdgUnderflowRef;                  /**< To be passed to the Bridge
+                                              Underflow interrupt callback */
+    u32 IsBrdgUnderflowCallbackSet;       /**< Set flag. This flag is set to
                                 true when the callback has been registered */
 
     XV_HdmiTx_Callback StreamDownCallback;  /**< Callback for stream down
@@ -304,12 +325,27 @@ typedef struct {
     XHdmiC_Aux Aux;                         /**< AUX peripheral information */
 
     /* HDMI TX stream */
-    XV_HdmiTx_Stream Stream;        /**< HDMI TX stream information */
-    u32 CpuClkFreq;                 /* CPU Clock frequency */
+    XV_HdmiTx_Stream Stream;                /**< HDMI TX stream information */
+    u32 CpuClkFreq;                         /* CPU Clock frequency */
 
 } XV_HdmiTx;
 
 /***************** Macros (Inline Functions) Definitions *********************/
+
+/*****************************************************************************/
+/**
+*
+* This macro returns the clock cycles required to count up to 1MS with respect
+* to AXI Lite Frequency
+*
+* @param  InstancePtr is a pointer to the XV_HdmiTX core instance.
+*
+* @return None.
+*
+*
+******************************************************************************/
+#define XV_HdmiTx_GetTime1Ms(InstancePtr) \
+  (InstancePtr)->Config.AxiLiteClkFreq/1000
 
 /*****************************************************************************/
 /**
@@ -435,12 +471,12 @@ typedef struct {
 	if (SetClr) { \
 		XV_HdmiTx_WriteReg((InstancePtr)->Config.BaseAddress, \
 		                   (XV_HDMITX_PIO_OUT_SET_OFFSET), \
-						   (XV_HDMITX_PIO_OUT_BRIDGE_PIXEL_MASK)); \
+				   (XV_HDMITX_PIO_OUT_BRIDGE_PIXEL_MASK)); \
 	} \
 	else { \
 		XV_HdmiTx_WriteReg((InstancePtr)->Config.BaseAddress, \
 		                   (XV_HDMITX_PIO_OUT_CLR_OFFSET), \
-						   (XV_HDMITX_PIO_OUT_BRIDGE_PIXEL_MASK)); \
+				   (XV_HDMITX_PIO_OUT_BRIDGE_PIXEL_MASK)); \
 	} \
 }
 
@@ -734,12 +770,16 @@ typedef struct {
 * @return   None.
 *
 * @note     C-style signature:
-*       void XV_HdmiTx_AudioEnable(XV_HdmiTx *InstancePtr)
+*       void XV_HdmiTx_AudioUnmute(XV_HdmiTx *InstancePtr)
+*
+* @deprecated   XV_HdmiTx_AudioUnmute will be deprecated in 2019.3 and replaced
+*               by XV_HdmiTx_AudioEnable.
 *
 ******************************************************************************/
 #define XV_HdmiTx_AudioUnmute(InstancePtr) \
     XV_HdmiTx_WriteReg((InstancePtr)->Config.BaseAddress, \
-    (XV_HDMITX_AUD_CTRL_SET_OFFSET), (XV_HDMITX_AUD_CTRL_RUN_MASK))
+    (XV_HDMITX_AUD_CTRL_SET_OFFSET), (XV_HDMITX_AUD_CTRL_RUN_MASK)) \
+	_Pragma ("GCC warning \"'XV_HdmiTx_AudioUnmute' macro is deprecated\"")
 
 /*****************************************************************************/
 /**
@@ -751,12 +791,16 @@ typedef struct {
 * @return   None.
 *
 * @note     C-style signature:
-*       void XV_HdmiTx_AudioDisable(XV_HdmiTx *InstancePtr)
+*       void XV_HdmiTx_AudioMute(XV_HdmiTx *InstancePtr)
+*
+* @deprecated   XV_HdmiTx_AudioMute will be deprecated in 2019.3 and replaced
+*               by XV_HdmiTx_AudioDisable.
 *
 ******************************************************************************/
 #define XV_HdmiTx_AudioMute(InstancePtr) \
     XV_HdmiTx_WriteReg((InstancePtr)->Config.BaseAddress, \
-    (XV_HDMITX_AUD_CTRL_CLR_OFFSET), (XV_HDMITX_AUD_CTRL_RUN_MASK))
+    (XV_HDMITX_AUD_CTRL_CLR_OFFSET), (XV_HDMITX_AUD_CTRL_RUN_MASK)) \
+	_Pragma ("GCC warning \"'XV_HdmiTx_AudioMute' macro is deprecated\"")
 
 /*****************************************************************************/
 /**
@@ -821,7 +865,7 @@ typedef struct {
 * @return   Sample rate
 *
 * @note     C-style signature:
-*       u8 XV_HdmiTx_GetMode(XV_HdmiTx *InstancePtr)
+*       u8 XV_HdmiTx_GetSampleRate(XV_HdmiTx *InstancePtr)
 *
 ******************************************************************************/
 #define XV_HdmiTx_GetSampleRate(InstancePtr) \
@@ -915,12 +959,12 @@ typedef struct {
 	if (SetClr) { \
 		XV_HdmiTx_WriteReg((InstancePtr)->Config.BaseAddress, \
 		                   (XV_HDMITX_MASK_CTRL_SET_OFFSET), \
-						   (XV_HDMITX_MASK_CTRL_NOISE_MASK)); \
+				   (XV_HDMITX_MASK_CTRL_NOISE_MASK)); \
 	} \
 	else { \
 		XV_HdmiTx_WriteReg((InstancePtr)->Config.BaseAddress, \
 		                   (XV_HDMITX_MASK_CTRL_CLR_OFFSET), \
-						   (XV_HDMITX_MASK_CTRL_NOISE_MASK)); \
+				   (XV_HDMITX_MASK_CTRL_NOISE_MASK)); \
 	} \
 }
 
@@ -942,7 +986,7 @@ typedef struct {
 { \
 		XV_HdmiTx_WriteReg((InstancePtr)->Config.BaseAddress, \
 		                   (XV_HDMITX_MASK_RED_OFFSET), \
-						   (Value)); \
+				   (Value)); \
 }
 
 /*****************************************************************************/
@@ -963,7 +1007,7 @@ typedef struct {
 { \
 		XV_HdmiTx_WriteReg((InstancePtr)->Config.BaseAddress, \
 		                   (XV_HDMITX_MASK_GREEN_OFFSET), \
-						   (Value)); \
+				   (Value)); \
 }
 
 /*****************************************************************************/
@@ -984,7 +1028,7 @@ typedef struct {
 { \
 		XV_HdmiTx_WriteReg((InstancePtr)->Config.BaseAddress, \
 		                   (XV_HDMITX_MASK_BLUE_OFFSET), \
-						   (Value)); \
+				   (Value)); \
 }
 
 /*****************************************************************************/

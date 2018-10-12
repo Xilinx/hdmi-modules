@@ -925,10 +925,12 @@ u32 XVidC_SetVideoStream(XVidC_VideoStream *VidStrmPtr, XVidC_VideoMode VmId,
 	  VidStrmPtr->Timing		= *TimingPtr;
 	  VidStrmPtr->FrameRate		= XVidC_GetFrameRate(VmId);
 	  VidStrmPtr->IsInterlaced	= XVidC_IsInterlaced(VmId);
-	  
-	} else { //Custom Timing - use as-is
-	  VidStrmPtr->IsInterlaced	= FALSE;
+
+	} else {
+	  /* In custom timing no need to set Timing, FrameRate and IsInterlaced
+	   * as they are already set previously in wrapper code */
 	}
+
 	VidStrmPtr->VmId		= VmId;
 	VidStrmPtr->ColorFormatId	= ColorFormat;
 	VidStrmPtr->ColorDepth		= Bpc;
@@ -1103,7 +1105,7 @@ void XVidC_ReportStreamInfo(const XVidC_VideoStream *Stream)
 void XVidC_ReportTiming(const XVidC_VideoTiming *Timing, u8 IsInterlaced)
 {
 	xil_printf("\r\n\tHSYNC Timing: hav=%04d, hfp=%02d, hsw=%02d(hsp=%d), "
-			"hbp=%03d, htot=%04d \n\r", Timing->HActive,
+			"hbp=%03d, htot=%04d \r\n", Timing->HActive,
 			Timing->HFrontPorch, Timing->HSyncWidth,
 			Timing->HSyncPolarity,
 			Timing->HBackPorch, Timing->HTotal);
@@ -1111,12 +1113,12 @@ void XVidC_ReportTiming(const XVidC_VideoTiming *Timing, u8 IsInterlaced)
 	/* Interlaced */
 	if (IsInterlaced) {
 		xil_printf("\tVSYNC Timing (Field 0): vav=%04d, vfp=%02d, "
-			"vsw=%02d(vsp=%d), vbp=%03d, vtot=%04d\n\r",
+			"vsw=%02d(vsp=%d), vbp=%03d, vtot=%04d\r\n",
 			Timing->VActive, Timing->F0PVFrontPorch,
 			Timing->F0PVSyncWidth, Timing->VSyncPolarity,
 			Timing->F0PVBackPorch, Timing->F0PVTotal);
 	xil_printf("\tVSYNC Timing (Field 1): vav=%04d, vfp=%02d, "
-			"vsw=%02d(vsp=%d), vbp=%03d, vtot=%04d\n\r",
+			"vsw=%02d(vsp=%d), vbp=%03d, vtot=%04d\r\n",
 			Timing->VActive, Timing->F1VFrontPorch,
 			Timing->F1VSyncWidth, Timing->VSyncPolarity,
 			Timing->F1VBackPorch, Timing->F1VTotal);
@@ -1124,7 +1126,7 @@ void XVidC_ReportTiming(const XVidC_VideoTiming *Timing, u8 IsInterlaced)
 	/* Progressive */
 	else {
 		xil_printf("\tVSYNC Timing: vav=%04d, vfp=%02d, "
-			"vsw=%02d(vsp=%d), vbp=%03d, vtot=%04d\n\r",
+			"vsw=%02d(vsp=%d), vbp=%03d, vtot=%04d\r\n",
 			Timing->VActive, Timing->F0PVFrontPorch,
 			Timing->F0PVSyncWidth, Timing->VSyncPolarity,
 			Timing->F0PVBackPorch, Timing->F0PVTotal);

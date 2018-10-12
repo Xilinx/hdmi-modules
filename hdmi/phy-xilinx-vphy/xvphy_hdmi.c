@@ -70,6 +70,8 @@
  *                     Added userclk freq checking in XVphy_HdmiCpllParam &
  *                        XVphy_HdmiQpllParam API
  *                     Removed XVphy_DruSetGain API
+ * 1.8   gm   05/14/18 Fixed a bug in XVphy_HdmiQpllParam where linerate is
+ *                        obtained from CH1 instead of QPLL0/1
  *
  * </pre>
  *
@@ -148,7 +150,7 @@ u32 XVphy_HdmiInitialize(XVphy *InstancePtr, u8 QuadId, XVphy_Config *CfgPtr,
 			XVPHY_GT_STATE_IDLE;
 		InstancePtr->Quads[QuadId].Plls[XVPHY_CH2IDX(Id)].RxState =
 			XVPHY_GT_STATE_IDLE;
-		//Initialize Transceiver Width values
+		/* Initialize Transceiver Width values */
 		if (InstancePtr->Config.TransceiverWidth == 2) {
 			InstancePtr->Quads[QuadId].Plls[XVPHY_CH2IDX(Id)].
 				TxDataWidth = 20;
@@ -350,7 +352,7 @@ u32 XVphy_Hdmi_CfgInitialize(XVphy *InstancePtr, u8 QuadId,
 			XVPHY_GT_STATE_IDLE;
 		InstancePtr->Quads[QuadId].Plls[XVPHY_CH2IDX(Id)].RxState =
 			XVPHY_GT_STATE_IDLE;
-		//Initialize Transceiver Width values
+		/* Initialize Transceiver Width values */
 		if (InstancePtr->Config.TransceiverWidth == 2) {
 			InstancePtr->Quads[QuadId].Plls[XVPHY_CH2IDX(Id)].
 				TxDataWidth = 20;
@@ -1404,7 +1406,7 @@ u32 XVphy_HdmiCfgCalcMmcmParam(XVphy *InstancePtr, u8 QuadId,
 					MmcmPtr->ClkOut0Div = MultDiv * 4;
 				}
 			}
-			else {//2 Byte Mode
+			else { /* 2 Byte Mode */
 				/* Link clock: TMDS clock ratio 1/40. */
 				if ((LineRate / 1000000) >= 3400) {
 					if ((Dir == XVPHY_DIR_TX) &&
@@ -1918,7 +1920,7 @@ u32 XVphy_HdmiQpllParam(XVphy *InstancePtr, u8 QuadId, XVphy_ChannelId ChId,
             /* (297 MHz + 0.5%) + 10 KHz (Clkdet accuracy) */
 			if (298495000 <
 					(XVphy_GetLineRateHz(InstancePtr, QuadId,
-							XVPHY_CHANNEL_ID_CH1) /
+							ActiveCmnId) /
 					(InstancePtr->Config.TransceiverWidth * 10))) {
 				XVphy_LogWrite(InstancePtr, XVPHY_LOG_EVT_USRCLK_ERR, 1);
 				XVphy_CfgErrIntr(InstancePtr, XVPHY_ERR_USRCLK, 1);

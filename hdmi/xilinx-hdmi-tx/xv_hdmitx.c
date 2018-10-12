@@ -53,6 +53,9 @@
 *       EB     23/01/18 Updated XV_HdmiTx_SetAudioChannels to fix an issue
 *                           where setting audio channel value will unmute the
 *                           audio regardless of the current status
+* 2.02  MMO    11/08/18 Added Bridge Overflow and Bridge Underflow (PIO IN)
+*       EB     14/08/18 Updated XV_HdmiTx_CfgInitialize to initialize
+*                       	HPD pulse periods
 * </pre>
 *
 ******************************************************************************/
@@ -174,6 +177,8 @@ int XV_HdmiTx_CfgInitialize(XV_HdmiTx *InstancePtr, XV_HdmiTx_Config *CfgPtr,
     /* PIO: Set event rising edge masks */
     XV_HdmiTx_WriteReg(InstancePtr->Config.BaseAddress,
     (XV_HDMITX_PIO_IN_EVT_RE_OFFSET),
+            (XV_HDMITX_PIO_IN_BRDG_UNDERFLOW_MASK) |
+            (XV_HDMITX_PIO_IN_BRDG_OVERFLOW_MASK) |
             (XV_HDMITX_PIO_IN_HPD_TOGGLE_MASK) |
             (XV_HDMITX_PIO_IN_HPD_MASK) |
             (XV_HDMITX_PIO_IN_VS_MASK) |
@@ -187,6 +192,27 @@ int XV_HdmiTx_CfgInitialize(XV_HdmiTx *InstancePtr, XV_HdmiTx_Config *CfgPtr,
             (XV_HDMITX_PIO_IN_HPD_MASK) |
             (XV_HDMITX_PIO_IN_LNK_RDY_MASK)
         );
+
+    /* Set the Timegrid for HPD Pulse for Connect and Toggle Event */
+    XV_HdmiTx_WriteReg(InstancePtr->Config.BaseAddress,
+                       XV_HDMITX_HPD_TIMEGRID_OFFSET,
+                       XV_HdmiTx_GetTime1Ms(InstancePtr));
+
+    /* Toggle HPD Pulse (50ms - 99ms)*/
+	RegValue = ((99 << XV_HDMITX_SHIFT_16) | /* 99 ms on Bit 31:16 */
+	            (50)); /* 50 ms on Bit 15:0 */
+
+    XV_HdmiTx_WriteReg(InstancePtr->Config.BaseAddress,
+    		           XV_HDMITX_TOGGLE_CONF_OFFSET,
+			   RegValue);
+
+    /* HPD/Connect Trigger (100ms + 0ms)*/
+	RegValue = ((10 << XV_HDMITX_SHIFT_16) | /* 10 ms on Bit 31:16 */
+	            (100)); /* 100 ms on Bit 15:0 */
+
+    XV_HdmiTx_WriteReg(InstancePtr->Config.BaseAddress,
+    		           XV_HDMITX_CONNECT_CONF_OFFSET,
+			   RegValue);
 
     /* Enable the PIO peripheral interrupt */
     XV_HdmiTx_PioIntrEnable(InstancePtr);
@@ -229,8 +255,8 @@ void XV_HdmiTx_SetAxiClkFreq(XV_HdmiTx *InstancePtr, u32 ClkFreq)
 {
 	InstancePtr->CpuClkFreq = ClkFreq;
 
-    /* Initialize DDC */
-    XV_HdmiTx_DdcInit(InstancePtr, InstancePtr->CpuClkFreq);
+	/* Initialize DDC */
+	XV_HdmiTx_DdcInit(InstancePtr, InstancePtr->CpuClkFreq);
 }
 
 /*****************************************************************************/
@@ -379,6 +405,7 @@ u32 XV_HdmiTx_GetTmdsClk (XV_HdmiTx *InstancePtr,
     u32 TmdsClock;
 
     /* Calculate reference clock. First calculate the pixel clock */
+	/* TODO - Not same as BM code */
     if (VideoMode != XVIDC_VM_CUSTOM) {
 		TmdsClock = XVidC_GetPixelClockHzByVmId(VideoMode);
     } else {
@@ -796,6 +823,7 @@ XVidC_3DInfo *Info3D)
 ******************************************************************************/
 void XV_HdmiTx_INT_VRST(XV_HdmiTx *InstancePtr, u8 Reset)
 {
+
     /* Verify argument. */
     Xil_AssertVoid(InstancePtr != NULL);
 
@@ -1342,6 +1370,7 @@ static u32 XV_HdmiTx_DdcWriteCommand(XV_HdmiTx *InstancePtr, u32 Cmd)
             Status &= XV_HDMITX_DDC_STA_CMD_FULL;
 
             // Check if the command fifo isn't full
+			/* TODO - Not same as BM code */
             if (!Status) {
                 XV_HdmiTx_WriteReg(InstancePtr->Config.BaseAddress,
                     (XV_HDMITX_DDC_CMD_OFFSET), (Cmd));
@@ -1400,6 +1429,7 @@ static u8 XV_HdmiTx_DdcReadData(XV_HdmiTx *InstancePtr)
             Status &= XV_HDMITX_DDC_STA_DAT_EMPTY;
 
             // Check if the data fifo has data
+			/* TODO - Not same as BM code */
             if (!Status) {
                 Data = XV_HdmiTx_ReadReg(InstancePtr->Config.BaseAddress,
                     (XV_HDMITX_DDC_DAT_OFFSET));

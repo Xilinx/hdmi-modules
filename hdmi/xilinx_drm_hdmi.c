@@ -634,6 +634,28 @@ static void TxVsCallback(void *CallbackRef)
 	}
 }
 
+void TxBrdgUnlockedCallback(void *CallbackRef)
+{
+	/* When video out bridge lost lock, reset TPG */
+	/* ResetTpg();                                */
+	/* Config and Run the TPG                     */
+	/* XV_ConfigTpg(&Tpg);                        */
+	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)CallbackRef;
+	dev_dbg(xhdmi->dev,"TX Bridge Unlocked Callback\r\n");
+}
+
+void TxBrdgOverflowCallback(void *CallbackRef)
+{
+	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)CallbackRef;
+	dev_dbg(xhdmi->dev,"TX Video Bridge Overflow\r\n");
+}
+
+void TxBrdgUnderflowCallback(void *CallbackRef)
+{
+	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)CallbackRef;
+	dev_dbg(xhdmi->dev,"TX Video Bridge Underflow\r\n");
+}
+
 void TxHdcpAuthenticatedCallback(void *CallbackRef)
 {
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)CallbackRef;
@@ -1940,6 +1962,12 @@ static void xlnx_drm_hdmi_initialize(struct xlnx_drm_hdmi *xhdmi)
 		TxStreamDownCallback, (void *)xhdmi);
 	XV_HdmiTxSs_SetCallback(HdmiTxSsPtr, XV_HDMITXSS_HANDLER_VS,
 		TxVsCallback, (void *)xhdmi);
+	XV_HdmiTxSs_SetCallback(HdmiTxSsPtr, XV_HDMITXSS_HANDLER_BRDGUNLOCK,
+		TxBrdgUnlockedCallback, (void *)xhdmi);
+	XV_HdmiTxSs_SetCallback(HdmiTxSsPtr, XV_HDMITXSS_HANDLER_BRDGOVERFLOW,
+		TxBrdgOverflowCallback, (void *)xhdmi);
+	XV_HdmiTxSs_SetCallback(HdmiTxSsPtr, XV_HDMITXSS_HANDLER_BRDGUNDERFLOW,
+		TxBrdgUnderflowCallback, (void *)xhdmi);
 
 	/* get a reference to the XVphy data structure */
 	xhdmi->xvphy = xvphy_get_xvphy(xhdmi->phy[0]);
