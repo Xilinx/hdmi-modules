@@ -890,10 +890,11 @@ int XHdcp1x_RxGetRepeaterInfo(XHdcp1x *InstancePtr,
 ******************************************************************************/
 static void XHdcp1x_RxDebugLog(const XHdcp1x *InstancePtr, const char *LogMsg)
 {
-	char Label[20];
+	char Label[16];
 
 	/* Format Label */
-	snprintf(Label, 20, "hdcp-rx(%d) - ", InstancePtr->Config.DeviceId);
+	snprintf(Label, sizeof(Label), "hdcp-rx(%hu) - ",
+			 InstancePtr->Config.DeviceId);
 
 	/* Log it */
 	XHDCP1X_DEBUG_LOGMSG(Label);
