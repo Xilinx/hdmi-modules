@@ -524,7 +524,7 @@ static void TxConnectCallback(void *CallbackRef)
 		xhdmi->have_edid = 0;
 		xhdmi->is_hdmi_20_sink = 0;
 		/* do not disable ibufds - stream will not go down*/
-//		XVphy_IBufDsEnable(VphyPtr, 0, XVPHY_DIR_TX, (FALSE));
+		XVphy_IBufDsEnable(VphyPtr, 0, XVPHY_DIR_TX, (FALSE));
 	}
 	xvphy_mutex_unlock(xhdmi->phy[0]);
 	dev_dbg(xhdmi->dev,"TxConnectCallback() done\n");
