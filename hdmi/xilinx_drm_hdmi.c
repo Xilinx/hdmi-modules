@@ -2102,6 +2102,7 @@ static int xlnx_drm_hdmi_parse_of(struct xlnx_drm_hdmi *xhdmi, XV_HdmiTxSs_Confi
 	} else {
 		dev_info(dev, "hdmi tx audio disabled in DT\n");
 	}
+	return 0;
 
 error_dt:
 	dev_err(xhdmi->dev, "Error parsing device tree");

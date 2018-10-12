@@ -52,8 +52,11 @@ Required Properties:
  - xlnx,include-hdcp-2-2: Boolean parameter that denotes if hdcp22 is included.
 		If present indicates inclusion of the optional core
  - xlnx,audio-enabled: Boolean parameter to convey that design has audio
-		functionality
+		functionality. If present, indicates optional audio core needed
+		for audio usecase is included.
  - xlnx,aes_parser: alias to audio channel status extractor block
+ - xlnx,xlnx-snd-pcm: reference to audio formatter block. Add this if,
+	              audio formatter is going to be used for HDMI audio.
  - ports: Video ports, using the DT bindings defined in ../video-interfaces.txt.
           The Rx only has an output port (0).
  
@@ -86,8 +89,9 @@ added to the device tree
 		xlnx,edid-ram-size = <0x100>;
 		xlnx,include-hdcp-1-4;
 		xlnx,include-hdcp-2-2;
-		xlnx,audio-enabled	= "true";
+		xlnx,audio-enabled;
 		xlnx,aes_parser = <&hdmi_audio_aes_parser_0>;
+		xlnx,xlnx-snd-pcm = <&audio_ss_0_audio_formatter_0>;
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -101,3 +105,6 @@ added to the device tree
 			};
 		};			
 	};
+
+	Documentation of "audio_ss_0_audio_formatter_0" node is located
+	at Documentation/devicetree/bindings/sound/xlnx,audio-formatter.txt
