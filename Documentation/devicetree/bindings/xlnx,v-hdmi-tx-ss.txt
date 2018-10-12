@@ -66,10 +66,10 @@ Required properties:
  - xlnx,audio-enabled: Boolean parameter to convey that design has audio
 		functionality. If present, indicates optional audio core needed
                 for audio usecase is included.
- - xlnx,xlnx-snd-pcm: reference to audio formatter block. Add this if,
+ - xlnx,snd-pcm: reference to audio formatter block. Add this if,
                       audio formatter is going to be used for HDMI audio
  - xlnx,xlnx-hdmi-acr-ctrl: alias to audio clock recovery block
-		
+
 Sub-Node Properties:
 	The device tree will need to include a sub-node for the encoder endpoint
 	interface. This port will bind the hdmi encoder with the crtc being used
@@ -121,7 +121,7 @@ added to the device tree
 		xlnx,hdcp-encrypt = <0x1>;
 		xlnx,audio-enabled;
 		xlnx,xlnx-hdmi-acr-ctrl = <&hdmi_acr_ctrl_0>;
-		xlnx,xlnx-snd-pcm = <&audio_ss_0_audio_formatter_0>;
+		xlnx,snd-pcm = <&audio_ss_0_audio_formatter_0>;
 
 		ports {
 			#address-cells = <1>;
