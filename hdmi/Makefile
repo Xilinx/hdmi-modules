@@ -45,6 +45,7 @@ xilinx-hdmi-rx-objs += xilinx-hdmi-rx/xv_hdmirxss.o
 xilinx-hdmi-rx-objs += xilinx-hdmi-rx/xv_hdmirxss_log.o
 xilinx-hdmi-rx-objs += xilinx-hdmi-rx/xv_hdmirxss_coreinit.o
 xilinx-hdmi-rx-objs += xilinx-hdmi-rx/xv_hdmirxss_hdcp.o
+xilinx-hdmi-rx-objs += xlnx_hdmirx_audio.o
 
 # DRM (HDMI TX)
 xilinx-hdmi-tx-objs := xilinx_drm_hdmi.o
@@ -63,7 +64,7 @@ xilinx-hdmi-tx-objs += xilinx-hdmi-tx/xv_hdmitxss_hdcp.o
 xilinx-hdmi-tx-objs += xilinx-hdmi-tx/xvtc.o
 xilinx-hdmi-tx-objs += xilinx-hdmi-tx/xvtc_intr.o
 xilinx-hdmi-tx-objs += xilinx-hdmi-tx/xvtc_sinit.o
-
+xilinx-hdmi-tx-objs += xlnx_hdmitx_audio.o
 
 # PHY (HDMI RX/TX)
 xilinx-vphy-objs := phy-vphy.o

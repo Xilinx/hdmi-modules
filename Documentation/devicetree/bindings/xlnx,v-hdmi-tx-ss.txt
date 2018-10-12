@@ -63,6 +63,9 @@ Required properties:
 		Applicable when either hdcp14 or hdcp22 is included in the design
  - xlnx,hdcp-encrypt: Flag to enable/disable stream encryption
  		Applicable when either hdcp14 or hdcp22 is included in the design
+ - xlnx,audio-enabled: Boolean parameter to convey that design has audio
+		functionality
+ - xlnx,xlnx-hdmi-acr-ctrl: alias to audio clock recovery block
 		
 Sub-Node Properties:
 	The device tree will need to include a sub-node for the encoder endpoint
@@ -87,6 +90,12 @@ added to the device tree
 		reg = <0x0 0xa0280000 0x0 0x10000>;
 	};
 
+	hdmi_acr_ctrl_0: hdmi_acr_ctrl@a0059000 {
+                        /* This is a place holder node for a custom IP, user may need to update the entries */
+                        compatible = "xlnx,hdmi-acr-ctrl-1.0";
+                        reg = <0x0 0xa0059000 0x0 0x1000>;
+                };
+
 	hdmi_output_v_hdmi_tx_ss_0: v_hdmi_tx_ss@a0080000 {
 		compatible = "xlnx,v-hdmi-tx-ss-3.1";
 		reg = <0x0 0xa0080000 0x0 0x80000>, <0x0 0xa0280000 0x0 0x10000>;
@@ -107,6 +116,8 @@ added to the device tree
 		/* settings for HDCP */
 		xlnx,hdcp-authenticate = <0x1>;
 		xlnx,hdcp-encrypt = <0x1>;
+		xlnx,audio-enabled	= "true";
+		xlnx,xlnx-hdmi-acr-ctrl = <&hdmi_acr_ctrl_0>;
 
 		ports {
 			#address-cells = <1>;

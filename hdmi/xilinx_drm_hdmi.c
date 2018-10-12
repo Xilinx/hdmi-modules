@@ -50,6 +50,8 @@
 #include "phy-xilinx-vphy/xhdcp22_common.h"
 #include "phy-xilinx-vphy/aes256.h"
 
+#include "xlnx_hdmitx_audio.h"
+
 #define HDMI_MAX_LANES				4
 
 #define XVPHY_TXREFCLK_RDY_LOW		0
@@ -107,6 +109,10 @@
  * @xv_hdmitxss: IP low level driver structure
  * @IntrStatus: Flag to indicate irq status
  * @xvphy: pointer to xilinx video phy
+ * @audio_enabled: flag to indicate audio is enabled in device tree
+ * @audio_init: flag to indicate audio is initialized
+ * @tx_audio_data: audio data to be shared with audio module
+ * @audio_pdev: audio platform device
  */
 struct xlnx_drm_hdmi {
 	struct drm_encoder encoder;
@@ -171,6 +177,10 @@ struct xlnx_drm_hdmi {
 	u8 Hdcp22PrivateKey[902];
 	u8 Hdcp14KeyA[328];
 	u8 Hdcp14KeyB[328];
+	bool audio_enabled;
+	bool audio_init;
+	struct xlnx_hdmitx_audio_data *tx_audio_data;
+	struct platform_device *audio_pdev;
 };
 
 static const u8 Hdcp22Srm[] = {
@@ -467,8 +477,6 @@ static void SendInfoframe(XV_HdmiTxSs *HdmiTxSsPtr)
 	/* GCP does not need to be sent out because GCP packets on the TX side is
 	   handled by the HDMI TX core fully. */
 
-	AuxFifo = XV_HdmiC_AudioIF_GeneratePacket(AudioInfoFramePtr);
-	XV_HdmiTxSs_SendGenericAuxInfoframe(HdmiTxSsPtr, &AuxFifo);
 	SendVSInfoframe(HdmiTxSsPtr);
 }
 
@@ -601,11 +609,29 @@ static void TxStreamDownCallback(void *CallbackRef)
 
 static void TxVsCallback(void *CallbackRef)
 {
+	XHdmiC_Aux aud_aux_fifo;
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)CallbackRef;
 	XV_HdmiTxSs *HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
 
 	/* Send NULL Aux packet */
 	SendInfoframe(HdmiTxSsPtr);
+
+	if (xhdmi->audio_init) {
+		aud_aux_fifo.Header.Byte[0] = xhdmi->tx_audio_data->buffer[0];
+		aud_aux_fifo.Header.Byte[1] = xhdmi->tx_audio_data->buffer[1];
+		aud_aux_fifo.Header.Byte[2] = xhdmi->tx_audio_data->buffer[2];
+		aud_aux_fifo.Header.Byte[3] = 0;
+
+		aud_aux_fifo.Data.Byte[0] = xhdmi->tx_audio_data->buffer[3];
+		aud_aux_fifo.Data.Byte[1] = xhdmi->tx_audio_data->buffer[4];
+		aud_aux_fifo.Data.Byte[2] = xhdmi->tx_audio_data->buffer[5];
+		aud_aux_fifo.Data.Byte[3] = xhdmi->tx_audio_data->buffer[6];
+		aud_aux_fifo.Data.Byte[4] = xhdmi->tx_audio_data->buffer[7];
+		aud_aux_fifo.Data.Byte[5] = xhdmi->tx_audio_data->buffer[8];
+
+		XV_HdmiTxSs_SendGenericAuxInfoframe(HdmiTxSsPtr,
+							&aud_aux_fifo);
+	}
 }
 
 void TxHdcpAuthenticatedCallback(void *CallbackRef)
@@ -2001,6 +2027,8 @@ static int xlnx_drm_hdmi_parse_of(struct xlnx_drm_hdmi *xhdmi, XV_HdmiTxSs_Confi
 
 	isHdcp14_en = of_property_read_bool(node, "xlnx,include-hdcp-1-4");
 	isHdcp22_en = of_property_read_bool(node, "xlnx,include-hdcp-2-2");
+	xhdmi->audio_enabled =
+		of_property_read_bool(node, "xlnx,audio-enabled");
 
 	if (isHdcp14_en) {
 		/* HDCP14 Core */
@@ -2064,7 +2092,16 @@ static int xlnx_drm_hdmi_parse_of(struct xlnx_drm_hdmi *xhdmi, XV_HdmiTxSs_Confi
 	}
 	// set default color format to RGB
 	xhdmi->xvidc_colorfmt = XVIDC_CSF_RGB;
-	return 0;
+
+	if (xhdmi->audio_enabled) {
+		xhdmi->tx_audio_data->acr_base = hdmitx_parse_aud_dt(dev);
+		if (!xhdmi->tx_audio_data->acr_base) {
+			xhdmi->audio_init = false;
+			dev_err(dev, "tx audio: acr base parse failed\n");
+		}
+	} else {
+		dev_info(dev, "hdmi tx audio disabled in DT\n");
+	}
 
 error_dt:
 	dev_err(xhdmi->dev, "Error parsing device tree");
@@ -2084,6 +2121,13 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 	xhdmi = devm_kzalloc(&pdev->dev, sizeof(*xhdmi), GFP_KERNEL);
 	if (!xhdmi)
 		return -ENOMEM;
+
+	xhdmi->tx_audio_data =
+		devm_kzalloc(&pdev->dev, sizeof(struct xlnx_hdmitx_audio_data),
+			     GFP_KERNEL);
+	if (!xhdmi->tx_audio_data)
+		return -ENOMEM;
+
 	/* store pointer of the real device inside platform device */
 	xhdmi->dev = &pdev->dev;
 
@@ -2198,6 +2242,7 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	xhdmi->tx_audio_data->tmds_clk = clk_get_rate(xhdmi->tmds_clk);
 	/* support to drive an external retimer IC on the TX path, depending on TX clock line rate */
 	xhdmi->retimer_clk = devm_clk_get(&pdev->dev, "retimer-clk");
 	if (IS_ERR(xhdmi->retimer_clk)) {
@@ -2275,6 +2320,16 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 	/* probe has succeeded for this instance, increment instance index */
 	instance++;
 
+	if (xhdmi->audio_enabled && xhdmi->tx_audio_data->acr_base) {
+		xhdmi->audio_pdev = hdmitx_register_aud_dev(xhdmi->dev);
+		if (IS_ERR(xhdmi->audio_pdev)) {
+			xhdmi->audio_init = false;
+			dev_err(xhdmi->dev, "hdmi tx audio init failed\n");
+		} else {
+			xhdmi->audio_init = true;
+			dev_info(xhdmi->dev, "hdmi tx audio initialized\n");
+		}
+	}
 	dev_info(xhdmi->dev, "probe successful\n");
 	return component_add(xhdmi->dev, &xlnx_drm_hdmi_component_ops);
 
@@ -2294,10 +2349,53 @@ error_phy:
 static int xlnx_drm_hdmi_remove(struct platform_device *pdev)
 {
 	struct platform_driver *pdrv;
+	struct xlnx_drm_hdmi *xhdmi = platform_get_drvdata(pdev);
 
+	if (xhdmi->audio_init)
+		platform_device_unregister(xhdmi->audio_pdev);
 	sysfs_remove_group(&pdev->dev.kobj, &attr_group);
 	component_del(&pdev->dev, &xlnx_drm_hdmi_component_ops);
 	return 0;
+}
+
+struct xlnx_hdmitx_audio_data *hdmitx_get_audio_data(struct device *dev)
+{
+	struct xlnx_drm_hdmi *xhdmi = dev_get_drvdata(dev);
+
+	if (!xhdmi)
+		return NULL;
+	else
+		return xhdmi->tx_audio_data;
+}
+
+void hdmitx_audio_startup(struct device *dev)
+{
+	XV_HdmiTxSs *HdmiTxSsPtr;
+	struct xlnx_drm_hdmi *xhdmi = dev_get_drvdata(dev);
+	XV_HdmiTxSs *xv_hdmitxss = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
+
+	hdmi_mutex_lock(&xhdmi->hdmi_mutex);
+	XV_HdmiTxSs_AudioMute(xv_hdmitxss, 0);
+	hdmi_mutex_unlock(&xhdmi->hdmi_mutex);
+}
+
+void hdmitx_audio_shutdown(struct device *dev)
+{
+	XV_HdmiTxSs *HdmiTxSsPtr;
+	struct xlnx_drm_hdmi *xhdmi = dev_get_drvdata(dev);
+	XV_HdmiTxSs *xv_hdmitxss = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
+
+	hdmi_mutex_lock(&xhdmi->hdmi_mutex);
+	XV_HdmiTxSs_AudioMute(xv_hdmitxss, 1);
+	hdmi_mutex_unlock(&xhdmi->hdmi_mutex);
+}
+
+void hdmitx_audio_mute(struct device *dev, bool enable)
+{
+	if (enable)
+		hdmitx_audio_shutdown(dev);
+	else
+		hdmitx_audio_startup(dev);
 }
 
 static const struct of_device_id xlnx_drm_hdmi_of_match[] = {
