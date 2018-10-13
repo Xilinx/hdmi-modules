@@ -21,24 +21,10 @@
 struct xlnx_hdmirx_audio_data *hdmirx_get_audio_data(struct device *dev);
 int hdmirx_register_aud_dev(struct device *dev);
 void hdmirx_unregister_aud_dev(struct device *dev);
-void __iomem *hdmirx_parse_aud_dt(struct device *dev);
 u32 hdmirx_audio_startup(struct device *dev);
 void hdmirx_audio_shutdown(struct device *dev);
 
-/*
- * struct audio_params - audio stream parameters
- * @srate: sampling rate
- * @sig_bits: significant bits in container
- * @channels: number of channels
- */
-struct audio_params {
-	u32 srate;
-	u32 sig_bits;
-	u32 channels;
-};
-
 struct xlnx_hdmirx_audio_data {
 	void __iomem *aes_base;
-	struct audio_params *params;
 };
 #endif /* __XILINX_HDMI_RX_AUD_H__ */
