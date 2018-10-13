@@ -5,13 +5,13 @@ a HDMI Transmitter. xilinx_drm_hdmi.c implements a DRM/KMS driver
 encoder/connector interface in the output pipeline.
 
 There are 2 optional HDCP cores that can be included in the IP configuration.
-Below provided sample device tree depicts the configuration when both cores are 
-included. If an optional core is included then corresponding entries for the 
+Below provided sample device tree depicts the configuration when both cores are
+included. If an optional core is included then corresponding entries for the
 core parameters (interrupts, key-management block address) must be included in
 the device tree
 
 Note: If HDCP cores are included in the design, the user must provide valid
-	  HDCP keys for the encryption to work. 
+	  HDCP keys for the encryption to work.
 
 Note: This version of the driver interfaces with the new Xilinx DRM component
 	  framework and is not backward compatible with the earlier encoder-slave
@@ -19,7 +19,7 @@ Note: This version of the driver interfaces with the new Xilinx DRM component
 	  new interface.
 
 Refer to xlnx,vphy.txt for the phy specifics.
-	  
+
 Required properties:
  - compatible: Should be "xlnx,v-hdmi-tx-ss-3.1".
  - reg: Base address and size of the IP core and hdcp1x key management block
@@ -30,11 +30,11 @@ Required properties:
 
  - interrupts-parent: phandle for interrupt controller.
  - interrupts: Interrupt numbers for mandatory and optional blocks
- - interrupt-names: Identification string that binds irq number to block 
+ - interrupt-names: Identification string that binds irq number to block
 		generating the interrupt
 		"hdmitx": interrupt for tx subcore [always present]
 		"hdcp1x": interrupt for hdcp1.4 core [optional]
-		"hdcp1x-timer": interrupt for hdcp1.4 timer [present if hdcp1x is 
+		"hdcp1x-timer": interrupt for hdcp1.4 timer [present if hdcp1x is
 			included]
 		"hdcp22": interrupt for hdcp22 core [optional]
 		"hdcp22-timer": interrupt for hdcp2.2 timer [present if hdcp22 is
@@ -43,14 +43,14 @@ Required properties:
  - clocks: phandle for axi-lite, video stream, tmds and retimer clock
  - clock-names: The identification string for various clock inputs
 				"axi-lite", is always required for the axi-lite clock
-				"video" is always required for video stream clock 
+				"video" is always required for video stream clock
 				"txref-clk" is always required for tmds clock
 				"retimer-clk" is required only when retimer is being used
-   
- - phys: phandle for phy lanes registered for hdmi protocol. HDMI always 
+
+ - phys: phandle for phy lanes registered for hdmi protocol. HDMI always
          require 3 lanes
  - phy-names: The identification string, "hdmi-phy0" and so on
- 
+
  - xlnx,input-pixels-per-clock: IP configuration for samples/clk (2, 4)
          Note: Only 2 is supported at this time
  - xlnx,max-bits-per-component: The data width per video component (8,10,12,16)
@@ -59,16 +59,21 @@ Required properties:
 		If present indicates inclusion of the optional core
  - xlnx,include-hdcp-2-2: Boolean parameter that denotes if hdcp22 is included.
 		If present indicates inclusion of the optional core
- - xlnx,hdcp-authenticate: Flag to enable/disable hdcp authentication. 
+ - xlnx,hdcp-authenticate: Flag to enable/disable hdcp authentication.
 		Applicable when either hdcp14 or hdcp22 is included in the design
  - xlnx,hdcp-encrypt: Flag to enable/disable stream encryption
  		Applicable when either hdcp14 or hdcp22 is included in the design
  - xlnx,audio-enabled: Boolean parameter to convey that design has audio
-		functionality. If present, indicates optional audio core needed
-                for audio usecase is included.
- - xlnx,snd-pcm: reference to audio formatter block. Add this if,
-                      audio formatter is going to be used for HDMI audio
- - xlnx,xlnx-hdmi-acr-ctrl: alias to audio clock recovery block
+                functionality.
+		If present, indicates optional audio core needed for audio
+		usecase is included.
+ - xlnx,aes_parser: Alias to audio channel status extractor block.
+		Needed only if "xlnx,audio-enabled" is included.
+ - xlnx,snd-pcm: Reference to audio formatter block. Add this if, audio formatter
+                is going to be used for HDMI audio.
+		Needed only if "xlnx,audio-enabled" is included.
+ - xlnx,xlnx-hdmi-acr-ctrl: Alias to audio clock recovery block.
+		Needed only if "xlnx,audio-enabled" is included.
 
 Sub-Node Properties:
 	The device tree will need to include a sub-node for the encoder endpoint
@@ -102,11 +107,11 @@ added to the device tree
 	hdmi_output_v_hdmi_tx_ss_0: v_hdmi_tx_ss@a0080000 {
 		compatible = "xlnx,v-hdmi-tx-ss-3.1";
 		reg = <0x0 0xa0080000 0x0 0x80000>, <0x0 0xa0280000 0x0 0x10000>;
-		reg-names = "hdmi-txss", "hdcp1x-keymngmt";			
+		reg-names = "hdmi-txss", "hdcp1x-keymngmt";
 		interrupt-parent = <&gic>;
 		interrupts = <0 93 4>, <0 104 4>, <0 105 4>, <0 106 4>, <0 107 4>;
 		interrupt-names = "hdmitx", "hdcp1x", "hdcp1x-timer", "hdcp22", "hdcp22-timer";
-		
+
 		clocks = <&axi_lite_clk>, <&axi_stream_clk>, <&si5324 0>, <&dp159>;
 		clock-names = "axi-lite", "video", "txref-clk", "retimer-clk";
 		phy-names = "hdmi-phy0", "hdmi-phy1", "hdmi-phy2";

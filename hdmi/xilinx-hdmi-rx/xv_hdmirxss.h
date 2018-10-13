@@ -78,8 +78,9 @@
 * 5.2   YB     08/14/18 Added dedicated callbacks for HDCP 1.4 and HDCP 2.2
 *                           protocol events.
 *       EB     03/08/18 Added function XV_HdmiRxSs_AudioMute
-*       YB     08/17/18 Marked XV_HDMIRXSS_HDCP_1_PROT_EVT and
-*                       XV_HDMIRXSS_HDCP_2_PROT_EVT as deprecated.
+*                       Added TMDS Clock Ratio callback support
+*       YB     17/08/18 Marked XV_HDMIRXSS_HDCP_1_PROT_EVT and
+*                           XV_HDMIRXSS_HDCP_2_PROT_EVT as deprecated.
 * </pre>
 *
 ******************************************************************************/
@@ -103,9 +104,9 @@ extern "C" {
 #if defined(XPAR_XHDCP_NUM_INSTANCES) || defined(XPAR_XHDCP22_RX_NUM_INSTANCES)
 #define USE_HDCP_RX
 #define USE_HDCP_14_PROT_EVT_ENUM
-_Pragma ("GCC warning \"'XV_HDMIRXSS_HDCP_1_PROT_EVT' event is deprecated\"")
+#pragma message ("'XV_HDMIRXSS_HDCP_1_PROT_EVT' event is deprecated")
 #define USE_HDCP_22_PROT_EVT_ENUM
-_Pragma ("GCC warning \"'XV_HDMIRXSS_HDCP_2_PROT_EVT' event is deprecated\"")
+#pragma message ("'XV_HDMIRXSS_HDCP_2_PROT_EVT' event is deprecated")
 #define XV_HDMIRXSS_HDCP_KEYSEL 0x00u
 #define XV_HDMIRXSS_HDCP_MAX_QUEUE_SIZE 16
 #endif
@@ -253,7 +254,7 @@ typedef enum {
                                                          event */
   XV_HDMIRXSS_HANDLER_BRDGOVERFLOW,                 /**< Handler for
                                                          bridge fifo overflow
-														 event */
+                                                         event */
   XV_HDMIRXSS_HANDLER_AUX,                          /**< Handler for AUX
                                                          peripheral event */
   XV_HDMIRXSS_HANDLER_AUD,                          /**< Handler for AUD
@@ -276,14 +277,17 @@ typedef enum {
                                                          unauthenticated event*/
   XV_HDMIRXSS_HANDLER_HDCP_AUTHENTICATION_REQUEST,  /**< Handler for HDCP
                                                          authentication request
-														 event */
+                                                         event */
   XV_HDMIRXSS_HANDLER_HDCP_STREAM_MANAGE_REQUEST,   /**< Handler for HDCP stream
                                                          manage request event */
   XV_HDMIRXSS_HANDLER_HDCP_TOPOLOGY_UPDATE,         /**< Handler for HDCP
                                                          topology update event*/
-  XV_HDMIRXSS_HANDLER_HDCP_ENCRYPTION_UPDATE        /**< Handler for HDCP
+  XV_HDMIRXSS_HANDLER_HDCP_ENCRYPTION_UPDATE,       /**< Handler for HDCP
                                                          encryption status
-														 update event */
+                                                         update event */
+  XV_HDMIRXSS_HANDLER_TMDS_CLK_RATIO                /**< Handler type for
+                                                         TMDS clock ratio
+                                                         change */
 } XV_HdmiRxSs_HandlerType;
 /*@}*/
 
@@ -389,6 +393,11 @@ typedef struct
 
   XV_HdmiRxSs_Callback HdcpCallback;    /**< Callback for HDCP 1.4 event */
   void *HdcpRef;        /**< To be passed to the hdcp callback */
+
+  XV_HdmiRxSs_Callback TmdsClkRatioCallback;  /**< Callback for scdc TMDS clock
+                                                   ratio change callback */
+  void *TmdsClkRatioRef;/**< To be passed to the scdc tmds clock ratio change
+                             callback */
 
   // Scratch pad
   u8 IsStreamConnected;         /**< HDMI RX Stream Connected */
