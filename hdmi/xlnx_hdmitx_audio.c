@@ -22,6 +22,7 @@
 
 #define XV_ACR_ENABLE 0x4
 #define XV_ACR_N 0xc
+#define ACR_CTRL_TMDSCLKRATIO BIT(3)
 
 struct acr_n_table {
 	u32 tmds_rate;
@@ -179,7 +180,7 @@ static int audio_codec_hw_params(struct device *dev, void *data,
 			 struct hdmi_codec_daifmt *fmt,
 			 struct hdmi_codec_params *hparams)
 {
-	u32 n, i;
+	u32 n, i, val;
 	struct hdmi_audio_infoframe *frame = &hparams->cea;
 	struct xlnx_hdmitx_audio_data *adata = hdmitx_get_audio_data(dev);
 
@@ -188,11 +189,23 @@ static int audio_codec_hw_params(struct device *dev, void *data,
 
 	hdmi_audio_infoframe_pack(&hparams->cea, adata->buffer,
 				  HDMI_INFOFRAME_SIZE(AUDIO));
-	n = xhdmi_acr_get_n(adata->tmds_clk, hparams->sample_rate);
 
+	if (adata->tmds_clk >= 371250000 && adata->tmds_clk <= 594000000)
+		n = 5120;
+	else
+		n = xhdmi_acr_get_n(adata->tmds_clk, hparams->sample_rate);
+
+	/* Disable ACR */
 	writel(2, adata->acr_base + XV_ACR_ENABLE);
+	/* program 'N' */
 	writel(n, adata->acr_base + XV_ACR_N);
-	writel(3, adata->acr_base + XV_ACR_ENABLE);
+
+	val = 3;
+	if (adata->tmds_clk_ratio)
+		val |= ACR_CTRL_TMDSCLKRATIO;
+
+	/* Enable ACR */
+	writel(val, adata->acr_base + XV_ACR_ENABLE);
 
 	return 0;
 }

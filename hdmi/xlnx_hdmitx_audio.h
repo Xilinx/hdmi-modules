@@ -22,6 +22,7 @@ struct xlnx_hdmitx_audio_data {
 	u8 buffer[HDMI_INFOFRAME_SIZE(AUDIO)];
 	unsigned int tmds_clk;
 	void __iomem *acr_base;
+	bool tmds_clk_ratio;
 };
 
 struct xlnx_hdmitx_audio_data *hdmitx_get_audio_data(struct device *dev);

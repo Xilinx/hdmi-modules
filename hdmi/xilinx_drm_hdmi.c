@@ -1182,6 +1182,17 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 		dev_dbg(xhdmi->dev,"***** Reset Phy Tx Frequency *******\n");
 		XVphy_ClkDetFreqReset(VphyPtr, 0, XVPHY_DIR_TX);
 	}
+
+	xhdmi->tx_audio_data->tmds_clk = clk_get_rate(xhdmi->tmds_clk);
+	/* if the mode is HDMI 2.0, use a multiplier value of 4 */
+	if (HdmiTxSsPtr->HdmiTxPtr->Stream.TMDSClockRatio) {
+		xhdmi->tx_audio_data->tmds_clk =
+			xhdmi->tx_audio_data->tmds_clk * 4;
+		xhdmi->tx_audio_data->tmds_clk_ratio = true;
+	} else {
+		xhdmi->tx_audio_data->tmds_clk_ratio = false;
+	}
+
 	xvphy_mutex_unlock(xhdmi->phy[0]);
 	hdmi_mutex_unlock(&xhdmi->hdmi_mutex);
 }
