@@ -76,17 +76,16 @@ static struct snd_soc_dai_driver xlnx_rx_audio_dai = {
 	.ops = &xlnx_rx_dai_ops,
 };
 
-static int xlnx_rx_codec_probe(struct snd_soc_codec *codec)
+static int xlnx_rx_codec_probe(struct snd_soc_component *component)
 {
 	return 0;
 }
 
-static int xlnx_rx_codec_remove(struct snd_soc_codec *codec)
+void xlnx_rx_codec_remove(struct snd_soc_component *component)
 {
-	return 0;
 }
 
-static struct snd_soc_codec_driver xlnx_rx_codec_driver = {
+static const struct snd_soc_component_driver xlnx_rx_codec_driver = {
 	.probe = xlnx_rx_codec_probe,
 	.remove = xlnx_rx_codec_remove,
 };
@@ -98,7 +97,7 @@ static struct snd_soc_codec_driver xlnx_rx_codec_driver = {
  */
 int hdmirx_register_aud_dev(struct device *dev)
 {
-	return snd_soc_register_codec(dev, &xlnx_rx_codec_driver,
+	return snd_soc_register_component(dev, &xlnx_rx_codec_driver,
 			&xlnx_rx_audio_dai, 1);
 }
 
@@ -108,6 +107,6 @@ int hdmirx_register_aud_dev(struct device *dev)
  */
 void hdmirx_unregister_aud_dev(struct device *dev)
 {
-	snd_soc_unregister_codec(dev);
+	snd_soc_unregister_component(dev);
 }
 
