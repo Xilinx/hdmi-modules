@@ -800,7 +800,24 @@ static int xlnx_drm_hdmi_connector_mode_valid(struct drm_connector *connector,
 	 * 1080 */
 	if(mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		mode->vdisplay = mode->vdisplay / 2;
-		dev_dbg(xhdmi->dev, "For interlaced, divide mode->vdisplay %d\n", mode->vdisplay);
+		dev_dbg(xhdmi->dev, "For DRM_MODE_FLAG_INTERLACE, divide mode->vdisplay %d\n", mode->vdisplay);
+	}
+
+	if((mode->flags & DRM_MODE_FLAG_DBLCLK) && (mode->flags & DRM_MODE_FLAG_INTERLACE)) {
+		mode->clock *= 2;
+		/* This logic is needed because the value of vrefresh is coming as zero for 480i@60 and 576i@50
+		 * because of which after multiplying the pixel clock by 2, the mode getting selected is 480i@120
+		 * 576i@100 from drm_edid.c file as this becomes the matching mode.
+		 * Seems like bug in the kernel code for handling of DRM_MODE_FLAG_DBLCLK flag.
+		 */
+		if(mode->vrefresh == 0)
+		{
+			if(mode->vdisplay == 240)
+				mode->vrefresh = 60;
+			else if (mode->vdisplay == 288)
+				mode->vrefresh = 50;
+		}
+		dev_dbg(xhdmi->dev, "For DRM_MODE_FLAG_DBLCLK, multiply pixel_clk by 2, New pixel clock %d, refresh rate = %d\n", mode->clock, mode->vrefresh);
 	}
 
 	drm_mode_debug_printmodeline(mode);
@@ -1043,18 +1060,18 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	vt.HSyncPolarity = !!(mode->flags & DRM_MODE_FLAG_PHSYNC);
 
 	/* Enable this code for debugging of NTSC and PAL resolution */
-#if 0
-	if((mode->hdisplay == 720) && (mode->vdisplay == 240) && (mode->vrefresh == 60)
-			&& (mode->flags & DRM_MODE_FLAG_INTERLACE))
+	if((((mode->hdisplay == 720) && (mode->vdisplay == 240) && (mode->vrefresh == 60)) ||
+			((mode->hdisplay == 720) && (mode->vdisplay == 288) && (mode->vrefresh == 50)))
+			&& (mode->flags & DRM_MODE_FLAG_INTERLACE) && (mode->flags & DRM_MODE_FLAG_DBLCLK))
 	{
-		dev_dbg(xhdmi->dev,"NTSC/PAL\n\n");
+		dev_dbg(xhdmi->dev,"NTSC/PAL\n");
 		vt.HActive *= 2;
 		vt.HFrontPorch *= 2;
 		vt.HSyncWidth *= 2;
 		vt.HBackPorch *= 2;
 		vt.HTotal *= 2;
 	}
-#endif
+
 	vt.VActive = mode->vdisplay;
 	/* Progressive timing data is stored in field 0 */
 	vt.F0PVFrontPorch = mode->vsync_start - mode->vdisplay;
@@ -1142,6 +1159,13 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	AviInfoFramePtr->Version = 2;
 	AviInfoFramePtr->ColorSpace = XV_HdmiC_XVidC_To_IfColorformat(xhdmi->xvidc_colorfmt);
 	AviInfoFramePtr->VIC = HdmiTxSsPtr->HdmiTxPtr->Stream.Vic;
+
+	if ( (HdmiTxSsVidStreamPtr->VmId == XVIDC_VM_1440x480_60_I) ||
+			(HdmiTxSsVidStreamPtr->VmId == XVIDC_VM_1440x576_50_I) ) {
+		AviInfoFramePtr->PixelRepetition = XHDMIC_PIXEL_REPETITION_FACTOR_2;
+	} else {
+		AviInfoFramePtr->PixelRepetition = XHDMIC_PIXEL_REPETITION_FACTOR_1;
+	}
 
 	// Set TX reference clock
 	VphyPtr->HdmiTxRefClkHz = TmdsClock;
