@@ -736,6 +736,19 @@ static void RxStreamUpCallback(void *CallbackRef)
 	xhdmi->detected_format.width = Stream->Timing.HActive;
 	xhdmi->detected_format.height = Stream->Timing.VActive;
 
+	/* Check for the NTSC and PAL resolutions. RX will detect the resolution as 1440x240 (NTSC resolution)
+	 * for field 0 and field 1.
+	 * Upon detecting this RX should drop the extra pixel and send only 720x240 per field to Frame buffer write IP.
+	 * Therefore in the end of this function, we will have to call API to configure bridge for pixel drop.
+	 */
+	if((((Stream->Timing.HActive == 1440) && (Stream->Timing.VActive == 240) && (Stream->FrameRate == 60)) ||
+			((Stream->Timing.HActive == 1440) && (Stream->Timing.VActive == 288) && (Stream->FrameRate == 50)))
+			&& (!!Stream->IsInterlaced))
+	{
+		xhdmi->detected_format.width /= 2;
+		dev_dbg(xhdmi->dev, "NTSC/PAL detected_format.width after divide by 2 = %d\n", xhdmi->detected_format.width);
+	}
+
 	/* There is no point in setting feild V4L2_FIELD_INTERLACED as it is not getting used */
 	//xhdmi->detected_format.field = Stream->IsInterlaced? V4L2_FIELD_INTERLACED: V4L2_FIELD_NONE;
 	xhdmi->detected_format.field = V4L2_FIELD_NONE;
@@ -797,6 +810,23 @@ static void RxStreamUpCallback(void *CallbackRef)
 	}
 	xhdmi->detected_timings.bt.pixelclock *= Stream->Timing.HTotal;
 
+	/* Check for the NTSC and PAL resolutions. RX will detect the resolution as 1440x240 (NTSC resolution)
+	 * for field 0 and field 1.
+	 * Upon detecting this RX should drop the extra pixel and send only 720x240 per field to Frame buffer write IP.
+	 * Therefore in the end of this function, we will have to call API to configure bridge for pixel drop.
+	 */
+	if((((Stream->Timing.HActive == 1440) && (Stream->Timing.VActive == 240) && (Stream->FrameRate == 60)) ||
+			((Stream->Timing.HActive == 1440) && (Stream->Timing.VActive == 288) && (Stream->FrameRate == 50)))
+			&& (!!Stream->IsInterlaced))
+	{
+		xhdmi->detected_timings.bt.width /= 2;
+		dev_dbg(xhdmi->dev, "NTSC/PAL detected_timings.bt.width after divide by 2 = %d\n", xhdmi->detected_format.width);
+
+		dev_dbg(xhdmi->dev,"Programming RX bridge for dropping pixels\n");
+		XV_HdmiRxSs_BridgeYuv420(HdmiRxSsPtr, FALSE);
+		XV_HdmiRxSs_BridgePixelDrop(HdmiRxSsPtr, TRUE);
+	}
+
 	dev_dbg(xhdmi->dev,"HdmiRxSsPtr->HdmiRxPtr->Stream.PixelClk = %d\n", HdmiRxSsPtr->HdmiRxPtr->Stream.PixelClk);
 	/* Read HFront Porch */
 	xhdmi->detected_timings.bt.hfrontporch = Stream->Timing.HFrontPorch;
@@ -840,7 +870,7 @@ static void RxBrdgOverflowCallback(void *CallbackRef)
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)CallbackRef;
 	XV_HdmiRxSs *HdmiRxSsPtr = &xhdmi->xv_hdmirxss;
 
-	dev_dbg(xhdmi->dev,"RxBrdgOverflowCallback()\n");
+	//dev_dbg(xhdmi->dev,"RxBrdgOverflowCallback()\n");
 }
 
 static void RxAudCallback(void *CallbackRef)
@@ -871,7 +901,7 @@ static void RxAuxCallback(void *CallbackRef)
 
 	AuxPtr = XV_HdmiRxSs_GetAuxiliary(HdmiRxSsPtr);
 
-	dev_dbg(xhdmi->dev,"%s()\n", __func__);
+	//dev_dbg(xhdmi->dev,"%s()\n", __func__);
 	/* read out the aux packet to a local buffer
 	 *  currently only 1 Aux packet (last recvd) is stored
 	 */
