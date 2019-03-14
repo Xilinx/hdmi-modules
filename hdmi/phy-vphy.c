@@ -108,7 +108,7 @@ struct xvphy_dev {
 	/* AXI Lite clock drives the clock detector */
 	struct clk *axi_lite_clk;
 	/* NI-DRU clock input */
-	struct clk *clkp;
+	struct clk *dru_clk;
 };
 
 /* given the (Linux) phy handle, return the xvphy */
@@ -483,7 +483,7 @@ static int xvphy_probe(struct platform_device *pdev)
 	}
 
 	/* the AXI lite clock is used for the clock rate detector */
-	vphydev->axi_lite_clk = devm_clk_get(&pdev->dev, "axi-lite");
+	vphydev->axi_lite_clk = devm_clk_get(&pdev->dev, "vid_phy_axi4lite_aclk");
 	if (IS_ERR(vphydev->axi_lite_clk)) {
 		ret = PTR_ERR(vphydev->axi_lite_clk);
 		vphydev->axi_lite_clk = NULL;
@@ -508,10 +508,10 @@ static int xvphy_probe(struct platform_device *pdev)
 
 	/* dru-clk is used for the nidru block for low res support */
 	if (XVphy_ConfigTable[instance].DruIsPresent == (TRUE)) {
-		vphydev->clkp = devm_clk_get(&pdev->dev, "dru-clk");
-		if (IS_ERR(vphydev->clkp)) {
-			ret = PTR_ERR(vphydev->clkp);
-			vphydev->clkp = NULL;
+		vphydev->dru_clk = devm_clk_get(&pdev->dev, "dru-clk");
+		if (IS_ERR(vphydev->dru_clk)) {
+			ret = PTR_ERR(vphydev->dru_clk);
+			vphydev->dru_clk = NULL;
 			if (ret == -EPROBE_DEFER)
 				dev_info(&pdev->dev, "dru-clk not ready -EPROBE_DEFER\n");
 			if (ret != -EPROBE_DEFER)
@@ -519,20 +519,20 @@ static int xvphy_probe(struct platform_device *pdev)
 			return ret;
 		}
 
-		ret = clk_prepare_enable(vphydev->clkp);
+		ret = clk_prepare_enable(vphydev->dru_clk);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to enable nidru clk\n");
 			return ret;
 		}
 
-		dru_clk_rate = clk_get_rate(vphydev->clkp);
+		dru_clk_rate = clk_get_rate(vphydev->dru_clk);
 		dev_dbg(vphydev->dev,"default dru-clk rate = %lu\n", dru_clk_rate);
 		if (dru_clk_rate != XVPHY_DRU_REF_CLK_HZ) {
-			ret = clk_set_rate(vphydev->clkp, XVPHY_DRU_REF_CLK_HZ);
+			ret = clk_set_rate(vphydev->dru_clk, XVPHY_DRU_REF_CLK_HZ);
 			if (ret != 0) {
 				dev_err(&pdev->dev, "Cannot set rate : %d\n", ret);
 			}
-			dru_clk_rate = clk_get_rate(vphydev->clkp);
+			dru_clk_rate = clk_get_rate(vphydev->dru_clk);
 			dev_dbg(vphydev->dev,"ref dru-clk rate = %lu\n", dru_clk_rate);
 		}
 	}
