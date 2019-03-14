@@ -877,6 +877,7 @@ static int xlnx_drm_hdmi_connector_get_modes(struct drm_connector *connector)
 	struct edid *edid = NULL;
 	struct drm_display_info *info = &connector->display_info;
 	int ret;
+	bool is_hdmi_sink;
 
 	dev_dbg(xhdmi->dev, "%s\n", __func__);
 	hdmi_mutex_lock(&xhdmi->hdmi_mutex);
@@ -893,9 +894,20 @@ static int xlnx_drm_hdmi_connector_get_modes(struct drm_connector *connector)
 	if (!edid) {
 		xhdmi->have_edid = 0;
 		dev_err(xhdmi->dev, "xlnx_drm_hdmi_get_modes() could not obtain edid, assume <= 1024x768 works.\n");
+		drm_connector_update_edid_property(connector, NULL);
 		return 0;
 	}
 	xhdmi->have_edid = 1;
+
+	/* If the sink is non HDMI, set the stream type to DVI else HDMI */
+	is_hdmi_sink = drm_detect_hdmi_monitor(edid);
+	if(is_hdmi_sink) {
+		XV_HdmiTxSs_SetVideoStreamType(&xhdmi->xv_hdmitxss, 1);
+		dev_dbg(xhdmi->dev, "EDID shows HDMI sink is connected, setting stream type to HDMI\n");
+	} else {
+		XV_HdmiTxSs_SetVideoStreamType(&xhdmi->xv_hdmitxss, 0);
+		dev_dbg(xhdmi->dev, "EDID shows non HDMI sink is connected, setting stream type to DVI\n");
+	}
 
 	drm_connector_update_edid_property(connector, edid);
 	ret = drm_add_edid_modes(connector, edid);
