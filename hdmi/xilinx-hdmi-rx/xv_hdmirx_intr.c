@@ -607,7 +607,7 @@ void HdmiRx_PioIntrHandler(XV_HdmiRx *InstancePtr)
 
         // Load timer
         XV_HdmiRx_TmrStart(InstancePtr,
-        		XV_HdmiRx_GetTime10Ms(InstancePtr)); // 10 ms
+			XV_HdmiRx_GetTime10Ms(InstancePtr)); // 10 ms
     }
 
     // Video ready event has occurred
@@ -636,7 +636,7 @@ void HdmiRx_PioIntrHandler(XV_HdmiRx *InstancePtr)
 
                 // Load timer - 200 ms (one UHD frame is 40 ms, 5 frames)
                 XV_HdmiRx_TmrStart(InstancePtr,
-                		XV_HdmiRx_GetTime200Ms(InstancePtr));
+				XV_HdmiRx_GetTime200Ms(InstancePtr));
             }
         }
 
@@ -718,7 +718,7 @@ void HdmiRx_PioIntrHandler(XV_HdmiRx *InstancePtr)
 
             // Load timer
             XV_HdmiRx_TmrStart(InstancePtr,
-            		XV_HdmiRx_GetTime10Ms(InstancePtr)); // 10 ms
+			XV_HdmiRx_GetTime10Ms(InstancePtr)); // 10 ms
         }
 
         // Call mode callback
@@ -793,7 +793,7 @@ void HdmiRx_TmrIntrHandler(XV_HdmiRx *InstancePtr)
 
             // Load timer - 200 ms (one UHD frame is 40 ms, 5 frames)
             XV_HdmiRx_TmrStart(InstancePtr,
-            		XV_HdmiRx_GetTime200Ms(InstancePtr));
+			XV_HdmiRx_GetTime200Ms(InstancePtr));
         }
 
         // Init state
@@ -840,7 +840,7 @@ void HdmiRx_TmrIntrHandler(XV_HdmiRx *InstancePtr)
             else {
 		// Load timer - 200 ms (one UHD frame is 40 ms, 5 frames)
                 XV_HdmiRx_TmrStart(InstancePtr,
-                		XV_HdmiRx_GetTime200Ms(InstancePtr));
+				XV_HdmiRx_GetTime200Ms(InstancePtr));
             }
         }
 

@@ -203,7 +203,7 @@ int XV_HdmiTx_CfgInitialize(XV_HdmiTx *InstancePtr, XV_HdmiTx_Config *CfgPtr,
 	            (50)); /* 50 ms on Bit 15:0 */
 
     XV_HdmiTx_WriteReg(InstancePtr->Config.BaseAddress,
-    		           XV_HDMITX_TOGGLE_CONF_OFFSET,
+		           XV_HDMITX_TOGGLE_CONF_OFFSET,
 			   RegValue);
 
     /* HPD/Connect Trigger (100ms + 0ms)*/
@@ -211,7 +211,7 @@ int XV_HdmiTx_CfgInitialize(XV_HdmiTx *InstancePtr, XV_HdmiTx_Config *CfgPtr,
 	            (100)); /* 100 ms on Bit 15:0 */
 
     XV_HdmiTx_WriteReg(InstancePtr->Config.BaseAddress,
-    		           XV_HDMITX_CONNECT_CONF_OFFSET,
+		           XV_HDMITX_CONNECT_CONF_OFFSET,
 			   RegValue);
 
     /* Enable the PIO peripheral interrupt */
@@ -1858,7 +1858,7 @@ int XV_HdmiTx_SetAudioChannels(XV_HdmiTx *InstancePtr, u8 Value)
     u8 AudioStatus;
 
     AudioStatus = XV_HdmiTx_ReadReg((InstancePtr)->Config.BaseAddress,
-					XV_HDMITX_AUD_CTRL_OFFSET) & XV_HDMITX_AUD_CTRL_RUN_MASK;
+        		XV_HDMITX_AUD_CTRL_OFFSET) & XV_HDMITX_AUD_CTRL_RUN_MASK;
 
     // Stop peripheral
     XV_HdmiTx_WriteReg((InstancePtr)->Config.BaseAddress,

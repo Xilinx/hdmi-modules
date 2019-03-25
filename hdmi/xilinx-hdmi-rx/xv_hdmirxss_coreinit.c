@@ -392,7 +392,7 @@ int XV_HdmiRxSs_SubcoreInitHdcp22(XV_HdmiRxSs *HdmiRxSsPtr)
 
       /* Set-up the HDMI RX HDCP 2.2 Protocol Event Callback Handler */
 	  XV_HdmiRx_SetCallback(HdmiRxSsPtr->HdmiRxPtr,
-			  	XV_HDMIRX_HANDLER_DDC_HDCP_22_PROT,
+				XV_HDMIRX_HANDLER_DDC_HDCP_22_PROT,
 				(void *)XV_HdmiRxSs_DdcHdcp22ProtocolEvtCallback,
 				(void *)HdmiRxSsPtr);
 
