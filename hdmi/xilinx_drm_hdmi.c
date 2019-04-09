@@ -2316,7 +2316,7 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 
 	/* 4 clock sources to be acquired and enabled */
 	/* acquire video streaming bus clock */
-	xhdmi->clk = devm_clk_get(xhdmi->dev, "video");
+	xhdmi->clk = devm_clk_get(xhdmi->dev, "s_axis_video_aclk");
 	if (IS_ERR(xhdmi->clk)) {
 		ret = PTR_ERR(xhdmi->clk);
 		if (ret == -EPROBE_DEFER)
@@ -2329,7 +2329,7 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 	clk_prepare_enable(xhdmi->clk);
 
 	/* acquire axi-lite register bus clock */
-	xhdmi->axi_lite_clk = devm_clk_get(xhdmi->dev, "axi-lite");
+	xhdmi->axi_lite_clk = devm_clk_get(xhdmi->dev, "s_axi_cpu_aclk");
 	if (IS_ERR(xhdmi->axi_lite_clk)) {
 		ret = PTR_ERR(xhdmi->clk);
 		if (ret == -EPROBE_DEFER)
@@ -2414,16 +2414,16 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 	}
 
 	if (xhdmi->config.Hdcp14.IsPresent) {
-	  xhdmi->hdcp1x_irq = platform_get_irq_byname(pdev, "hdcp1x");
+	  xhdmi->hdcp1x_irq = platform_get_irq_byname(pdev, "hdcp14_irq");
 	  dev_dbg(xhdmi->dev,"xhdmi->hdcp1x_irq = %d\n", xhdmi->hdcp1x_irq);
-	  xhdmi->hdcp1x_timer_irq = platform_get_irq_byname(pdev, "hdcp1x-timer");
+	  xhdmi->hdcp1x_timer_irq = platform_get_irq_byname(pdev, "hdcp14_timer_irq");
 	  dev_dbg(xhdmi->dev,"xhdmi->hdcp1x_timer_irq = %d\n", xhdmi->hdcp1x_timer_irq);
 	}
 
 	if (xhdmi->config.Hdcp22.IsPresent) {
-	  xhdmi->hdcp22_irq = platform_get_irq_byname(pdev, "hdcp22");
+	  xhdmi->hdcp22_irq = platform_get_irq_byname(pdev, "hdcp22_irq");
 	  dev_dbg(xhdmi->dev,"xhdmi->hdcp22_irq = %d\n", xhdmi->hdcp22_irq);
-	  xhdmi->hdcp22_timer_irq = platform_get_irq_byname(pdev, "hdcp22-timer");
+	  xhdmi->hdcp22_timer_irq = platform_get_irq_byname(pdev, "hdcp22_timer_irq");
 	  dev_dbg(xhdmi->dev,"xhdmi->hdcp22_timer_irq = %d\n", xhdmi->hdcp22_timer_irq);
 	}
 
