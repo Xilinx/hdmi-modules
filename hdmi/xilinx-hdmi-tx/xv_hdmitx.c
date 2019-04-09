@@ -56,6 +56,10 @@
 * 2.02  MMO    11/08/18 Added Bridge Overflow and Bridge Underflow (PIO IN)
 *       EB     14/08/18 Updated XV_HdmiTx_CfgInitialize to initialize
 *                       	HPD pulse periods
+* 2.03  EB     28/03/19 Disable PIO Interrupt for XV_HdmiTx_DdcWrite and
+*                           XV_HdmiTx_DdcRead APIs to prevent another DDC
+*                           transactions from happening in the middle of a DDC
+*                           transaction
 * </pre>
 *
 ******************************************************************************/
@@ -1489,6 +1493,16 @@ int XV_HdmiTx_DdcWrite(XV_HdmiTx *InstancePtr, u8 Slave,
     Xil_AssertNonvoid(Buffer != NULL);
     Xil_AssertNonvoid((Stop == (TRUE)) || (Stop == (FALSE)));
 
+    /* [DIFF FROM BM] Not taking this BM logic as we disable PIO interrupts in the handler and
+     * enabling it when interrupt is processed.
+     */
+#if 0
+    /* Disable PIO Interrupt to prevent another DDC transactions from happening
+     * in the middle of an ongoing DDC transaction
+     */
+    XV_HdmiTx_PioIntrDisable(InstancePtr);
+#endif
+
     // Status default, assume failure
     Status = XST_FAILURE;
 
@@ -1582,6 +1596,14 @@ int XV_HdmiTx_DdcWrite(XV_HdmiTx *InstancePtr, u8 Slave,
     // Disable DDC peripheral
     XV_HdmiTx_DdcDisable(InstancePtr);
 
+    /* [DIFF FROM BM] Not taking this BM logic as we disable PIO interrupts in the handler and
+     * enabling it when interrupt is processed.
+     */
+#if 0
+    // Enable the interrupts which were disabled earlier
+    XV_HdmiTx_PioIntrEnable(InstancePtr);
+#endif
+
     return Status;
 }
 
@@ -1618,6 +1640,16 @@ int XV_HdmiTx_DdcRead(XV_HdmiTx *InstancePtr, u8 Slave, u16 Length,
     Xil_AssertNonvoid(Length > 0x0);
     Xil_AssertNonvoid(Buffer != NULL);
     Xil_AssertNonvoid((Stop == (TRUE)) || (Stop == (FALSE)));
+
+    /* [DIFF FROM BM] Not taking this BM logic as we disable PIO interrupts in the handler and
+     * enabling it when interrupt is processed.
+     */
+#if 0
+    /* Disable PIO Interrupt to prevent another DDC transactions from happening
+     * in the middle of an ongoing DDC transaction
+     */
+    XV_HdmiTx_PioIntrDisable(InstancePtr);
+#endif
 
     // Status default, assume failure
     Status = XST_FAILURE;
@@ -1704,6 +1736,14 @@ int XV_HdmiTx_DdcRead(XV_HdmiTx *InstancePtr, u8 Slave, u16 Length,
 
     // Disable DDC peripheral
     XV_HdmiTx_DdcDisable(InstancePtr);
+
+    /* [DIFF FROM BM] Not taking this BM logic as we disable PIO interrupts in the handler and
+     * enabling it when interrupt is processed.
+     */
+#if 0
+    // Enable the interrupts which were disabled earlier
+    XV_HdmiTx_PioIntrEnable(InstancePtr);
+#endif
 
     return Status;
 }
