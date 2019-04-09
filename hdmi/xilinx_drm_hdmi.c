@@ -503,6 +503,7 @@ static void TxConnectCallback(void *CallbackRef)
 	if (HdmiTxSsPtr->IsStreamConnected) {
 		int xst_hdmi20;
 		xhdmi->cable_connected = 1;
+		xhdmi->connector.status = connector_status_connected;
 		/* Check HDMI sink version */
 		xst_hdmi20 = XV_HdmiTxSs_DetectHdmi20(HdmiTxSsPtr);
 		dev_dbg(xhdmi->dev,"TxConnectCallback(): TX connected to HDMI %s Sink Device\n",
@@ -521,12 +522,28 @@ static void TxConnectCallback(void *CallbackRef)
 	else {
 		dev_dbg(xhdmi->dev,"TxConnectCallback(): TX disconnected\n");
 		xhdmi->cable_connected = 0;
+		xhdmi->connector.status = connector_status_disconnected;
 		xhdmi->have_edid = 0;
 		xhdmi->is_hdmi_20_sink = 0;
 		/* do not disable ibufds - stream will not go down*/
 		XVphy_IBufDsEnable(VphyPtr, 0, XVPHY_DIR_TX, (FALSE));
 	}
 	xvphy_mutex_unlock(xhdmi->phy[0]);
+
+	if(xhdmi->connector.dev) {
+		/* Not using drm_kms_helper_hotplug_event because apart from notifying
+		 * user space about hotplug, it also calls output_poll_changed of drm device
+		 * that is used to inform the fbdev helper of output changes. It is of no use
+		 * here. Sometimes there were hang issue while running the application
+		 * on using drm_kms_helper_hotplug_event API. */
+		drm_sysfs_hotplug_event(xhdmi->connector.dev);
+		//drm_kms_helper_hotplug_event(xhdmi->drm_dev);
+		dev_dbg(xhdmi->dev,"Hotplug event sent to user space, Connect = %d", xhdmi->connector.status);
+	} else {
+		printk(KERN_WARNING "Not sending HOTPLUG event because "
+				"drm device is NULL as drm_connector_init is not called yet.\n");
+	}
+
 	dev_dbg(xhdmi->dev,"TxConnectCallback() done\n");
 }
 
@@ -1954,11 +1971,9 @@ static int xlnx_drm_hdmi_create_connector(struct drm_encoder *encoder)
 	struct drm_connector *connector = &xhdmi->connector;
 	int ret;
 
-	connector->polled = DRM_CONNECTOR_POLL_HPD |
-						DRM_CONNECTOR_POLL_CONNECT |
-						DRM_CONNECTOR_POLL_DISCONNECT;
-
+	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	connector->interlace_allowed = true;
+
 	ret = drm_connector_init(encoder->dev, connector,
 				 &xlnx_drm_hdmi_connector_funcs,
 				 DRM_MODE_CONNECTOR_HDMIA);
@@ -1976,7 +1991,7 @@ static int xlnx_drm_hdmi_create_connector(struct drm_encoder *encoder)
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret) {
 		dev_err(xhdmi->dev,
-			"Failed to attch encoder to connector (ret=%d)\n", ret);
+			"Failed to attach encoder to connector (ret=%d)\n", ret);
 		return ret;
 	}
 
@@ -1990,6 +2005,11 @@ static int xlnx_drm_hdmi_bind(struct device *dev, struct device *master,
 	struct drm_encoder *encoder = &xhdmi->encoder;
 	struct drm_device *drm_dev = data;
 	int ret;
+
+	/* NOTE - "xlnx-drm" is the platform driver
+	 * "xlnx" is drm driver (Xilinx DRM KMS Driver)
+	 * In above case - drm_dev->driver->name = xlnx
+	 */
 
 	/*
 	 * TODO: The possible CRTCs are 1 now as per current implementation of
