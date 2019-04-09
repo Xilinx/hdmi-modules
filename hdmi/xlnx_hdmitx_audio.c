@@ -50,10 +50,10 @@ const struct acr_n_table acr_n_table[] = {
 	{148500000, { 4096, 6272,  6144, 12544, 12288, 25088, 24576} },
 	{185625000, { 4096, 6272,  6144, 12544, 12288, 25088, 24576} },
 	{222750000, { 4096, 6272,  6144, 12544, 12288, 25088, 24576} },
-	{297000000, { 4096, 6272,  6144, 12544, 12288, 25088, 24576} },
-	{371250000, { 6144, 4704,  5120,  9408, 10240, 18816, 20480} },
-	{445500000, { 4096, 4704,  5120,  9408, 10240, 18816, 20480} },
-	{594000000, { 3072, 4704,  5120,  9408, 10240, 18816, 20480} }
+	{297000000, { 3072, 4704,  5120,  9408, 10240, 18816, 20480} },
+	{371250000, { 4096, 6272,  6144, 12544, 12288, 25088, 24576} },
+	{445500000, { 4096, 6272,  6144, 12544, 12288, 25088, 24576} },
+	{594000000, { 3072, 9408,  6144, 18816, 12288, 37632, 24576} }
 };
 
 static u16 srate_to_index(u32 srate)
@@ -70,14 +70,17 @@ static u16 srate_to_index(u32 srate)
 	case 48000:
 		index = 2;
 	break;
-	case 96000:
+	case 88200:
 		index = 3;
 	break;
-	case 176400:
+	case 96000:
 		index = 4;
 	break;
-	case 192000:
+	case 176400:
 		index = 5;
+	break;
+	case 192000:
+		index = 6;
 	break;
 	default:
 		index = 0;
@@ -190,10 +193,7 @@ static int audio_codec_hw_params(struct device *dev, void *data,
 	hdmi_audio_infoframe_pack(&hparams->cea, adata->buffer,
 				  HDMI_INFOFRAME_SIZE(AUDIO));
 
-	if (adata->tmds_clk >= 371250000 && adata->tmds_clk <= 594000000)
-		n = 5120;
-	else
-		n = xhdmi_acr_get_n(adata->tmds_clk, hparams->sample_rate);
+	n = xhdmi_acr_get_n(adata->tmds_clk, hparams->sample_rate);
 
 	/* Disable ACR */
 	writel(2, adata->acr_base + XV_ACR_ENABLE);
