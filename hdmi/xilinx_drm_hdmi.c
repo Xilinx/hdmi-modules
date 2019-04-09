@@ -880,7 +880,7 @@ static int xlnx_drm_hdmi_connector_get_modes(struct drm_connector *connector)
 	}
 	xhdmi->have_edid = 1;
 
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 	ret = drm_add_edid_modes(connector, edid);
 	kfree(edid);
 	dev_dbg(xhdmi->dev, "xlnx_drm_hdmi_get_modes() done\n");
@@ -1937,7 +1937,7 @@ static int xlnx_drm_hdmi_create_connector(struct drm_encoder *encoder)
 		dev_err(xhdmi->dev, "Failed to register the connector (ret=%d)\n", ret);
 		return ret;
 	}
-	ret = drm_mode_connector_attach_encoder(connector, encoder);
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret) {
 		dev_err(xhdmi->dev,
 			"Failed to attch encoder to connector (ret=%d)\n", ret);
