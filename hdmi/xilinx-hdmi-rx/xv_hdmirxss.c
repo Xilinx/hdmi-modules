@@ -2120,10 +2120,11 @@ static void XV_HdmiRxSs_ConfigBridgeMode(XV_HdmiRxSs *InstancePtr) {
 *
 * @return   None.
 *
-* @note     None.
+* @note     Linux - No need to put definition inside.
 *
 ******************************************************************************/
 void XV_HdmiRxSs_SetDefaultPpc(XV_HdmiRxSs *InstancePtr, u8 Id) {
+
 }
 
 /*****************************************************************************/

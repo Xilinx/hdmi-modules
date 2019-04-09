@@ -1326,7 +1326,6 @@ static void XV_HdmiTxSs_StreamUpCallback(void *CallbackRef)
 static void XV_HdmiTxSs_StreamDownCallback(void *CallbackRef)
 {
   XV_HdmiTxSs *HdmiTxSsPtr = (XV_HdmiTxSs *)CallbackRef;
-
   /* Assert HDMI TXCore link reset */
   XV_HdmiTxSs_TXCore_LRST(HdmiTxSsPtr, TRUE);
   XV_HdmiTxSs_TXCore_VRST(HdmiTxSsPtr, TRUE);
@@ -2543,10 +2542,11 @@ static void XV_HdmiTxSs_ConfigBridgeMode(XV_HdmiTxSs *InstancePtr) {
 *
 * @return   None.
 *
-* @note     None.
+* @note     Linux - No need to put definition inside.
 *
 ******************************************************************************/
 void XV_HdmiTxSs_SetDefaultPpc(XV_HdmiTxSs *InstancePtr, u8 Id) {
+
 }
 
 /*****************************************************************************/

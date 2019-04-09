@@ -60,6 +60,7 @@
  *       jsr  02/22/18 Added XVIDC_CSF_YCBCR_420 color space format
  *       vyc  04/04/18 Added BGR8 memory format
  * 4.5   jsr  07/03/18 Added XVIDC_VM_720x486_60_I video format
+ * 4.5   yas  03/08/19 Added support for frame rates 144HZ and 240HZ
  * </pre>
  *
 *******************************************************************************/
@@ -310,7 +311,9 @@ typedef enum {
 	XVIDC_FR_96HZ = 96,
 	XVIDC_FR_100HZ = 100,
 	XVIDC_FR_120HZ = 120,
-	XVIDC_FR_NUM_SUPPORTED = 18,
+	XVIDC_FR_144HZ = 144,
+	XVIDC_FR_240HZ = 240,
+	XVIDC_FR_NUM_SUPPORTED = 20,
 	XVIDC_FR_UNKNOWN
 } XVidC_FrameRate;
 
@@ -377,6 +380,16 @@ typedef enum {
 	XVIDC_CSF_MEM_BGRX8,        // [31:0] X:R:G:B 8:8:8:8
 	XVIDC_CSF_MEM_UYVY8,        // [31:0] Y:V:Y:U 8:8:8:8
 	XVIDC_CSF_MEM_BGR8,         // [23:0] R:G:B 8:8:8
+	XVIDC_CSF_MEM_RGBX12,       // [39:0] x:R:G:B 4:12:12:12
+	XVIDC_CSF_MEM_YUVX12,       // [39:0] x:V:U:Y 4:12:12:12
+	XVIDC_CSF_MEM_Y_UV12,       // [23:0] Y:Y 12:12, [23:0] V:U 12:12
+	XVIDC_CSF_MEM_Y_UV12_420,   // [23:0] Y:Y 12:12, [23:0] V:U 12:12
+	XVIDC_CSF_MEM_Y12,          // [39:0] x:Y2:Y1:Y0 4:12:12:12
+	XVIDC_CSF_MEM_RGB16,        // [47:0] R:G:B 16:16:16
+	XVIDC_CSF_MEM_YUV16,        // [47:0] V:U:Y 16:16:16
+	XVIDC_CSF_MEM_Y_UV16,       // [31:0] Y:Y 16:16, [31:0] V:U 16:16
+	XVIDC_CSF_MEM_Y_UV16_420,   // [31:0] Y:Y 16:16, [31:0] V:U 16:16
+	XVIDC_CSF_MEM_Y16,          // [47:0] Y2:Y1:Y0 16:16:16
 	XVIDC_CSF_MEM_END,          // End of memory formats
 
 	/* Streaming formats with components re-ordered */

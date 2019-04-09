@@ -159,6 +159,12 @@
 *       		modes FIELD1 vactive size. This value is same as FILED0
 *       		vactive size for all interlaced modes except for SDI NTSC
 *       		mode
+*	jsr    10/01/18	Removed the hard coded programming of vactive size values
+* 			based on resolutions. Moved the hard coded values for SDI
+* 			NTSC resolution to SDI TXSS driver instead of in VTC
+* 			driver.
+* 	jsr    10/03/18	Corrected the VGA resoultion timing paramters w.r.t the
+* 			timing values given in the VTC GUI for 640x480p
 * </pre>
 *
 ******************************************************************************/
@@ -1339,15 +1345,15 @@ void XVtc_SetGenerator(XVtc *InstancePtr, XVtc_Signal *SignalCfgPtr)
 							XVTC_ASIZE_VERT_MASK;
 		XVtc_WriteReg(InstancePtr->Config.BaseAddress,
 						XVTC_GASIZE_OFFSET, RegValue);
-		/* Only for XVIDC_VM_720x486_60_I (SDI NTSC), the FIELD1 vactive
-		 * size is different from FIELD0. As there is no vactive FIELD1
-		 * entry in the video common library, program it separately as below */
-		if(r_vactive != 243)
-			RegValue = ((r_vactive) << XVTC_ASIZE_VERT_SHIFT) &
-					XVTC_ASIZE_VERT_MASK;
-		else
-			RegValue = ((r_vactive+1) << XVTC_ASIZE_VERT_SHIFT) &
-					XVTC_ASIZE_VERT_MASK;
+		/* For some resolutions, the FIELD1 vactive size is different
+		 * from FIELD0, e.g. XVIDC_VM_720x486_60_I (SDI NTSC),
+		 * As there is no vactive FIELD1 entry in the video common
+		 * library, program it separately. For resolutions where
+		 * vactive values are different, it should be taken care in
+		 * corrosponding driver. Otherwise program same values in
+		 * FIELD0 and FIELD1 registers */
+		RegValue = ((r_vactive) << XVTC_ASIZE_VERT_SHIFT) &
+				XVTC_ASIZE_VERT_MASK;
 
 		XVtc_WriteReg(InstancePtr->Config.BaseAddress,
 						XVTC_GASIZE_F1_OFFSET, RegValue);
@@ -1430,15 +1436,15 @@ void XVtc_SetGenerator(XVtc *InstancePtr, XVtc_Signal *SignalCfgPtr)
 							XVTC_ASIZE_VERT_MASK;
 		XVtc_WriteReg(InstancePtr->Config.BaseAddress,
 						XVTC_GASIZE_OFFSET, RegValue);
-		/* Only for XVIDC_VM_720x486_60_I (SDI NTSC), the FIELD1 vactive
-		 * size is different from FIELD0. As there is no vactive FIELD1
-		 * entry in the video common library, program it separately as below */
-		if(r_vactive != 243)
-			RegValue = ((r_vactive) << XVTC_ASIZE_VERT_SHIFT) &
-					XVTC_ASIZE_VERT_MASK;
-		else
-			RegValue = ((r_vactive+1) << XVTC_ASIZE_VERT_SHIFT) &
-					XVTC_ASIZE_VERT_MASK;
+		/* For some resolutions, the FIELD1 vactive size is different
+		 * from FIELD0, e.g. XVIDC_VM_720x486_60_I (SDI NTSC),
+		 * As there is no vactive FIELD1 entry in the video common
+		 * library, program it separately. For resolutions where
+		 * vactive values are different, it should be taken care in
+		 * corrosponding driver. Otherwise program same values in
+		 * FIELD0 and FIELD1 registers */
+		RegValue = ((r_vactive) << XVTC_ASIZE_VERT_SHIFT) &
+				XVTC_ASIZE_VERT_MASK;
 
 		XVtc_WriteReg(InstancePtr->Config.BaseAddress,
 						XVTC_GASIZE_F1_OFFSET, RegValue);
@@ -1923,17 +1929,17 @@ void XVtc_ConvVideoMode2Timing(XVtc *InstancePtr, u16 Mode,
 	case XVTC_VMODE_VGA: // 640x480 (VGA)
 	{
 		// Horizontal Timing
-		TimingPtr->HActiveVideo  = 656;
-		TimingPtr->HFrontPorch   = 8;
+		TimingPtr->HActiveVideo  = 640;
+		TimingPtr->HFrontPorch   = 16;
 		TimingPtr->HSyncWidth    = 96;
-		TimingPtr->HBackPorch    = 40;
+		TimingPtr->HBackPorch    = 48;
 		TimingPtr->HSyncPolarity = 0;
 
 		 // Vertical Timing
-		TimingPtr->VActiveVideo  = 496;
-		TimingPtr->V0FrontPorch   = 2;
+		TimingPtr->VActiveVideo  = 480;
+		TimingPtr->V0FrontPorch   = 10;
 		TimingPtr->V0SyncWidth    = 2;
-		TimingPtr->V0BackPorch    = 25;
+		TimingPtr->V0BackPorch    = 33;
 		TimingPtr->VSyncPolarity = 0;
 
 		break;
@@ -2351,8 +2357,8 @@ u16 XVtc_ConvTiming2VideoMode(XVtc *InstancePtr, XVtc_Timing *TimingPtr)
 				return XVTC_VMODE_576P;
 			}
 		}
-		else if((TimingPtr->HActiveVideo == 656) &&
-				(TimingPtr->VActiveVideo == 496)) {
+		else if((TimingPtr->HActiveVideo == 640) &&
+				(TimingPtr->VActiveVideo == 480)) {
 			return XVTC_VMODE_VGA;
 		}
 		else if((TimingPtr->HActiveVideo == 800) &&
