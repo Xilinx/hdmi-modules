@@ -162,28 +162,6 @@ static void XV_HdmiRxSs_ConfigBridgeMode(XV_HdmiRxSs *InstancePtr);
 
 /***************** Macros (Inline Functions) Definitions *********************/
 /*****************************************************************************/
-/**
-* This macros selects the bridge YUV420 mode
-*
-* @param  InstancePtr is a pointer to the HDMI RX Subsystem
-*
-*****************************************************************************/
-#define XV_HdmiRxSs_BridgeYuv420(InstancePtr,Enable) \
-{ \
-    XV_HdmiRx_Bridge_yuv420(InstancePtr->HdmiRxPtr, Enable); \
-} \
-
-/*****************************************************************************/
-/**
-* This macros selects the bridge pixel repeat mode
-*
-* @param  InstancePtr is a pointer to the HDMI RX Subsystem
-*
-*****************************************************************************/
-#define XV_HdmiRxSs_BridgePixelDrop(InstancePtr,Enable) \
-{ \
-    XV_HdmiRx_Bridge_pixel(InstancePtr->HdmiRxPtr, Enable); \
-}
 
 /************************** Function Definition ******************************/
 
