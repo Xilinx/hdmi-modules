@@ -27,18 +27,23 @@ Required Properties:
  - interrupts: Interrupt numbers for mandatory and optional blocks
  - interrupt-names: Identification string that binds irq number to block
 		generating the interrupt
-		"hdmirx": interrupt for rx subcore [always present]
-		"hdcp1x": interrupt for hdcp1.4 core [optional]
-		"hdcp1x-timer": interrupt for hdcp1.4 timer [present if hdcp1x is
-			included]
-		"hdcp22": interrupt for hdcp22 core [optional]
-		"hdcp22-timer": interrupt for hdcp2.2 timer [present if hdcp22 is
-			included]
+		"irq": interrupt for tx subcore [always present]
+		"hdcp14_irq": interrupt for hdcp1.4 core [optional - present if hdcp1x
+		is included]
+		"hdcp14_timer_irq": interrupt for hdcp1.4 timer [optional - present if
+		hdcp1x is included]
+		"hdcp22_irq": interrupt for hdcp22 core [optional - present if hdcp22
+		is included]
+		"hdcp22_timer_irq": interrupt for hdcp2.2 timer [optional - present if
+		hdcp22 is included]
 
- - clocks: phandle for axi-lite, video stream
- - clock-names: The identification string, "axi-lite", is always required for
-                the axi-lite clock, "video" is always required for video stream
-				clock
+ - clocks: phandle of all the clocks required by IP are listed here.
+ - clock-names: names of all the clocks required by IP are listed here.
+          NOTE: Auto generated DT is providing all the clock names and handles
+          reuired by the IP.
+          NOTE: Below are the identification string that are always required.
+              "s_axi_cpu_aclk", is always required for the axi-lite clock
+              "s_axis_video_aclk" is always required for video stream clock
 
  - phys: phandle for phy lanes registered for hdmi protocol. HDMI always
          require 3 lanes
@@ -65,20 +70,22 @@ Required Properties:
 If hdcp1.4 is included in the design then key management block node should be
 added to the device tree
 
-	hdmi_input_hdcp_keymngmt_blk_top_1: hdcp_keymngmt_blk_top@a0270000 {
+	hdcp_keymngmt_blk_1: hdcp_keymngmt_blk_top@88000000 {
+		clock-names = "s_axi_aclk", "m_axis_aclk";
+		clocks = <&zynqmp_clk 71>, <&misc_clk_0>;
 		compatible = "xlnx,hdcp-keymngmt-blk-top-1.0";
-		reg = <0x0 0xa0270000 0x0 0x10000>;
+		reg = <0x0 0x88000000 0x0 0x10000>;
 	};
 
-	hdmi_input_v_hdmi_rx_ss_0: v_hdmi_rx_ss@a0000000 {
+	v_hdmi_rx_ss: v_hdmi_rx_ss@80000000 {
 		compatible = "xlnx,v-hdmi-rx-ss-3.1";
 		reg = <0x0 0xa0000000 0x0 0x100000>, <0x0 0xa0270000 0x0 0x10000>;
 		reg-names = "hdmi-rxss", "hdcp1x-keymngmt";
 		interrupt-parent = <&gic>;
-		interrupts = <0 91 4>, <0 108 4>, <0 109 4>, <0 110 4>, <0 111 4>;
-		interrupt-names = "hdmirx", "hdcp1x", "hdcp1x-timer", "hdcp22", "hdcp22-timer";
-		clocks = <&vid_s_axi_clk>, <&vid_stream_clk>;
-		clock-names = "axi-lite", "video";
+		interrupts = <0 90 4 0 104 4 0 105 4 0 108 4 0 109 4>;
+		interrupt-names = "irq", "hdcp14_irq", "hdcp14_timer_irq", "hdcp22_irq", "hdcp22_timer_irq";
+		clock-names = "s_axi_cpu_aclk", "link_clk", "s_axis_audio_aclk", "video_clk", "s_axis_video_aclk";
+		clocks = <&zynqmp_clk 71>, <&misc_clk_1>, <&zynqmp_clk 71>, <&misc_clk_2>, <&zynqmp_clk 72>;
 		phy-names = "hdmi-phy0", "hdmi-phy1", "hdmi-phy2";
 		phys = <&vphy_lane0 0 1 1 0>, <&vphy_lane1 0 1 1 0>, <&vphy_lane2 0 1 1 0>;
 

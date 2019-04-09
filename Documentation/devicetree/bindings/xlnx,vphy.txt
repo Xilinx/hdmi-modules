@@ -15,14 +15,20 @@ Required Properties:
  - reg: Base address and size of the IP core.
  - interrupts: Interrupt number.
  - interrupts-parent: phandle for interrupt controller.
- 
- - clocks: phandle for axi-lite clock and dru clock
- - clock-names: The identification string, "axi-lite", is always required
-          and "dru-clk" is required for NI DRU clock for phy
-		  
+
+ - clocks: phandle of all the clocks required by IP are listed here.
+ - clock-names: names of all the clocks required by IP are listed here.
+          NOTE: Auto generated DT is providing all the clock names and handles
+          reuired by the IP.
+          NOTE: The identification string, "vid_phy_axi4lite_aclk", is always
+          required.
+          NOTE: The identification string "dru-clk" is always required if
+          NI DRU (nidru parameter) is selected for phy. This needs to be
+          explicitly added in the list of clock-names and its phandle in clocks
+          as its derived by external clock.
+
  - xlnx,input-pixels-per-clock: IP configuration for samples/clk (1, 2, 4)
          Note: Only 2 is supported at this time
-
  - xlnx,nidru: flag to indicate if DRU is present
  - xlnx,nidru-refclk-sel: DRU clock selector
  - xlnx,rx-no-of-channels: Required Rx channels for registered protocol
@@ -47,23 +53,23 @@ Required Properties:
 
 			controller_type = 0 for HDMI
             controller_instance = [0, ...] indexes the instance of the protocol
-                                  controller	
-            is_shared = 1 if the RX and TX can be shared across the same 
+                                  controller
+            is_shared = 1 if the RX and TX can be shared across the same
 			            protocol/controller
             direction_tx = 0 for RX and 1 for TX
 
-(These properties are intended for future steering of multiple protocols 
+(These properties are intended for future steering of multiple protocols
 sharing VPHYs, and are therefore subject to change.)
 
 ==Example==
 
-	vid_phy_controller_0: vid_phy_controller@a0090000 {
+	vid_phy_controller: vid_phy_controller@80120000 {
 		compatible = "xlnx,vid-phy-controller-2.2";
 		reg = <0x0 0xa0090000 0x0 0x10000>;
 		interrupts = <0 92 4>;
 		interrupt-parent = <&gic>;
-		clocks = <&vid_s_axi_clk>, <&si570_2>;
-		clock-names = "axi-lite", "dru-clk";
+		clock-names = "mgtrefclk0_pad_p_in", "mgtrefclk0_pad_n_in", "mgtrefclk1_pad_p_in", "mgtrefclk1_pad_n_in", "gtsouthrefclk0_in", "gtsouthrefclk0_odiv2_in", "vid_phy_tx_axi4s_aclk", "vid_phy_rx_axi4s_aclk", "vid_phy_sb_aclk", "vid_phy_axi4lite_aclk", "drpclk", "dru-clk";
+		clocks = <&misc_clk_0>, <&misc_clk_0>, <&misc_clk_0>, <&misc_clk_0>, <&misc_clk_3>, <&misc_clk_3>, <&misc_clk_1>, <&misc_clk_1>, <&zynqmp_clk 71>, <&zynqmp_clk 71>, <&zynqmp_clk 71>, <&si570_2>;
 
 		xlnx,input-pixels-per-clock = <0x2>;
 		xlnx,nidru = <0x1>;
