@@ -766,18 +766,61 @@ static void RxStreamUpCallback(void *CallbackRef)
 	/* see UG934 page 8 */
 	/* the V4L2 media bus fmt codes match the AXI S format, and match those from TPG */
 	if (Stream->ColorFormatId == XVIDC_CSF_RGB) {
-		/* red blue green */
-		xhdmi->detected_format.code = MEDIA_BUS_FMT_RBG888_1X24;
-		dev_dbg(xhdmi->dev,"XVIDC_CSF_RGB -> MEDIA_BUS_FMT_RBG888_1X24\n");
+		if (HdmiRxSsPtr->Config.MaxBitsPerPixel == 10) {
+			if(Stream->ColorDepth == XVIDC_BPC_8) {
+				xhdmi->detected_format.code = MEDIA_BUS_FMT_RBG888_1X24;
+				dev_dbg(xhdmi->dev,"XVIDC_CSF_RGB -> MEDIA_BUS_FMT_RBG888_1X24\n");
+			} else {
+				xhdmi->detected_format.code = MEDIA_BUS_FMT_RBG101010_1X30;
+				dev_dbg(xhdmi->dev,"XVIDC_CSF_RGB -> MEDIA_BUS_FMT_RBG101010_1X30\n");
+			}
+		/* Default will always be 8 */
+		} else {
+			xhdmi->detected_format.code = MEDIA_BUS_FMT_RBG888_1X24;
+			dev_dbg(xhdmi->dev,"XVIDC_CSF_RGB -> MEDIA_BUS_FMT_RBG888_1X24\n");
+		}
+
+	/* YUV444 */
 	} else if (Stream->ColorFormatId == XVIDC_CSF_YCRCB_444) {
-		xhdmi->detected_format.code = MEDIA_BUS_FMT_VUY8_1X24;
-		dev_dbg(xhdmi->dev,"XVIDC_CSF_YCRCB_444 -> MEDIA_BUS_FMT_VUY8_1X24\n");
+		if (HdmiRxSsPtr->Config.MaxBitsPerPixel == 10) {
+			if(Stream->ColorDepth == XVIDC_BPC_8) {
+				xhdmi->detected_format.code = MEDIA_BUS_FMT_VUY8_1X24;
+				dev_dbg(xhdmi->dev,"XVIDC_CSF_YCRCB_444 -> MEDIA_BUS_FMT_VUY8_1X24\n");
+			} else {
+				xhdmi->detected_format.code = MEDIA_BUS_FMT_VUY10_1X30;
+				dev_dbg(xhdmi->dev,"XVIDC_CSF_YCRCB_444 -> MEDIA_BUS_FMT_VUY10_1X30\n");
+			}
+		/* Default will always be 8 */
+		} else {
+			xhdmi->detected_format.code = MEDIA_BUS_FMT_VUY8_1X24;
+			dev_dbg(xhdmi->dev,"XVIDC_CSF_YCRCB_444 -> MEDIA_BUS_FMT_VUY8_1X24\n");
+		}
+
+	/* Since 422 is always detected as 12 BPC, set the 8bit media bus format */
 	} else if (Stream->ColorFormatId == XVIDC_CSF_YCRCB_422) {
-		xhdmi->detected_format.code = MEDIA_BUS_FMT_UYVY8_1X16;
-		dev_dbg(xhdmi->dev,"XVIDC_CSF_YCRCB_422 -> MEDIA_BUS_FMT_UYVY8_1X16\n");
+		if (HdmiRxSsPtr->Config.MaxBitsPerPixel == 10) {
+			xhdmi->detected_format.code = MEDIA_BUS_FMT_UYVY10_1X20;
+			dev_dbg(xhdmi->dev,"XVIDC_CSF_YCRCB_422 -> MEDIA_BUS_FMT_UYVY10_1X20\n");
+		/* Default will always be 8 */
+		} else {
+			xhdmi->detected_format.code = MEDIA_BUS_FMT_UYVY8_1X16;
+			dev_dbg(xhdmi->dev,"XVIDC_CSF_YCRCB_422 -> MEDIA_BUS_FMT_UYVY8_1X16\n");
+		}
+
+	/* YUV420 */
 	} else if (Stream->ColorFormatId == XVIDC_CSF_YCRCB_420) {
-		xhdmi->detected_format.code = MEDIA_BUS_FMT_VYYUYY8_1X24;
-		dev_dbg(xhdmi->dev,"XVIDC_CSF_YCRCB_420 -> MEDIA_BUS_FMT_VYYUYY8_1X24\n");
+		if (HdmiRxSsPtr->Config.MaxBitsPerPixel == 10) {
+			if(Stream->ColorDepth == XVIDC_BPC_8) {
+				xhdmi->detected_format.code = MEDIA_BUS_FMT_VYYUYY8_1X24;
+				dev_dbg(xhdmi->dev,"XVIDC_CSF_YCRCB_420 -> MEDIA_BUS_FMT_VYYUYY8_1X24\n");
+			} else {
+				xhdmi->detected_format.code = MEDIA_BUS_FMT_VYYUYY10_4X20;
+				dev_dbg(xhdmi->dev,"XVIDC_CSF_YCRCB_420 -> MEDIA_BUS_FMT_VYYUYY10_1X24\n");
+			}
+		} else {
+			xhdmi->detected_format.code = MEDIA_BUS_FMT_VYYUYY8_1X24;
+			dev_dbg(xhdmi->dev,"XVIDC_CSF_YCRCB_420 -> MEDIA_BUS_FMT_VYYUYY8_1X24\n");
+		}
 	}
 
 	xhdmi->detected_format.xfer_func = V4L2_XFER_FUNC_DEFAULT;
@@ -1619,6 +1662,11 @@ static int xhdmi_parse_of(struct xhdmi_device *xhdmi, XV_HdmiRxSs_Config *config
 	if (rc < 0)
 		goto error_dt;
 	config->Ppc = val;
+
+	rc = of_property_read_u32(node, "xlnx,max-bits-per-component", &val);
+	if (rc < 0)
+		goto error_dt;
+	config->MaxBitsPerPixel = val;
 
 	rc = of_property_read_u32(node, "xlnx,edid-ram-size", &val);
 	if (rc == 0) {

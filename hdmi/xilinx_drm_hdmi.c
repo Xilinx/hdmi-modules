@@ -163,6 +163,7 @@ struct xlnx_drm_hdmi {
 	int dpms;
 
 	XVidC_ColorFormat xvidc_colorfmt;
+	XVidC_ColorDepth xvidc_colordepth;
 	/* configuration for the baseline subsystem driver instance */
 	XV_HdmiTxSs_Config config;
 	/* bookkeeping for the baseline subsystem driver instance */
@@ -986,7 +987,7 @@ static void xlnx_drm_hdmi_encoder_disable(struct drm_encoder *encoder)
 	xlnx_drm_hdmi_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
 }
 
-static u32 hdmitx_find_media_bus(u32 drm_fourcc)
+static u32 hdmitx_find_media_bus(struct xlnx_drm_hdmi *xhdmi, u32 drm_fourcc)
 {
 	switch(drm_fourcc) {
 
@@ -994,28 +995,41 @@ static u32 hdmitx_find_media_bus(u32 drm_fourcc)
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_BGR888:
 	case DRM_FORMAT_RGB888:
+		xhdmi->xvidc_colordepth = XVIDC_BPC_8;
+		return XVIDC_CSF_RGB;
 	case DRM_FORMAT_XBGR2101010:
+		xhdmi->xvidc_colordepth = XVIDC_BPC_10;
 		return XVIDC_CSF_RGB;
 
 	case DRM_FORMAT_VUY888:
 	case DRM_FORMAT_XVUY8888:
 	case DRM_FORMAT_Y8:
+		xhdmi->xvidc_colordepth = XVIDC_BPC_8;
+		return XVIDC_CSF_YCRCB_444;
 	case DRM_FORMAT_XVUY2101010:
 	case DRM_FORMAT_Y10:
+		xhdmi->xvidc_colordepth = XVIDC_BPC_10;
 		return XVIDC_CSF_YCRCB_444;
 
 	case DRM_FORMAT_YUYV: //packed, 8b
 	case DRM_FORMAT_UYVY: //packed, 8b
 	case DRM_FORMAT_NV16: //semi-planar, 8b
+		xhdmi->xvidc_colordepth = XVIDC_BPC_8;
+		return XVIDC_CSF_YCRCB_422;
 	case DRM_FORMAT_XV20: //semi-planar, 10b
+		xhdmi->xvidc_colordepth = XVIDC_BPC_10;
 		return XVIDC_CSF_YCRCB_422;
 
 	case DRM_FORMAT_NV12: //semi-planar, 8b
+		xhdmi->xvidc_colordepth = XVIDC_BPC_8;
+		return XVIDC_CSF_YCRCB_420;
 	case DRM_FORMAT_XV15: //semi-planar, 10b
+		xhdmi->xvidc_colordepth = XVIDC_BPC_10;
 		return XVIDC_CSF_YCRCB_420;
 
 	default:
 		printk("Warning: Unknown drm_fourcc format code: %d\n", drm_fourcc);
+		xhdmi->xvidc_colordepth = XVIDC_BPC_UNKNOWN;
 		return XVIDC_CSF_RGB;
 	}
 }
@@ -1060,7 +1074,9 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	drm_mode_debug_printmodeline(mode);
 
 	drm_fourcc = encoder->crtc->primary->state->fb->format->format;
-	xhdmi->xvidc_colorfmt = hdmitx_find_media_bus(drm_fourcc);
+	xhdmi->xvidc_colorfmt = hdmitx_find_media_bus(xhdmi, drm_fourcc);
+	dev_dbg(xhdmi->dev,"xvidc_colorfmt = %d\n", xhdmi->xvidc_colorfmt);
+	dev_dbg(xhdmi->dev,"xvidc_colordepth = %d\n", xhdmi->xvidc_colordepth);
 
 	dev_dbg(xhdmi->dev,"mode->clock = %d\n", mode->clock * 1000);
 	dev_dbg(xhdmi->dev,"mode->crtc_clock = %d\n", mode->crtc_clock * 1000);
@@ -1163,17 +1179,21 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 #endif
 	}
 
-	ColorDepth = HdmiTxSsPtr->Config.MaxBitsPerPixel;
+	/* The value of xvidc_colordepth is set by calling hdmitx_find_media_bus()
+	 * API earlier in this function. Check whether the value is valid or not */
+	if (XVIDC_BPC_UNKNOWN == xhdmi->xvidc_colordepth)
+		xhdmi->xvidc_colordepth = HdmiTxSsPtr->Config.MaxBitsPerPixel;
+
 	/* check if resolution is supported at requested bit depth */
 	switch (xhdmi->xvidc_colorfmt) {
 		case XVIDC_CSF_RGB:
 		case XVIDC_CSF_YCRCB_444:
-			if ((ColorDepth > XVIDC_BPC_8) &&
+			if ((xhdmi->xvidc_colordepth > XVIDC_BPC_8) &&
 				(mode->hdisplay >= 3840) &&
 				(mode->vdisplay >= 2160) &&
 				(mode->vrefresh >= XVIDC_FR_50HZ)) {
 					dev_dbg(xhdmi->dev,"INFO> UHD only supports 24-bits color depth\n");
-					ColorDepth = XVIDC_BPC_8;
+					xhdmi->xvidc_colordepth = XVIDC_BPC_8;
 			}
 			break;
 
@@ -1182,7 +1202,7 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	}
 
 	TmdsClock = XV_HdmiTxSs_SetStream(HdmiTxSsPtr, HdmiTxSsVidStreamPtr->VmId, xhdmi->xvidc_colorfmt,
-						ColorDepth, NULL);
+			xhdmi->xvidc_colordepth, NULL);
 
 	//Update AVI InfoFrame
 	AviInfoFramePtr->Version = 2;
