@@ -51,6 +51,8 @@ Required Properties:
 
  - xlnx,input-pixels-per-clock: IP configuration for samples/clk (2, 4)
          Note: Only 2 is supported at this time
+ - xlnx,max-bits-per-component: The data width per video component (8,10,12,16)
+         Note: Only 8 & 10 is supported at this time
  - xlnx,edid-ram-size: Denotes amount of BRAM allocated for EDID in IP
  - xlnx,include-hdcp-1-4: Boolean parameter that denotes if hdcp14 is included.
 		If present indicates inclusion of the optional core
@@ -90,6 +92,7 @@ added to the device tree
 		phys = <&vphy_lane0 0 1 1 0>, <&vphy_lane1 0 1 1 0>, <&vphy_lane2 0 1 1 0>;
 
 		xlnx,input-pixels-per-clock = <0x2>;
+		xlnx,max-bits-per-component = <0xa>;
 		xlnx,edid-ram-size = <0x100>;
 		xlnx,include-hdcp-1-4;
 		xlnx,include-hdcp-2-2;
