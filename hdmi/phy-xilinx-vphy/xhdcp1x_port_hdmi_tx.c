@@ -39,7 +39,10 @@
 /***************************** Include Files *********************************/
 
 
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 //#include <stdlib.h>
 #include <linux/string.h>
 #include "xhdcp1x_port.h"

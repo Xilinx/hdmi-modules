@@ -40,7 +40,6 @@
  *                     Changed xil_printf new lines to \r\n
  *                     Added XVPHY_LOG_EVT_DRU_CLK_ERR log event
  * 1.7   gm   13/09/17 Added XVPHY_LOG_EVT_USRCLK_ERR event
- *       eb   23/01/18 Minor cleanup
  * </pre>
  *
 *******************************************************************************/
@@ -114,7 +113,7 @@ void XVphy_LogWrite(XVphy *InstancePtr, XVphy_LogEvent Evt, u8 Data)
 
 	/* Update head pointer if reached to end of the buffer */
 	if (InstancePtr->Log.HeadIndex ==
-			(u8)((sizeof(InstancePtr->Log.DataBuffer) / sizeof(InstancePtr->Log.DataBuffer[0])) - 1)) {
+			(u8)((sizeof(InstancePtr->Log.DataBuffer) / 2) - 1)) {
 		/* Clear pointer */
 		InstancePtr->Log.HeadIndex = 0;
 	}
@@ -128,7 +127,7 @@ void XVphy_LogWrite(XVphy *InstancePtr, XVphy_LogEvent Evt, u8 Data)
 	 * remove the oldest entry from the buffer. */
 	if (InstancePtr->Log.TailIndex == InstancePtr->Log.HeadIndex) {
 		if (InstancePtr->Log.TailIndex ==
-			(u8)((sizeof(InstancePtr->Log.DataBuffer) / sizeof(InstancePtr->Log.DataBuffer[0])) - 1)) {
+			(u8)((sizeof(InstancePtr->Log.DataBuffer) / 2) - 1)) {
 			InstancePtr->Log.TailIndex = 0;
 		}
 		else {
@@ -166,7 +165,7 @@ u16 XVphy_LogRead(XVphy *InstancePtr)
 
 		/* Increment tail pointer */
 		if (InstancePtr->Log.TailIndex ==
-			(u8)((sizeof(InstancePtr->Log.DataBuffer) / sizeof(InstancePtr->Log.DataBuffer[0])) - 1)) {
+			(u8)((sizeof(InstancePtr->Log.DataBuffer) / 2) - 1)) {
 			InstancePtr->Log.TailIndex = 0;
 		}
 		else {

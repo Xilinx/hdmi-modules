@@ -43,7 +43,14 @@
 
 
 /************************** Constant Definitions *****************************/
-
+#if defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+    (XPAR_XV_HDMITX1_NUM_INSTANCES > 0)
+#define INCLUDE_HDMI_TX
+#endif
+#if defined(XPAR_XV_HDMIRX1_NUM_INSTANCES) && \
+    (XPAR_XV_HDMIRX1_NUM_INSTANCES > 0)
+#define INCLUDE_HDMI_RX
+#endif
 #if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
 #define INCLUDE_HDMI_TX
 #endif

@@ -45,6 +45,10 @@
 /* Prevent circular inclusions by using protection macros. */
 #define XVPHY_HW_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /***************************** Include Files **********************************/
 
 #include "xil_io.h"
@@ -628,6 +632,10 @@
 *******************************************************************************/
 #define XVphy_WriteReg(BaseAddress, RegOffset, Data) \
 	XVphy_Out32((BaseAddress) + (RegOffset), (Data))
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* XVPHY_HW_H_ */
 /** @} */

@@ -27,12 +27,13 @@
  * Ver   Who  Date     Changes
  * ----- ---- -------- -----------------------------------------------
  * 1.0   YH   17/08/16 Initial release.
- * 1.01  MMO  03/01/17 Add compiler option(XV_HDMIRXSS_LOG_ENABLE) to enable Log
- *
+ * 1.01  MMO  03/01/17 Add compiler option(XV_HDMIRXSS_LOG_ENABLE) to enable
+ *                         Log
  * 1.4   YH   07/07/17 Add new log type XV_HDMIRXSS_LOG_EVT_SETSTREAM_ERR
  * 5.0   EB   16/01/18 Added new log XV_HDMIRXSS_LOG_EVT_PIX_REPEAT_ERR
  *            23/01/18 Minor cleanup
  *       MMO  05/02/18 Added new log XV_HDMIRXSS_LOG_EVT_SYNCEST
+ * 5.4   EB   06/08/19 Added new log XV_HDMIRXSS_LOG_EVT_VICERROR
  * </pre>
  *
 *******************************************************************************/
@@ -89,31 +90,31 @@ void XV_HdmiRxSs_LogWrite(XV_HdmiRxSs *InstancePtr, XV_HdmiRxSs_LogEvent Evt, u8
     InstancePtr->Log.DataBuffer[InstancePtr->Log.HeadIndex] =
             (Data << 8) | Evt;
 
-    /* Update head pointer if reached to end of the buffer */
-    if (InstancePtr->Log.HeadIndex ==
+	/* Update head pointer if reached to end of the buffer */
+	if (InstancePtr->Log.HeadIndex ==
 			(u8)((sizeof(InstancePtr->Log.DataBuffer) /
 					sizeof(InstancePtr->Log.DataBuffer[0])) - 1)) {
-        /* Clear pointer */
-        InstancePtr->Log.HeadIndex = 0;
-    }
-    else {
-        /* Increment pointer */
-        InstancePtr->Log.HeadIndex++;
-    }
+		/* Clear pointer */
+		InstancePtr->Log.HeadIndex = 0;
+	}
+	else {
+		/* Increment pointer */
+		InstancePtr->Log.HeadIndex++;
+	}
 
-    /* Check tail pointer. When the two pointer are equal, then the buffer
-     * is full. In this case then increment the tail pointer as well to
-     * remove the oldest entry from the buffer. */
-    if (InstancePtr->Log.TailIndex == InstancePtr->Log.HeadIndex) {
-        if (InstancePtr->Log.TailIndex ==
+	/* Check tail pointer. When the two pointer are equal, then the buffer
+	 * is full. In this case then increment the tail pointer as well to
+	 * remove the oldest entry from the buffer. */
+	if (InstancePtr->Log.TailIndex == InstancePtr->Log.HeadIndex) {
+		if (InstancePtr->Log.TailIndex ==
 			(u8)((sizeof(InstancePtr->Log.DataBuffer) /
 					sizeof(InstancePtr->Log.DataBuffer[0])) - 1)) {
-            InstancePtr->Log.TailIndex = 0;
-        }
-        else {
-            InstancePtr->Log.TailIndex++;
-        }
-    }
+			InstancePtr->Log.TailIndex = 0;
+		}
+		else {
+			InstancePtr->Log.TailIndex++;
+		}
+	}
 }
 
 /*****************************************************************************/
@@ -305,6 +306,9 @@ int XV_HdmiRxSs_LogShow(XV_HdmiRxSs *InstancePtr, char *buff, int buff_size)
 			strSize += scnprintf(buff+strSize, buff_size-strSize,
 					"RX Sync Loss recovered\r\n");
             break;
+        case (XV_HDMIRXSS_LOG_EVT_VICERROR):
+			strSize += scnprintf(buff+strSize, buff_size-strSize,
+					"Vic and video timing mismatch\r\n");
         default:
         	strSize += scnprintf(buff+strSize, buff_size-strSize,
         			"Unknown event: %i\r\n", Evt);

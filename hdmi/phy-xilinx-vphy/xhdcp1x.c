@@ -71,6 +71,14 @@
 
 /************************** Constant Definitions *****************************/
 
+#if defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+    (XPAR_XV_HDMITX1_NUM_INSTANCES > 0)
+#define INCLUDE_TX
+#endif
+#if defined(XPAR_XV_HDMIRX1_NUM_INSTANCES) && \
+    (XPAR_XV_HDMIRX1_NUM_INSTANCES > 0)
+#define INCLUDE_RX
+#endif
 #if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
 #define INCLUDE_TX
 #endif
@@ -137,9 +145,9 @@ int XHdcp1x_CfgInitialize(XHdcp1x *InstancePtr, const XHdcp1x_Config *CfgPtr,
 	Xil_AssertNonvoid(CfgPtr != NULL);
 	Xil_AssertNonvoid(EffectiveAddr != (UINTPTR)NULL);
 
-	/* clear instance */
-	memset(InstancePtr, 0, sizeof(XHdcp1x));
-	
+	/* Setup the InstancePtr. */
+	(void)memset((void *)InstancePtr, 0, sizeof(XHdcp1x));
+
 	/* Initialize InstancePtr. */
 	InstancePtr->Config = *CfgPtr;
 	InstancePtr->Config.BaseAddress = EffectiveAddr;
@@ -226,7 +234,7 @@ int XHdcp1x_CfgInitialize(XHdcp1x *InstancePtr, const XHdcp1x_Config *CfgPtr,
 		/* Initialize RX */
 		XHdcp1x_RxInit(InstancePtr);
 	}
-	
+
 	InstancePtr->IsReady = XIL_COMPONENT_IS_READY;
 
 	return (XST_SUCCESS);

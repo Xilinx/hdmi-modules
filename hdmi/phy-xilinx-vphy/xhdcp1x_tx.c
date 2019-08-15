@@ -17,7 +17,7 @@
 /**
 *
 * @file xhdcp1x_tx.c
-* @addtogroup hdcp1x_v4_0
+* @addtogroup hdcp1x_v4_2
 * @{
 *
 * This contains the main implementation file for the Xilinx HDCP transmit
@@ -78,7 +78,10 @@
 #include "xhdcp1x_debug.h"
 #include "xhdcp1x_platform.h"
 #include "xhdcp1x_port.h"
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 #include "xhdcp1x_port_hdmi.h"
 #else
 #include "xhdcp1x_port_dp.h"
@@ -806,7 +809,10 @@ void XHdcp1x_TxSetHdmiMode(XHdcp1x *InstancePtr, u8 Value)
 	Xil_AssertVoid(InstancePtr != NULL);
 	Xil_AssertVoid(Value == FALSE || Value == TRUE);
 
-#if defined(XPAR_XV_HDMIRX_NUM_INSTANCES) && (XPAR_XV_HDMIRX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 	InstancePtr->Tx.TxIsHdmi = Value;
 #else
 	UNUSED(Value);
@@ -1821,7 +1827,10 @@ static void XHdcp1x_TxPollForWaitForReady(XHdcp1x *InstancePtr,
 		}
 		/* Check for cascade exceeded */
 		else {
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 			/* Disable the hdcp encryption for both HDMI and DP.
 			 * But currently only doing it for HDMI. */
 			XHdcp1x_TxDisableEncryptionState(InstancePtr);
@@ -1905,7 +1914,10 @@ static int XHdcp1x_TxValidateKsvList(XHdcp1x *InstancePtr, u16 RepeaterInfo)
 
 	u8 ksvListHolder[127*XHDCP1X_PORT_SIZE_BKSV];
 
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 
 #else
 
@@ -1930,7 +1942,10 @@ static int XHdcp1x_TxValidateKsvList(XHdcp1x *InstancePtr, u16 RepeaterInfo)
 	/* Determine theNumToRead */
 	NumToRead = (((RepeaterInfo & 0x7Fu) * 5));
 
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 	/* Read the ksv list */
 	/* Read the entire KSV fifo list in one go */
 	int ByteCount = 0;
@@ -2039,7 +2054,10 @@ static int XHdcp1x_TxValidateKsvList(XHdcp1x *InstancePtr, u16 RepeaterInfo)
 
 		/* Insert RepeaterInfo into the SHA-1 transform */
 		Buf[0] = (u8) (RepeaterInfo & 0xFFu);
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 		Buf[1] = (u8) ( ((RepeaterInfo |
 			(XHDCP1X_PORT_BIT_BSTATUS_HDMI_MODE))
 			>> XHDCP1X_PORT_BSTATUS_DEPTH_SHIFT) & 0xFFu);
@@ -2078,7 +2096,10 @@ static int XHdcp1x_TxValidateKsvList(XHdcp1x *InstancePtr, u16 RepeaterInfo)
 				/* Read the value from the far end */
 				if (XHdcp1x_PortRead(InstancePtr, Offset,
 						Buf, 4) > 0) {
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 					/* Storing the V' prime values later */
 #else
 					memcpy(&InstancePtr->RepeaterValues.V[Offset -
@@ -2116,7 +2137,10 @@ static int XHdcp1x_TxValidateKsvList(XHdcp1x *InstancePtr, u16 RepeaterInfo)
 
 	if (InstancePtr->IsRepeater) {
 
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 			/* Do nothing */
 #else
 		/* Update this value in the RepeaterExchange
@@ -2274,7 +2298,10 @@ u32 XHdcp1x_TxGetTopologyMaxCascadeExceeded(XHdcp1x *InstancePtr)
 	u32 Buf;
 	u32 Status;
 
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 	/* Read the BStatus Register */
 	XHdcp1x_PortRead(InstancePtr, XHDCP1X_PORT_OFFSET_BSTATUS,
 			&Buf, XHDCP1X_PORT_SIZE_BSTATUS);
@@ -2352,7 +2379,10 @@ u32 XHdcp1x_TxGetTopologyMaxDevsExceeded(XHdcp1x *InstancePtr)
 	u32 Buf;
 	u32 Status;
 
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 	/* Read the BStatus Register */
 	XHdcp1x_PortRead(InstancePtr, XHDCP1X_PORT_OFFSET_BSTATUS,
 			&Buf, XHDCP1X_PORT_SIZE_BSTATUS);
@@ -2422,13 +2452,19 @@ static int XHdcp1x_TxSetRepeaterInfo(XHdcp1x *InstancePtr)
 
 	/* Check for repeater */
 	if (XHdcp1x_PortIsRepeater(InstancePtr)) {
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 		u32 Buf;
 #else
 		u16 RepeaterInfo;
 #endif
 
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 
 		/* Set the SHA1 Hash value */
 		XHdcp1x_PortRead(InstancePtr, XHDCP1X_PORT_OFFSET_VH0,
@@ -2465,7 +2501,10 @@ static int XHdcp1x_TxSetRepeaterInfo(XHdcp1x *InstancePtr)
 		/* Do nothing for DP */
 #endif
 
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 
 		/* Copy the Depth read from the downstream HDCP device */
 		XHdcp1x_PortRead(InstancePtr, XHDCP1X_PORT_OFFSET_BSTATUS,
@@ -2985,7 +3024,10 @@ static void XHdcp1x_TxRunWaitForReadyState(XHdcp1x *InstancePtr,
 
 		/* For poll */
 		case XHDCP1X_EVENT_POLL:
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 			/* Don't read the Repeater info for HDMI from a
 			 * poll from application. We'll poll every 100ms. */
 #else
@@ -3007,7 +3049,10 @@ static void XHdcp1x_TxRunWaitForReadyState(XHdcp1x *InstancePtr,
 		case XHDCP1X_EVENT_TIMEOUT:
 			XHdcp1x_TxDebugLog(InstancePtr,
 					"wait-for-ready timeout");
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 			InstancePtr->Tx.WaitForReadyPollCntFlag++;
 			XHdcp1x_TxStopTimer(InstancePtr);
 			XHdcp1x_TxPollForWaitForReady(InstancePtr,
@@ -3230,7 +3275,10 @@ static void XHdcp1x_TxEnterState(XHdcp1x *InstancePtr, XHdcp1x_StateType State,
 
 		/* For the validate rx state */
 		case XHDCP1X_STATE_TESTFORREPEATER:
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 			/* Enable encryption for HDMI (this will come immediately
 			 * after Ro' has been read and successfully compared). */
 			InstancePtr->Tx.EncryptionMap = 0x1;
@@ -3246,7 +3294,10 @@ static void XHdcp1x_TxEnterState(XHdcp1x *InstancePtr, XHdcp1x_StateType State,
 		case XHDCP1X_STATE_WAITFORREADY:
 			InstancePtr->Tx.StateHelper = 0;
 
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 			InstancePtr->Tx.WaitForReadyPollCntFlag = 0;
 			/* Post the timeout */
 			XHdcp1x_TxPostEvent(InstancePtr, XHDCP1X_EVENT_TIMEOUT);
@@ -3287,7 +3338,10 @@ static void XHdcp1x_TxEnterState(XHdcp1x *InstancePtr, XHdcp1x_StateType State,
 			if (InstancePtr->IsRepeater == 1) {
 			  if(InstancePtr->Tx.DownstreamReady == 1) {
 			    InstancePtr->Tx.DownstreamReady = 0;
-#if defined(XPAR_XV_HDMITX_NUM_INSTANCES) && (XPAR_XV_HDMITX_NUM_INSTANCES > 0)
+#if (defined(XPAR_XV_HDMITX_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX_NUM_INSTANCES > 0)) || \
+    (defined(XPAR_XV_HDMITX1_NUM_INSTANCES) && \
+     (XPAR_XV_HDMITX1_NUM_INSTANCES > 0))
 			    /* Do nothing for HDMI. */
 #else
 			    /* In case of DisplayPort , read the Downstream Repeater
