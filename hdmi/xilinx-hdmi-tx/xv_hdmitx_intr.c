@@ -48,7 +48,7 @@
 
 
 /************************** Function Prototypes ******************************/
-
+/* [Linux] Cannot make static as it is being called from TX driver wrapper code */
 void HdmiTx_PioIntrHandler(XV_HdmiTx *InstancePtr);
 void HdmiTx_DdcIntrHandler(XV_HdmiTx *InstancePtr);
 
@@ -140,9 +140,9 @@ void XV_HdmiTx_IntrHandler(void *InstancePtr)
 *
 ******************************************************************************/
 int XV_HdmiTx_SetCallback(XV_HdmiTx *InstancePtr,
-                        u32 HandlerType,
-                        void *CallbackFunc,
-                        void *CallbackRef)
+			XV_HdmiTx_HandlerType HandlerType,
+			void *CallbackFunc,
+			void *CallbackRef)
 {
     u32 Status;
 

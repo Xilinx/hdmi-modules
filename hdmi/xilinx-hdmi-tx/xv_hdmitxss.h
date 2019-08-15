@@ -86,6 +86,8 @@
 *              25/01/18 Added function XV_HdmiTxSs_SetScrambler
 *       mmo    08/02/18 Added LowResolutionSupp & YUV420Supp in the
 *                             XV_HdmiTxSs_Config
+*       SM     28/02/18 Added XV_HdmiTxSS_SetAppVersion API and AppMajVer and
+*                           AppMinVer version number in XV_HdmiTxSs structure
 *       MMO    11/08/18 Added Bridge Overflow and Bridge Underflow Interrupt
 * </pre>
 *
@@ -467,9 +469,9 @@ void XV_HdmiTxSs_SetGcpClearAvmuteBit(XV_HdmiTxSs *InstancePtr);
 void XV_HdmiTxSs_ClearGcpClearAvmuteBit(XV_HdmiTxSs *InstancePtr);
 
 int XV_HdmiTxSs_SetCallback(XV_HdmiTxSs *InstancePtr,
-    u32 HandlerType,
-    void *CallbackFuncPtr,
-    void *CallbackRef);
+		XV_HdmiTxSs_HandlerType HandlerType,
+		void *CallbackFuncPtr,
+		void *CallbackRef);
 int XV_HdmiTxSs_ReadEdid(XV_HdmiTxSs *InstancePtr, u8 *BufferPtr);
 int XV_HdmiTxSs_ReadEdidSegment(XV_HdmiTxSs *InstancePtr, u8 *Buffer, u8 segment);
 void XV_HdmiTxSs_SetScrambler(XV_HdmiTxSs *InstancePtr, u8 Enable);

@@ -48,6 +48,10 @@
 /* Prevent circular inclusions by using protection macros. */
 #define XVPHY_HDMI_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /************************** Constant Definitions ******************************/
 
 #define XVPHY_HDMI_GTYE4_DRU_LRATE			2500000000U
@@ -165,6 +169,10 @@ u64 XVphy_DruCalcCenterFreqHz(XVphy *InstancePtr, u8 QuadId,
 void XVphy_HdmiGtDruModeEnable(XVphy *InstancePtr, u8 Enable);
 void XVphy_PatgenSetRatio(XVphy *InstancePtr, u8 QuadId, u64 TxLineRate);
 void XVphy_HdmiIntrHandlerCallbackInit(XVphy *InstancePtr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* XVPHY_HDMI_H_ */
 #endif

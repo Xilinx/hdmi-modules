@@ -193,7 +193,7 @@
 * callback functions. If application is not registered any of the callback
 * function, these functions will be called for doing nothing.
 */
-static void StubCallBack(void *CallBackRef);
+static void StubCallBack(void *CallBackRef, u32 Mask);
 static void StubErrCallBack(void *CallBackRef, u32 ErrorMask);
 
 /************************** Variable Definitions *****************************/
@@ -2614,9 +2614,10 @@ u16 XVtc_GetDetectorVideoMode(XVtc *InstancePtr)
 * @note		None.
 *
 ******************************************************************************/
-static void StubCallBack(void *CallBackRef)
+static void StubCallBack(void *CallBackRef, u32 Mask)
 {
 	(void)CallBackRef;
+	(void)Mask;
 	Xil_AssertVoidAlways();
 }
 

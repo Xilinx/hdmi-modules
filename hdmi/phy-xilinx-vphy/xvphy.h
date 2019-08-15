@@ -95,6 +95,10 @@
 /* Prevent circular inclusions by using protection macros. */
 #define XVPHY_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if !defined(XV_CONFIG_LOG_VPHY_DISABLE) && !defined(XV_CONFIG_LOG_DISABLE_ALL)
 #define XV_VPHY_LOG_ENABLE
 #endif
@@ -999,6 +1003,10 @@ void XVphy_RegisterDebug(XVphy *InstancePtr);
 #define XVPHY_GTHE3 4
 #define XVPHY_GTHE4 5
 #define XVPHY_GTYE4 6
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* XVPHY_H_ */
 /** @} */

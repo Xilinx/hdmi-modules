@@ -103,6 +103,7 @@
 *       YH     13/04/18 Fixed a bug in XV_HdmiRxSs_BrdgOverflowCallback
 * 5.20	EB     03/08/18 Added function XV_HdmiRxSs_AudioMute
 *                       Added TMDS Clock Ratio callback support
+* 5.40  EB     06/08/19 Added Vic and Video Timing mismatch callback support
 ******************************************************************************/
 
 /***************************** Include Files *********************************/
@@ -150,6 +151,7 @@ static void XV_HdmiRxSs_StreamUpCallback(void *CallbackRef);
 static void XV_HdmiRxSs_SyncLossCallback(void *CallbackRef);
 static void XV_HdmiRxSs_ModeCallback(void *CallbackRef);
 static void XV_HdmiRxSs_TmdsClkRatioCallback(void *CallbackRef);
+static void XV_HdmiRxSs_VicErrorCallback(void *CallbackRef);
 
 static void XV_HdmiRxSs_ReportCoreInfo(XV_HdmiRxSs *InstancePtr);
 static void XV_HdmiRxSs_ReportTiming(XV_HdmiRxSs *InstancePtr);
@@ -392,6 +394,11 @@ static int XV_HdmiRxSs_RegisterSubsysCallbacks(XV_HdmiRxSs *InstancePtr)
     XV_HdmiRx_SetCallback(HdmiRxSsPtr->HdmiRxPtr,
                           XV_HDMIRX_HANDLER_TMDS_CLK_RATIO,
                           (void *)XV_HdmiRxSs_TmdsClkRatioCallback,
+                          (void *)InstancePtr);
+
+    XV_HdmiRx_SetCallback(HdmiRxSsPtr->HdmiRxPtr,
+                          XV_HDMIRX_HANDLER_VIC_ERROR,
+                          (void *)XV_HdmiRxSs_VicErrorCallback,
                           (void *)InstancePtr);
   }
 
@@ -992,6 +999,33 @@ static void XV_HdmiRxSs_TmdsClkRatioCallback(void *CallbackRef)
 /*****************************************************************************/
 /**
 *
+* This function is called when the Vic does not match with the detected video
+* timing.
+*
+* @param  None.
+*
+* @return None.
+*
+* @note   None.
+*
+******************************************************************************/
+static void XV_HdmiRxSs_VicErrorCallback(void *CallbackRef)
+{
+  XV_HdmiRxSs *HdmiRxSsPtr = (XV_HdmiRxSs *)CallbackRef;
+
+#ifdef XV_HDMIRXSS_LOG_ENABLE
+  XV_HdmiRxSs_LogWrite(HdmiRxSsPtr, XV_HDMIRXSS_LOG_EVT_VICERROR, 0);
+#endif
+
+  // Check if user callback has been registered
+  if (HdmiRxSsPtr->VicErrorCallback) {
+	HdmiRxSsPtr->VicErrorCallback(HdmiRxSsPtr->VicErrorRef);
+  }
+}
+
+/*****************************************************************************/
+/**
+*
 * This function retrieves the Vendor Specific Info Frame.
 *
 * @param  None.
@@ -1263,8 +1297,10 @@ static void XV_HdmiRxSs_StreamUpCallback(void *CallbackRef)
 *       installed replaces it with the new handler.
 *
 ******************************************************************************/
-int XV_HdmiRxSs_SetCallback(XV_HdmiRxSs *InstancePtr, u32 HandlerType,
-    void *CallbackFunc, void *CallbackRef)
+int XV_HdmiRxSs_SetCallback(XV_HdmiRxSs *InstancePtr,
+		XV_HdmiRxSs_HandlerType HandlerType,
+		void *CallbackFunc,
+		void *CallbackRef)
 {
     u32 Status;
 
@@ -1340,6 +1376,13 @@ int XV_HdmiRxSs_SetCallback(XV_HdmiRxSs *InstancePtr, u32 HandlerType,
             InstancePtr->TmdsClkRatioCallback =
                                   (XV_HdmiRxSs_Callback)CallbackFunc;
             InstancePtr->TmdsClkRatioRef = CallbackRef;
+            Status = (XST_SUCCESS);
+            break;
+
+        // VIC_ERROR
+        case (XV_HDMIRXSS_HANDLER_VIC_ERROR):
+            InstancePtr->VicErrorCallback = (XV_HdmiRxSs_Callback)CallbackFunc;
+            InstancePtr->VicErrorRef = CallbackRef;
             Status = (XST_SUCCESS);
             break;
 

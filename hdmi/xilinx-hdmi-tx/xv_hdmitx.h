@@ -1110,9 +1110,13 @@ int XV_HdmiTx_SelfTest(XV_HdmiTx *InstancePtr);
 
 /* Interrupt related functions in xv_hdmitx_intr.c */
 void XV_HdmiTx_IntrHandler(void *InstancePtr);
-int XV_HdmiTx_SetCallback(XV_HdmiTx *InstancePtr, u32 HandlerType,
-    void *CallbackFunc, void *CallbackRef);
+int XV_HdmiTx_SetCallback(XV_HdmiTx *InstancePtr,
+		XV_HdmiTx_HandlerType HandlerType,
+		void *CallbackFunc,
+		void *CallbackRef);
 
+
+/* [Linux] Not supporting vendor specific APIs */ 
 /************************** Variable Declarations ****************************/
 
 /************************** Variable Declarations ****************************/

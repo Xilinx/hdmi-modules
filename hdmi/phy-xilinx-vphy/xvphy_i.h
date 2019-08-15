@@ -43,13 +43,17 @@
  *                           Moved XVphy_SetRxLpm to xvphy.c/.h
  * </pre>
  *
- * @addtogroup xvphy
+ * @addtogroup xvphy_v1_7
  * @{
 *******************************************************************************/
 
 #ifndef XVPHY_I_H_
 /* Prevent circular inclusions by using protection macros. */
 #define XVPHY_I_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /******************************* Include Files ********************************/
 
@@ -139,6 +143,10 @@ void XVphy_PllLayoutErrorHandler(XVphy *InstancePtr);
 #endif
 
 /******************* Macros (Inline Functions) Definitions ********************/
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* XVPHY_I_H_ */
 /** @} */
