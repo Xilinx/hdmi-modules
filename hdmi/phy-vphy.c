@@ -159,15 +159,8 @@ EXPORT_SYMBOL_GPL(XVphy_IsBonded);
 EXPORT_SYMBOL_GPL(XVphy_ClkDetFreqReset);
 EXPORT_SYMBOL_GPL(XVphy_ClkDetGetRefClkFreqHz);
 
-static irqreturn_t xvphy_irq_handler(int irq, void *dev_id)
+static xvphy_intr_disable(struct xvphy_dev *vphydev)
 {
-	struct xvphy_dev *vphydev;
-
-	vphydev = (struct xvphy_dev *)dev_id;
-	if (!vphydev)
-		return IRQ_NONE;
-
-	/* disable interrupts in the VPHY, they are re-enabled once serviced */
 	XVphy_IntrDisable(&vphydev->xvphy, XVPHY_INTR_HANDLER_TYPE_TXRESET_DONE |
 			XVPHY_INTR_HANDLER_TYPE_RXRESET_DONE |
 			XVPHY_INTR_HANDLER_TYPE_CPLL_LOCK |
@@ -180,6 +173,34 @@ static irqreturn_t xvphy_irq_handler(int irq, void *dev_id)
 			XVPHY_INTR_HANDLER_TYPE_RX_MMCM_LOCK_CHANGE |
 			XVPHY_INTR_HANDLER_TYPE_TX_TMR_TIMEOUT |
 			XVPHY_INTR_HANDLER_TYPE_RX_TMR_TIMEOUT);
+}
+
+static xvphy_intr_enable(struct xvphy_dev *vphydev)
+{
+	XVphy_IntrEnable(&vphydev->xvphy, XVPHY_INTR_HANDLER_TYPE_TXRESET_DONE |
+		XVPHY_INTR_HANDLER_TYPE_RXRESET_DONE |
+		XVPHY_INTR_HANDLER_TYPE_CPLL_LOCK |
+		XVPHY_INTR_HANDLER_TYPE_QPLL0_LOCK |
+		XVPHY_INTR_HANDLER_TYPE_TXALIGN_DONE |
+		XVPHY_INTR_HANDLER_TYPE_QPLL1_LOCK |
+		XVPHY_INTR_HANDLER_TYPE_TX_CLKDET_FREQ_CHANGE |
+		XVPHY_INTR_HANDLER_TYPE_RX_CLKDET_FREQ_CHANGE |
+		XVPHY_INTR_HANDLER_TYPE_TX_MMCM_LOCK_CHANGE |
+		XVPHY_INTR_HANDLER_TYPE_RX_MMCM_LOCK_CHANGE |
+		XVPHY_INTR_HANDLER_TYPE_TX_TMR_TIMEOUT |
+		XVPHY_INTR_HANDLER_TYPE_RX_TMR_TIMEOUT);
+}
+
+static irqreturn_t xvphy_irq_handler(int irq, void *dev_id)
+{
+	struct xvphy_dev *vphydev;
+
+	vphydev = (struct xvphy_dev *)dev_id;
+	if (!vphydev)
+		return IRQ_NONE;
+
+	/* Disable interrupts in the VPHY, they are re-enabled once serviced */
+	xvphy_intr_disable(vphydev);
 
 	return IRQ_WAKE_THREAD;
 }
@@ -203,19 +224,8 @@ static irqreturn_t xvphy_irq_thread(int irq, void *dev_id)
 	XVphy_InterruptHandler(&vphydev->xvphy);
 	hdmi_mutex_unlock(&vphydev->xvphy_mutex);
 
-	/* enable interrupt requesting in the VPHY */
-	XVphy_IntrEnable(&vphydev->xvphy, XVPHY_INTR_HANDLER_TYPE_TXRESET_DONE |
-		XVPHY_INTR_HANDLER_TYPE_RXRESET_DONE |
-		XVPHY_INTR_HANDLER_TYPE_CPLL_LOCK |
-		XVPHY_INTR_HANDLER_TYPE_QPLL0_LOCK |
-		XVPHY_INTR_HANDLER_TYPE_TXALIGN_DONE |
-		XVPHY_INTR_HANDLER_TYPE_QPLL1_LOCK |
-		XVPHY_INTR_HANDLER_TYPE_TX_CLKDET_FREQ_CHANGE |
-		XVPHY_INTR_HANDLER_TYPE_RX_CLKDET_FREQ_CHANGE |
-		XVPHY_INTR_HANDLER_TYPE_TX_MMCM_LOCK_CHANGE |
-		XVPHY_INTR_HANDLER_TYPE_RX_MMCM_LOCK_CHANGE |
-		XVPHY_INTR_HANDLER_TYPE_TX_TMR_TIMEOUT |
-		XVPHY_INTR_HANDLER_TYPE_RX_TMR_TIMEOUT);
+	/* Enable interrupt requesting in the VPHY */
+	xvphy_intr_enable(vphydev);
 
 	return IRQ_HANDLED;
 }
@@ -584,6 +594,26 @@ static int xvphy_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused xvphy_pm_suspend(struct device *dev)
+{
+	struct xvphy_dev *vphydev = dev_get_drvdata(dev);
+	dev_dbg(vphydev->dev, "Vphy suspend function called\n");
+	xvphy_intr_disable(vphydev);
+	return 0;
+}
+
+static int __maybe_unused xvphy_pm_resume(struct device *dev)
+{
+	struct xvphy_dev *vphydev = dev_get_drvdata(dev);
+	dev_dbg(vphydev->dev, "Vphy resume function called\n");
+	xvphy_intr_enable(vphydev);
+	return 0;
+}
+
+static const struct dev_pm_ops xvphy_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(xvphy_pm_suspend, xvphy_pm_resume)
+};
+
 /* Match table for of_platform binding */
 static const struct of_device_id xvphy_of_match[] = {
 	{ .compatible = "xlnx,vid-phy-controller-2.2" },
@@ -596,6 +626,7 @@ static struct platform_driver xvphy_driver = {
 	.driver = {
 		.name = "xilinx-vphy",
 		.of_match_table	= xvphy_of_match,
+		.pm = &xvphy_pm_ops,
 	},
 };
 module_platform_driver(xvphy_driver);

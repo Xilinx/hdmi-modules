@@ -466,16 +466,6 @@ static const struct media_entity_operations xhdmi_media_ops = {
  * Power Management
  */
 
-static int __maybe_unused xhdmi_pm_suspend(struct device *dev)
-{
-	return 0;
-}
-
-static int __maybe_unused xhdmi_pm_resume(struct device *dev)
-{
-	return 0;
-}
-
 void HdmiRx_PioIntrHandler(XV_HdmiRx *InstancePtr);
 void HdmiRx_TmrIntrHandler(XV_HdmiRx *InstancePtr);
 void HdmiRx_VtdIntrHandler(XV_HdmiRx *InstancePtr);
@@ -503,6 +493,30 @@ static void XV_HdmiRxSs_IntrDisable(XV_HdmiRxSs *HdmiRxSsPtr)
 	XV_HdmiRx_AuxIntrDisable(HdmiRxSsPtr->HdmiRxPtr);
 	XV_HdmiRx_AudioIntrDisable(HdmiRxSsPtr->HdmiRxPtr);
 	XV_HdmiRx_LinkIntrDisable(HdmiRxSsPtr->HdmiRxPtr);
+}
+
+static int __maybe_unused hdmirx_pm_suspend(struct device *dev)
+{
+	unsigned long flags;
+	struct xhdmi_device *xhdmi = dev_get_drvdata(dev);
+	XV_HdmiRxSs *HdmiRxSsPtr = (XV_HdmiRxSs *)&xhdmi->xv_hdmirxss;
+	dev_dbg(xhdmi->dev,"HDMI RX suspend function called\n");
+	spin_lock_irqsave(&xhdmi->irq_lock, flags);
+	XV_HdmiRxSs_IntrDisable(HdmiRxSsPtr);
+	spin_unlock_irqrestore(&xhdmi->irq_lock, flags);
+	return 0;
+}
+
+static int __maybe_unused hdmirx_pm_resume(struct device *dev)
+{
+	unsigned long flags;
+	struct xhdmi_device *xhdmi = dev_get_drvdata(dev);
+	XV_HdmiRxSs *HdmiRxSsPtr = (XV_HdmiRxSs *)&xhdmi->xv_hdmirxss;
+	dev_dbg(xhdmi->dev,"HDMI RX resume function called\n");
+	spin_lock_irqsave(&xhdmi->irq_lock, flags);
+	XV_HdmiRxSs_IntrEnable(HdmiRxSsPtr);
+	spin_unlock_irqrestore(&xhdmi->irq_lock, flags);
+	return 0;
 }
 
 static irqreturn_t hdmirx_irq_handler(int irq, void *dev_id)
@@ -2174,7 +2188,9 @@ static int xhdmi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(xhdmi_pm_ops, xhdmi_pm_suspend, xhdmi_pm_resume);
+static const struct dev_pm_ops xhdmirx_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(hdmirx_pm_suspend, hdmirx_pm_resume)
+};
 
 static const struct of_device_id xhdmi_of_id_table[] = {
 	{ .compatible = "xlnx,v-hdmi-rx-ss-3.1" },
@@ -2185,7 +2201,7 @@ MODULE_DEVICE_TABLE(of, xhdmi_of_id_table);
 static struct platform_driver xhdmi_driver = {
 	.driver = {
 		.name		= "xilinx-hdmi-rx",
-		.pm		= &xhdmi_pm_ops,
+		.pm		= &xhdmirx_pm_ops,
 		.of_match_table	= xhdmi_of_id_table,
 	},
 	.probe			= xhdmi_probe,

@@ -235,6 +235,30 @@ static void XV_HdmiTxSs_IntrDisable(XV_HdmiTxSs *HdmiTxSsPtr)
 	XV_HdmiTx_PioIntrDisable(HdmiTxSsPtr->HdmiTxPtr);
 }
 
+static int __maybe_unused hdmitx_pm_suspend(struct device *dev)
+{
+	unsigned long flags;
+	struct xlnx_drm_hdmi *xhdmi = dev_get_drvdata(dev);
+	XV_HdmiTxSs *HdmiTxSsPtr = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
+	dev_dbg(xhdmi->dev,"HDMI TX suspend function called\n");
+	spin_lock_irqsave(&xhdmi->irq_lock, flags);
+	XV_HdmiTxSs_IntrDisable(HdmiTxSsPtr);
+	spin_unlock_irqrestore(&xhdmi->irq_lock, flags);
+	return 0;
+}
+
+static int __maybe_unused hdmitx_pm_resume(struct device *dev)
+{
+	unsigned long flags;
+	struct xlnx_drm_hdmi *xhdmi = dev_get_drvdata(dev);
+	XV_HdmiTxSs *HdmiTxSsPtr = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
+	dev_dbg(xhdmi->dev,"HDMI TX resume function called\n");
+	spin_lock_irqsave(&xhdmi->irq_lock, flags);
+	XV_HdmiTxSs_IntrEnable(HdmiTxSsPtr);
+	spin_unlock_irqrestore(&xhdmi->irq_lock, flags);
+	return 0;
+}
+
 /* XV_HdmiTx_IntrHandler */
 static irqreturn_t hdmitx_irq_handler(int irq, void *dev_id)
 {
@@ -2564,6 +2588,10 @@ void hdmitx_audio_mute(struct device *dev, bool enable)
 		hdmitx_audio_startup(dev);
 }
 
+static const struct dev_pm_ops xhdmitx_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(hdmitx_pm_suspend, hdmitx_pm_resume)
+};
+
 static const struct of_device_id xlnx_drm_hdmi_of_match[] = {
 	{ .compatible = "xlnx,v-hdmi-tx-ss-3.1", },
 	{ /* end of table */ },
@@ -2576,6 +2604,7 @@ static struct platform_driver xlnx_drm_hdmi_driver = {
 	.driver			= {
 		.owner		= THIS_MODULE,
 		.name		= "xlnx-drm-hdmi",
+		.pm			= &xhdmitx_pm_ops,
 		.of_match_table	= xlnx_drm_hdmi_of_match,
 	},
 };
