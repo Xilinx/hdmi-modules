@@ -17,7 +17,6 @@
 /**
 *
 * @file xhdcp1x_port_hdmi_tx.c
-* @addtogroup hdcp1x_v4_0
 * @{
 *
 * This contains the implementation of the HDCP port driver for HDMI TX

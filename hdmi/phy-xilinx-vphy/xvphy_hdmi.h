@@ -39,7 +39,6 @@
  * 1.7   gm   13/09/17 Removed XVphy_DruSetGain API
  * </pre>
  *
- * @addtogroup xvphy_v1_7
  * @{
 *******************************************************************************/
 #if defined (XPAR_XV_HDMITX_0_DEVICE_ID) || defined (XPAR_XV_HDMIRX_0_DEVICE_ID)

@@ -17,7 +17,6 @@
 /**
 *
 * @file xhdcp1x_platform.c
-* @addtogroup hdcp1x_v4_0
 * @{
 *
 * This file provides the implementation for the hdcp platform integration

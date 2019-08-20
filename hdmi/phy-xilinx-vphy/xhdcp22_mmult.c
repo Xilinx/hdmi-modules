@@ -17,7 +17,6 @@
 /**
 *
 * @file xhdcp22_mmult.c
-* @addtogroup hdcp22_mmult_v1_1
 * @{
 * @details
 *

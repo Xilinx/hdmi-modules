@@ -16,7 +16,6 @@
 /**
  *
  * @file xhdmic.h
- * @addtogroup hdmi_common_v1_0
  * @{
  * @details
  *

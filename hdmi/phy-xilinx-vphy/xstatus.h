@@ -18,7 +18,6 @@
 *
 * @file xstatus.h
 *
-* @addtogroup common_status_codes Xilinx&reg; software status codes
 *
 * The xstatus.h file contains the Xilinx&reg; software status codes.These codes are
 * used throughout the Xilinx device drivers.
@@ -515,5 +514,4 @@ typedef s32 XStatus;
 
 #endif /* end of protection macro */
 /**
-* @} End of "addtogroup common_status_codes".
 */

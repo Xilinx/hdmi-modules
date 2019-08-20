@@ -17,7 +17,6 @@
 /**
 *
 * @file xtmrctr_sinit.c
-* @addtogroup tmrctr_v4_0
 * @{
 *
 * This file contains static initialization methods for the XTmrCtr driver.

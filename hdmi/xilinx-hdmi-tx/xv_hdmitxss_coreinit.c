@@ -17,7 +17,6 @@
 /**
 *
 * @file xv_hdmitxss_coreinit.c
-* @addtogroup v_hdmitxss
 * @{
 * @details
 

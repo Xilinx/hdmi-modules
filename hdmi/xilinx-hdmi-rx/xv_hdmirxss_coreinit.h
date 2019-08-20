@@ -17,7 +17,6 @@
 /**
 *
 * @file xv_hdmirxss_coreinit.h
-* @addtogroup v_hdmirxss
 * @{
 * @details
 *

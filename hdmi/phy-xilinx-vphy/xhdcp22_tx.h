@@ -17,7 +17,6 @@
 /**
 *
 * @file xhdcp22_tx.h
-* @addtogroup hdcp22_tx_v2_0
 * @{
 * @details
 *

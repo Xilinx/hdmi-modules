@@ -17,7 +17,6 @@
 /**
 *
 * @file xhdcp22_rng_hw.h
-* @addtogroup hdcp22_rng_v1_1
 * @{
 * @details
 *

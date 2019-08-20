@@ -15,7 +15,6 @@
 /**
  *
  * @file xhdmic.c
- * @addtogroup hdmi_common_v1_0
  * @{
  *
  * Contains common utility functions that are typically used by hdmi-related
