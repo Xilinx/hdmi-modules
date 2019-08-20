@@ -17,7 +17,6 @@
 /**
 *
 * @file xvtc.h
-* @addtogroup vtc_v7_2
 * @{
 * @details
 *

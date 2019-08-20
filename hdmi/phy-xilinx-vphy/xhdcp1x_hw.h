@@ -17,7 +17,6 @@
 /**
 *
 * @file xhdcp1x_hw.h
-* @addtogroup hdcp1x_v4_0
 * @{
 *
 * This header file contains identifiers and register-level core functions (or

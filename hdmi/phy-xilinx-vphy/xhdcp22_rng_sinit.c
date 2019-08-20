@@ -17,7 +17,6 @@
 /**
 *
 * @file xhdcp22_rng_sinit.c
-* @addtogroup hdcp22_rng_v1_1
 * @{
 * @details
 *

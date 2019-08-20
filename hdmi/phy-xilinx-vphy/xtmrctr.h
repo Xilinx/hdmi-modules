@@ -17,7 +17,6 @@
 /**
 *
 * @file xtmrctr.h
-* @addtogroup tmrctr_v4_0
 * @{
 * @details
 *

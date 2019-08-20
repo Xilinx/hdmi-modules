@@ -18,7 +18,6 @@
 *
 * @file xil_types.h
 *
-* @addtogroup common_types Basic Data types for Xilinx&reg; Software IP
 *
 * The xil_types.h file contains basic types for Xilinx software IP. These data types
 * are applicable for all processors supported by Xilinx.
@@ -196,5 +195,4 @@ typedef void (*XExceptionHandler) (void *InstancePtr);
 
 #endif	/* end of protection macro */
 /**
-* @} End of "addtogroup common_types".
 */

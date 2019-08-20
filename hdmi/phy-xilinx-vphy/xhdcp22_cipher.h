@@ -17,7 +17,6 @@
 /**
 *
 * @file xhdcp22_cipher.h
-* @addtogroup hdcp22_cipher_v1_1
 * @{
 * @details
 *

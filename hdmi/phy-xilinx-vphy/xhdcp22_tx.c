@@ -18,7 +18,6 @@
 /**
 *
 * @file xhdcp22_tx.c
-* @addtogroup hdcp22_tx_v2_0
 * @{
 * @details
 *

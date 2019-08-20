@@ -17,7 +17,6 @@
 /**
 *
 * @file xvtc.c
-* @addtogroup vtc_v7_2
 * @{
 *
 * This is main code of Xilinx MVI Video Timing Controller (VTC) device driver.

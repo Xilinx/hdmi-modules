@@ -17,7 +17,6 @@
 /**
 *
 * @file xhdcp1x.h
-* @addtogroup hdcp1x_v4_0
 * @{
 * @details
 *
