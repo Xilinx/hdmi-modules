@@ -44,6 +44,9 @@ Required Properties:
  - xlnx,tx-buffer-bypass: Flag to indicate buffer bypass logic availability
  - xlnx,transceiver-width: Defines 4 Byte or 2 Byte mode
                       (Note: Only 2 byte is supported at this time)
+ - xlnx,use-gt-ch4-hdmi: Enables the usage of 4th TX GT channel.
+                      (Default value is 0.
+                      If selected in GUI, then value will be 1)
 
  - lane<n>: (port (child) nodes)
 	lane0:
@@ -86,6 +89,7 @@ sharing VPHYs, and are therefore subject to change.)
 		xlnx,transceiver-type = <0x5>;
 		xlnx,tx-buffer-bypass = <0x1>;
 		xlnx,transceiver-width = <0x2>;
+		xlnx,use-gt-ch4-hdmi = <0>;
 
 		vphy_lane0: vphy_lane@0 {
 			#phy-cells = <4>;
