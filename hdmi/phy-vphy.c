@@ -392,6 +392,12 @@ static int vphy_parse_of(struct xvphy_dev *vphydev, XVphy_Config *c)
 	has_err_irq = false;
 	has_err_irq = of_property_read_bool(node, "xlnx,err-irq-en");
 	c->ErrIrq = has_err_irq;
+
+	rc = of_property_read_u32(node, "xlnx,use-gt-ch4-hdmi", &val);
+	if (rc < 0)
+		goto error_dt;
+	c->UseGtAsTxTmdsClk = val;
+
 	return 0;
 
 error_dt:
