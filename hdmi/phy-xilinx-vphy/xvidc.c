@@ -1093,10 +1093,10 @@ void XVidC_ReportStreamInfo(const XVidC_VideoStream *Stream)
 		xil_printf("\tResolution:       %dx%d [Custom Mode]\r\n",
 				Stream->Timing.HActive, Stream->Timing.VActive);
 		xil_printf("\tPixel Clock:      %d kHz\r\n",
-				XVidC_GetPixelClockHzByHVFr(
+				(u32)(XVidC_GetPixelClockHzByHVFr(
 					Stream->Timing.HTotal,
 					Stream->Timing.F0PVTotal,
-					Stream->FrameRate)/1000);
+					Stream->FrameRate)/1000));
 	}
 	else {
 		xil_printf("\tFrame Rate:       %s\r\n",
@@ -1104,7 +1104,8 @@ void XVidC_ReportStreamInfo(const XVidC_VideoStream *Stream)
 		xil_printf("\tResolution:       %s\r\n",
 				XVidC_GetVideoModeStr(Stream->VmId));
 		xil_printf("\tPixel Clock:      %d kHz\r\n",
-				(XVidC_GetPixelClockHzByVmId(Stream->VmId)/1000));
+				(u32)(XVidC_GetPixelClockHzByVmId(Stream->VmId)
+						/1000));
 	}
 }
 
