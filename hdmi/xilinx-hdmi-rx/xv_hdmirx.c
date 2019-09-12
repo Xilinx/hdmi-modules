@@ -52,6 +52,11 @@
 *                       Added TMDS Clock Ratio callback support
 * 2.30  EB     05/03/19 Updated the description of the API
 *                          XV_HdmiRx_GetLinkStatus
+* 2.40  EB     30/07/19 Updated XV_HdmiRx_GetVideoTiming to fix an issue where
+*                          FrameRate for YUV420 may be incorrect
+*                       Updated XV_HdmiRx_GetVideoTiming to fix an issue where
+*                          video timing values may be incorrect
+*              06/08/19 Added Vic and Video Timing mismatch callback support
 * </pre>
 *
 ******************************************************************************/
@@ -1529,9 +1534,16 @@ int XV_HdmiRx_GetVideoTiming(XV_HdmiRx *InstancePtr)
         Match = FALSE;
     }
 
-    if ((IsInterlaced == 1) & (!F1VFrontPorch | !F1VSyncWidth | !F1VBackPorch | !F1VTotal)) {
-        Match = FALSE;
-    }
+	if (IsInterlaced == 1) {
+		if (F1VTotal != (VActive + F1VFrontPorch +
+				F1VSyncWidth + F1VBackPorch)) {
+			Match = FALSE;
+		}
+	} else {
+		if (F1VFrontPorch | F1VSyncWidth | F1VBackPorch) {
+			Match = FALSE;
+		}
+	}
 
     // Htotal
     if (HTotal != InstancePtr->Stream.Video.Timing.HTotal) {

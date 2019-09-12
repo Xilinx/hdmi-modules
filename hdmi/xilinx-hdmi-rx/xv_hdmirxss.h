@@ -81,6 +81,7 @@
 *                       Added TMDS Clock Ratio callback support
 *       YB     17/08/18 Marked XV_HDMIRXSS_HDCP_1_PROT_EVT and
 *                           XV_HDMIRXSS_HDCP_2_PROT_EVT as deprecated.
+* 5.40  EB     06/08/19 Added Vic and Video Timing mismatch callback support
 * </pre>
 *
 ******************************************************************************/
