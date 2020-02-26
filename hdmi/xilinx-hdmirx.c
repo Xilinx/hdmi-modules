@@ -31,7 +31,6 @@
 #include <media/v4l2-dv-timings.h>
 
 #include "linux/phy/phy-vphy.h"
-#include "xilinx-vip.h"
 
 /* baseline driver includes */
 #include "xilinx-hdmi-rx/xv_hdmirxss.h"
@@ -357,6 +356,42 @@ static int xhdmi_enum_frame_size(struct v4l2_subdev *subdev,
 	return 0;
 }
 
+/**
+ * xhdmi_enum_mbus_code - Enumerate the media format code
+ * @subdev: V4L2 subdevice
+ * @cfg: V4L2 subdev pad configuration
+ * @code: returning media bus code
+ *
+ * Enumerate the media bus code of the subdevice. Return the corresponding
+ * pad format code. This function only works for subdevices with fixed format
+ * on all pads. Subdevices with multiple format should have their own
+ * function to enumerate mbus codes.
+ *
+ * Return: 0 if the media bus code is found, or -EINVAL if the format index
+ * is not valid.
+ */
+int xhdmi_enum_mbus_code(struct v4l2_subdev *subdev,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
+{
+	struct v4l2_mbus_framefmt *format;
+
+	/* Enumerating frame sizes based on the active configuration isn't
+	 * supported yet.
+	 */
+	if (code->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
+
+	if (code->index)
+		return -EINVAL;
+
+	format = v4l2_subdev_get_try_format(subdev, cfg, code->pad);
+
+	code->code = format->code;
+
+	return 0;
+}
+
 static int xhdmi_dv_timings_cap(struct v4l2_subdev *subdev,
 		struct v4l2_dv_timings_cap *cap)
 {
@@ -434,7 +469,7 @@ static struct v4l2_subdev_video_ops xhdmi_video_ops = {
  * it must implement format related functionality using v4l2_subdev_pad_ops instead of
  * v4l2_subdev_video_ops. */
 static struct v4l2_subdev_pad_ops xhdmi_pad_ops = {
-	.enum_mbus_code		= xvip_enum_mbus_code,
+	.enum_mbus_code		= xhdmi_enum_mbus_code,
 	.enum_frame_size	= xhdmi_enum_frame_size,
 	.get_fmt			= xhdmi_get_format,
 	.set_fmt			= xhdmi_set_format,
