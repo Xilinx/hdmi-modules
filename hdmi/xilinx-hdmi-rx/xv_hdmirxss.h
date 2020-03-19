@@ -449,6 +449,7 @@ typedef struct
   XHdmiC_GeneralControlPacket GCP;		/**< General Control Packet */
   XHdmiC_AudioInfoFrame AudioInfoframe;	/**< Audio InfoFrame */
   XHdmiC_VSIF VSIF;						/**< Vendor Specific InfoFrame */
+  struct v4l2_hdr10_payload DrmInfoframe; /* HDR infoframe */
 
   XVidC_DelayHandler UserTimerWaitUs; /**< Custom user function for
                                            delay/sleep. */
@@ -510,6 +511,7 @@ void XV_HdmiRxSs_ToggleHpd(XV_HdmiRxSs *InstancePtr);
 XHdmiC_Aux *XV_HdmiRxSs_GetAuxiliary(XV_HdmiRxSs *InstancePtr);
 XHdmiC_AVI_InfoFrame *XV_HdmiRxSs_GetAviInfoframe(XV_HdmiRxSs *InstancePtr);
 XHdmiC_AudioInfoFrame *XV_HdmiRxSs_GetAudioInfoframe(XV_HdmiRxSs *InstancePtr);
+struct v4l2_hdr10_payload *XV_HdmiRxSs_GetDrmInfoframe(XV_HdmiRxSs *InstancePtr);
 XHdmiC_VSIF *XV_HdmiRxSs_GetVSIF(XV_HdmiRxSs *InstancePtr);
 XHdmiC_GeneralControlPacket *XV_HdmiRxSs_GetGCP(XV_HdmiRxSs *InstancePtr);
 u32 XV_HdmiRxSs_SetStream(XV_HdmiRxSs *InstancePtr,
