@@ -43,7 +43,9 @@ extern "C" {
 #endif
 
 /******************************* Include Files ********************************/
-
+#include <linux/clk.h>
+#include <uapi/linux/videodev2.h>
+#include <media/hdr-ctrls.h>
 #include "xil_types.h"
 #include "xil_printf.h"
 #include "xvidc.h"
@@ -55,6 +57,7 @@ extern "C" {
 #define AUX_AVI_INFOFRAME_TYPE 0x82
 #define AUX_GENERAL_CONTROL_PACKET_TYPE 0x3
 #define AUX_AUDIO_INFOFRAME_TYPE 0x84
+#define AUX_DRM_INFOFRAME_TYPE 0x87
 
 /****************************** Type Definitions ******************************/
 
@@ -344,6 +347,17 @@ typedef struct {
 	u8 LineRate;		/**< Line Rate */
 } XHdmiC_FrlRate;
 
+typedef enum {
+	XHDMIC_DRM_TRADITIONAL_GAMMA_SDR = 0x0,
+	XHDMIC_DRM_TRADITIONAL_GAMMA_HDR,
+	XHDMIC_DRM_SMPTE_ST_2084,
+	XHDMIC_DRM_HLG
+} XHdmiC_DRM_EOTF;
+
+typedef enum {
+	XHDMIC_DRM_STATIC_METADATA_TYPE1 = 0
+} XHdmiC_DRM_Static_Metadata_Descp_Id;
+
 /**
  * This typedef contains the data structure for
  * Auxiliary Video Information Info frame
@@ -410,11 +424,15 @@ void XV_HdmiC_ParseGCP(XHdmiC_Aux *AuxPtr,
 			XHdmiC_GeneralControlPacket *GcpPtr);
 void XV_HdmiC_ParseAudioInfoFrame(XHdmiC_Aux *AuxPtr,
 			XHdmiC_AudioInfoFrame *AudIFPtr);
+void XV_HdmiC_ParseDRMIF(XHdmiC_Aux *AuxPtr,
+			struct v4l2_hdr10_payload *DRMInfoFrame);
 XHdmiC_Aux XV_HdmiC_AVIIF_GeneratePacket(XHdmiC_AVI_InfoFrame *infoFramePtr);
 XHdmiC_Aux
 	XV_HdmiC_AudioIF_GeneratePacket(XHdmiC_AudioInfoFrame *AudioInfoFrame);
 XHdmiC_Colorspace
 		XV_HdmiC_XVidC_To_IfColorformat(XVidC_ColorFormat ColorFormat);
+void XV_HdmiC_DRMIF_GeneratePacket(struct v4l2_hdr10_payload *DRMInfoFrame,
+					XHdmiC_Aux *aux);
 XVidC_AspectRatio XV_HdmiC_IFAspectRatio_To_XVidC(XHdmiC_PicAspectRatio AR);
 
 u32 XHdmiC_FRL_GetNVal(XHdmiC_FRLCharRate FRLCharRate,
