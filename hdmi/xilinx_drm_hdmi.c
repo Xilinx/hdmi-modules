@@ -704,6 +704,11 @@ static void TxVsCallback(void *CallbackRef)
 	XHdmiC_Aux aud_aux_fifo;
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)CallbackRef;
 	XV_HdmiTxSs *HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
+	struct hdmi_drm_infoframe frame;
+	struct v4l2_hdr10_payload *DRMInfoFramePtr =
+				XV_HdmiTxSs_GetDrmInfoframe(HdmiTxSsPtr);
+	XHdmiC_Aux hdr_aux_fifo;
+	struct drm_connector_state *state = xhdmi->connector.state;
 
 	/* Send NULL Aux packet */
 	SendInfoframe(HdmiTxSsPtr);
@@ -724,6 +729,37 @@ static void TxVsCallback(void *CallbackRef)
 		XV_HdmiTxSs_SendGenericAuxInfoframe(HdmiTxSsPtr,
 							&aud_aux_fifo);
 	}
+
+	if (!state->gen_hdr_output_metadata)
+		return;
+
+	drm_hdmi_infoframe_set_gen_hdr_metadata(&frame, state);
+	/* hdmi_drm_infoframe to v4l2_hdr10_payload */
+	DRMInfoFramePtr->eotf = (__u8) frame.eotf;
+	DRMInfoFramePtr->metadata_type = (__u8) frame.metadata_type;
+	DRMInfoFramePtr->display_primaries[0].x =
+				(__u16) frame.display_primaries[0].x;
+	DRMInfoFramePtr->display_primaries[0].y =
+				(__u16) frame.display_primaries[0].y;
+	DRMInfoFramePtr->display_primaries[1].x =
+				(__u16) frame.display_primaries[1].x;
+	DRMInfoFramePtr->display_primaries[1].y =
+				(__u16) frame.display_primaries[1].y;
+	DRMInfoFramePtr->display_primaries[2].x =
+				(__u16) frame.display_primaries[2].x;
+	DRMInfoFramePtr->display_primaries[2].y =
+				(__u16) frame.display_primaries[2].y;
+	DRMInfoFramePtr->white_point.x = (__u16) frame.white_point.x;
+	DRMInfoFramePtr->white_point.y = (__u16) frame.white_point.y;
+	DRMInfoFramePtr->max_mdl =
+				(__u16) frame.max_display_mastering_luminance;
+	DRMInfoFramePtr->min_mdl =
+				(__u16) frame.min_display_mastering_luminance;
+	DRMInfoFramePtr->max_cll = (__u16) frame.max_cll;
+	DRMInfoFramePtr->max_fall = (__u16) frame.max_fall;
+
+	XV_HdmiC_DRMIF_GeneratePacket(DRMInfoFramePtr, &hdr_aux_fifo);
+	XV_HdmiTxSs_SendGenericAuxInfoframe(HdmiTxSsPtr, &hdr_aux_fifo);
 }
 
 void TxBrdgUnlockedCallback(void *CallbackRef)
@@ -2139,6 +2175,10 @@ static int xlnx_drm_hdmi_create_connector(struct drm_encoder *encoder)
 			"Failed to attach encoder to connector (ret=%d)\n", ret);
 		return ret;
 	}
+
+	drm_object_attach_property(&connector->base,
+			connector->dev->mode_config.gen_hdr_output_metadata_property,
+			0);
 
 	return 0;
 }
