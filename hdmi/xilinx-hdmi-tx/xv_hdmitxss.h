@@ -420,6 +420,7 @@ typedef struct
 	XHdmiC_AVI_InfoFrame AVIInfoframe;		/**< AVI InfoFrame */
 	XHdmiC_AudioInfoFrame AudioInfoframe;	/**< Audio InfoFrame */
 	XHdmiC_VSIF VSIF;						/**< Vendor Specific InfoFrame */
+	struct v4l2_hdr10_payload DrmInfoframe;	/**< DRM Infoframe */
 
     XV_HdmiTxSs_HdcpProtocol    HdcpProtocol;    /**< HDCP protocol selected */
 #ifdef USE_HDCP_TX
@@ -515,6 +516,8 @@ u8 XV_HdmiTxSs_IsSinkHdcp22Capable(XV_HdmiTxSs *InstancePtr);
 
 void XV_HdmiTxSs_SetDefaultPpc(XV_HdmiTxSs *InstancePtr, u8 Id);
 void XV_HdmiTxSs_SetPpc(XV_HdmiTxSs *InstancePtr, u8 Id, u8 Ppc);
+struct v4l2_hdr10_payload
+	*XV_HdmiTxSs_GetDrmInfoframe(XV_HdmiTxSs *InstancePtr);
 
 #ifdef XV_HDMITXSS_LOG_ENABLE
 void XV_HdmiTxSs_LogReset(XV_HdmiTxSs *InstancePtr);

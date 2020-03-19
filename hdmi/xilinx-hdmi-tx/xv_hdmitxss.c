@@ -466,6 +466,8 @@ int XV_HdmiTxSs_CfgInitialize(XV_HdmiTxSs *InstancePtr,
   (void)memset((void *)&(HdmiTxSsPtr->AVIInfoframe), 0, sizeof(XHdmiC_AVI_InfoFrame));
   (void)memset((void *)&(HdmiTxSsPtr->VSIF), 0, sizeof(XHdmiC_VSIF));
   (void)memset((void *)&(HdmiTxSsPtr->AudioInfoframe), 0, sizeof(XHdmiC_AudioInfoFrame));
+  memset((void *)&(HdmiTxSsPtr->DrmInfoframe), 0, sizeof(struct v4l2_hdr10_payload));
+  HdmiTxSsPtr->DrmInfoframe.metadata_type = 0xff;
 
   /* Determine sub-cores included in the provided instance of subsystem */
   XV_HdmiTxSs_GetIncludedSubcores(HdmiTxSsPtr, CfgPtr->DeviceId);
@@ -2010,6 +2012,24 @@ XHdmiC_VSIF *XV_HdmiTxSs_GetVSIF(XV_HdmiTxSs *InstancePtr)
 /*****************************************************************************/
 /**
 *
+* This function returns the pointer to HDMI TX SS DRM InfoFrame
+* structure
+*
+* @param  InstancePtr pointer to XV_HdmiTxSs instance
+*
+* @return struct v4l2_hdr10_payload pointer
+*
+* @note   None.
+*
+******************************************************************************/
+struct v4l2_hdr10_payload *XV_HdmiTxSs_GetDrmInfoframe(XV_HdmiTxSs *InstancePtr)
+{
+    return (&(InstancePtr->DrmInfoframe));
+}
+
+/*****************************************************************************/
+/**
+*
 * This function set HDMI TX susbsystem stream parameters
 *
 * @param  None.
@@ -2308,6 +2328,44 @@ void XV_HdmiTxSs_ReportTiming(XV_HdmiTxSs *InstancePtr)
 /*****************************************************************************/
 /**
 *
+* This function prints the HDMI TX SS DRM If information
+*
+* @param  None.
+*
+* @return None.
+*
+* @note   None.
+*
+******************************************************************************/
+static void XV_HdmiTxSs_ReportDRMInfo(XV_HdmiTxSs *InstancePtr)
+{
+	struct v4l2_hdr10_payload *DrmInfoFramePtr;
+	DrmInfoFramePtr = XV_HdmiTxSs_GetDrmInfoframe(InstancePtr);
+
+	if (DrmInfoFramePtr->metadata_type == 0xFF) {
+		xil_printf("No DRM info\r\n");
+		return;
+	}
+
+	xil_printf("DRM IF info:\r\n");
+	xil_printf("desc id: %d\r\n", DrmInfoFramePtr->metadata_type);
+	xil_printf("display primaries x0, y0, x1, y1, x2, y2: %d %d %d %d %d %d\r\n",
+			DrmInfoFramePtr->display_primaries[0].x, DrmInfoFramePtr->display_primaries[0].y,
+			DrmInfoFramePtr->display_primaries[1].x, DrmInfoFramePtr->display_primaries[1].y,
+			DrmInfoFramePtr->display_primaries[2].x, DrmInfoFramePtr->display_primaries[2].y
+		  );
+	xil_printf("white point x, y: %d %d\r\n",
+			DrmInfoFramePtr->white_point.x, DrmInfoFramePtr->white_point.y);
+	xil_printf("min/max display mastering luminance: %d %d\r\n",
+			DrmInfoFramePtr->min_mdl,
+			DrmInfoFramePtr->max_mdl);
+	xil_printf("Max_CLL: %d\r\n", DrmInfoFramePtr->max_cll);
+	xil_printf("max_fall: %d\r\n", DrmInfoFramePtr->max_fall);
+}
+
+/*****************************************************************************/
+/**
+*
 * This function prints the HDMI TX SS audio information
 *
 * @param  None.
@@ -2411,6 +2469,9 @@ void XV_HdmiTxSs_ReportInfo(XV_HdmiTxSs *InstancePtr)
     xil_printf("Audio\r\n");
     xil_printf("---------\r\n");
     XV_HdmiTxSs_ReportAudio(InstancePtr);
+    xil_printf("DRM info frame\r\n");
+    xil_printf("--------------\r\n");
+    XV_HdmiTxSs_ReportDRMInfo(InstancePtr);
 }
 /*****************************************************************************/
 /**
@@ -2790,6 +2851,8 @@ u8 XV_HdmiTxSS_IsMasked(XV_HdmiTxSs *InstancePtr)
 int XV_HdmiTxSs_ShowInfo(XV_HdmiTxSs *InstancePtr, char *buff, int buff_size)
 {
 	int strSize = 0;
+	struct v4l2_hdr10_payload *DrmInfoFramePtr =
+				XV_HdmiTxSs_GetDrmInfoframe(InstancePtr);
 
 	strSize = scnprintf(buff+strSize, buff_size-strSize,
 				"\r\nTx Info\r\n" \
@@ -2819,5 +2882,33 @@ int XV_HdmiTxSs_ShowInfo(XV_HdmiTxSs *InstancePtr, char *buff, int buff_size)
 	strSize += scnprintf(buff+strSize, buff_size-strSize,
 			"Audio channels: %0d\r\n\r\n",
 			(XV_HdmiTx_GetAudioChannels(InstancePtr->HdmiTxPtr)));
+
+	if (DrmInfoFramePtr->metadata_type == 0xFF) {
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"\r\nNo DRM info\r\n");
+	} else {
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"\r\nDRM IF Info\r\n" \
+				"------------\r\n");
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"desc id: %d\r\n", DrmInfoFramePtr->metadata_type);
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"display primaries x0, y0, x1, y1, x2, y2: %d %d %d %d %d %d\r\n",
+				DrmInfoFramePtr->display_primaries[0].x, DrmInfoFramePtr->display_primaries[0].y,
+				DrmInfoFramePtr->display_primaries[1].x, DrmInfoFramePtr->display_primaries[1].y,
+				DrmInfoFramePtr->display_primaries[2].x, DrmInfoFramePtr->display_primaries[2].y);
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"white point x, y: %d %d\r\n",
+				DrmInfoFramePtr->white_point.x, DrmInfoFramePtr->white_point.y);
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"min/max display mastering luminance: %d %d\r\n",
+				DrmInfoFramePtr->min_mdl,
+				DrmInfoFramePtr->max_mdl);
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"max_cll: %d\r\n", DrmInfoFramePtr->max_cll);
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"max_fall: %d\r\n", DrmInfoFramePtr->max_fall);
+	}
+
   return strSize;
 }
