@@ -24,6 +24,8 @@
 #include <linux/firmware.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/hdmi.h>
+#include <media/hdr-ctrls.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
@@ -455,10 +457,53 @@ static int xhdmi_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
+static int xhdmi_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+{
+	int ret = 0;
+	struct xhdmi_device *xhdmi =
+			container_of(ctrl->handler,
+					struct xhdmi_device,
+					ctrl_handler);
+	XV_HdmiRxSs *HdmiRxSsPtr = (XV_HdmiRxSs *)&xhdmi->xv_hdmirxss;
+	struct v4l2_metadata_hdr *hdr_ptr;
+
+	switch (ctrl->id)  {
+	case V4L2_CID_METADATA_HDR:
+		{
+			hdr_ptr = (struct v4l2_metadata_hdr *) ctrl->p_new.p;
+			hdr_ptr->metadata_type = V4L2_HDR_TYPE_HDR10;
+			hdr_ptr->size = sizeof(struct v4l2_hdr10_payload);
+			memcpy (hdr_ptr->payload,
+					&HdmiRxSsPtr->DrmInfoframe,
+					hdr_ptr->size);
+			break;
+		}
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 static const struct v4l2_ctrl_ops xhdmi_ctrl_ops = {
 	.s_ctrl	= xhdmi_s_ctrl,
+	.g_volatile_ctrl = xhdmi_g_volatile_ctrl,
 };
 
+static const struct v4l2_ctrl_config xhdmi_ctrls[] = {
+	{
+		.ops = &xhdmi_ctrl_ops,
+		.id = V4L2_CID_METADATA_HDR,
+		.name = "HDR Controls",
+		.type = 0x0106,
+		.min = 0x8000000000000000,
+		.max = 0x7FFFFFFFFFFFFFFF,
+		.step = 1,
+		.def = 0,
+		.elem_size = sizeof(struct v4l2_metadata_hdr),
+		.flags = V4L2_CTRL_FLAG_VOLATILE | V4L2_CTRL_FLAG_HAS_PAYLOAD,
+	}
+};
 static struct v4l2_subdev_core_ops xhdmi_core_ops = {
 	.subscribe_event = xhdmi_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
@@ -1878,7 +1923,7 @@ static int xhdmi_probe(struct platform_device *pdev)
 {
 	struct v4l2_subdev *subdev;
 	struct xhdmi_device *xhdmi;
-	int ret;
+	int ret, i;
 	unsigned int index = 0;
 	struct resource *res;
 
@@ -2229,7 +2274,38 @@ static int xhdmi_probe(struct platform_device *pdev)
 		goto error_irq;
 	}
 
-	v4l2_ctrl_handler_init(&xhdmi->ctrl_handler, 0/*controls*/);
+	ret = v4l2_ctrl_handler_init(&xhdmi->ctrl_handler,
+				ARRAY_SIZE(xhdmi_ctrls)/*controls*/);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to initialize V4L2 ctrl\n");
+		hdmi_mutex_unlock(&xhdmi->xhdmi_mutex);
+		goto error_irq;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(xhdmi_ctrls); i++) {
+		struct v4l2_ctrl *ctrl;
+
+		dev_dbg(&pdev->dev, "%d ctrl = 0x%x\n", i,
+			xhdmi_ctrls[i].id);
+		ctrl = v4l2_ctrl_new_custom(&xhdmi->ctrl_handler,
+					    &xhdmi_ctrls[i], NULL);
+		if (!ctrl) {
+			dev_err(&pdev->dev, "Failed for %s ctrl\n",
+				xhdmi_ctrls[i].name);
+			v4l2_ctrl_handler_free(&xhdmi->ctrl_handler);
+			hdmi_mutex_unlock(&xhdmi->xhdmi_mutex);
+			goto error_irq;
+		}
+	}
+
+	if (xhdmi->ctrl_handler.error) {
+		dev_err(&pdev->dev, "failed to add controls\n");
+		ret = xhdmi->ctrl_handler.error;
+		v4l2_ctrl_handler_free(&xhdmi->ctrl_handler);
+		hdmi_mutex_unlock(&xhdmi->xhdmi_mutex);
+		goto error_irq;
+	}
+
 	subdev->ctrl_handler = &xhdmi->ctrl_handler;
 	ret = v4l2_ctrl_handler_setup(&xhdmi->ctrl_handler);
 	if (ret < 0) {
