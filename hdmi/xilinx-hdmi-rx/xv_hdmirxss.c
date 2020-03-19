@@ -156,6 +156,7 @@ static void XV_HdmiRxSs_VicErrorCallback(void *CallbackRef);
 static void XV_HdmiRxSs_ReportCoreInfo(XV_HdmiRxSs *InstancePtr);
 static void XV_HdmiRxSs_ReportTiming(XV_HdmiRxSs *InstancePtr);
 static void XV_HdmiRxSs_ReportLinkQuality(XV_HdmiRxSs *InstancePtr);
+static void XV_HdmiRxSs_ReportDRMInfo(XV_HdmiRxSs *InstancePtr);
 static void XV_HdmiRxSs_ReportAudio(XV_HdmiRxSs *InstancePtr);
 static void XV_HdmiRxSs_ReportInfoFrame(XV_HdmiRxSs *InstancePtr);
 static void XV_HdmiRxSs_ReportSubcoreVersion(XV_HdmiRxSs *InstancePtr);
@@ -192,6 +193,9 @@ void XV_HdmiRxSs_ReportInfo(XV_HdmiRxSs *InstancePtr)
     xil_printf("Audio\r\n");
     xil_printf("---------\r\n");
     XV_HdmiRxSs_ReportAudio(InstancePtr);
+    xil_printf("DRM info frame\r\n");
+    xil_printf("--------------\r\n");
+    XV_HdmiRxSs_ReportDRMInfo(InstancePtr);
     xil_printf("Infoframe\r\n");
     xil_printf("---------\r\n");
     XV_HdmiRxSs_ReportInfoFrame(InstancePtr);
@@ -456,6 +460,7 @@ int XV_HdmiRxSs_CfgInitialize(XV_HdmiRxSs *InstancePtr,
     UINTPTR EffectiveAddr)
 {
   XV_HdmiRxSs *HdmiRxSsPtr = InstancePtr;
+  struct v4l2_hdr10_payload *DrmInfoFramePtr;
 
   /* Verify arguments */
   Xil_AssertNonvoid(HdmiRxSsPtr != NULL);
@@ -492,6 +497,10 @@ int XV_HdmiRxSs_CfgInitialize(XV_HdmiRxSs *InstancePtr,
    */
   XV_HdmiRxSs_Reset(HdmiRxSsPtr);
   HdmiRxSsPtr->IsReady = XIL_COMPONENT_IS_READY;
+
+  DrmInfoFramePtr = XV_HdmiRxSs_GetDrmInfoframe(HdmiRxSsPtr);
+
+  DrmInfoFramePtr->metadata_type = 0xFF;
 
   return(XST_SUCCESS);
 }
@@ -855,10 +864,12 @@ static void XV_HdmiRxSs_AuxCallback(void *CallbackRef)
   XHdmiC_AVI_InfoFrame *AviInfoFramePtr;
   XHdmiC_GeneralControlPacket *GeneralControlPacketPtr;
   XHdmiC_AudioInfoFrame *AudioInfoFramePtr;
+  struct v4l2_hdr10_payload *DrmInfoFramePtr;
 
   AviInfoFramePtr = XV_HdmiRxSs_GetAviInfoframe(HdmiRxSsPtr);
   GeneralControlPacketPtr = XV_HdmiRxSs_GetGCP(HdmiRxSsPtr);
   AudioInfoFramePtr = XV_HdmiRxSs_GetAudioInfoframe(HdmiRxSsPtr);
+  DrmInfoFramePtr = XV_HdmiRxSs_GetDrmInfoframe(HdmiRxSsPtr);
   AuxPtr = XV_HdmiRxSs_GetAuxiliary(HdmiRxSsPtr);
 
   if(AuxPtr->Header.Byte[0] == AUX_VSIF_TYPE){
@@ -886,7 +897,13 @@ static void XV_HdmiRxSs_AuxCallback(void *CallbackRef)
 	  (void)memset((void *)AudioInfoFramePtr, 0, sizeof(XHdmiC_AudioInfoFrame));
 	  // Parse Aux to retrieve Audio InfoFrame
 	  XV_HdmiC_ParseAudioInfoFrame(AuxPtr, AudioInfoFramePtr);
+  } else if(AuxPtr->Header.Byte[0] == AUX_DRM_INFOFRAME_TYPE) {
+	  // Reset HDR InfoFrame
+	  (void)memset((void *)DrmInfoFramePtr, 0, sizeof(struct v4l2_hdr10_payload));
+	  // Parse Aux to retrieve HDR InfoFrame
+	  XV_HdmiC_ParseDRMIF(AuxPtr, DrmInfoFramePtr);
   }
+
 
   // Check if user callback has been registered
   if (HdmiRxSsPtr->AuxCallback) {
@@ -1174,6 +1191,7 @@ static void XV_HdmiRxSs_DdcCallback(void *CallbackRef)
 static void XV_HdmiRxSs_StreamDownCallback(void *CallbackRef)
 {
   XV_HdmiRxSs *HdmiRxSsPtr = (XV_HdmiRxSs *)CallbackRef;
+  struct v4l2_hdr10_payload *DrmInfoFramePtr;
 
   /* Assert HDMI RX core resets */
   XV_HdmiRxSs_RXCore_VRST(HdmiRxSsPtr, TRUE);
@@ -1184,6 +1202,9 @@ static void XV_HdmiRxSs_StreamDownCallback(void *CallbackRef)
 
   /* Set stream up flag */
   HdmiRxSsPtr->IsStreamUp = (FALSE);
+  DrmInfoFramePtr = XV_HdmiRxSs_GetDrmInfoframe(HdmiRxSsPtr);
+
+  DrmInfoFramePtr->metadata_type = 0xFF;
 #ifdef XV_HDMIRXSS_LOG_ENABLE
   XV_HdmiRxSs_LogWrite(HdmiRxSsPtr, XV_HDMIRXSS_LOG_EVT_STREAMDOWN, 0);
 #endif
@@ -1739,6 +1760,24 @@ XHdmiC_VSIF *XV_HdmiRxSs_GetVSIF(XV_HdmiRxSs *InstancePtr)
 /*****************************************************************************/
 /**
 *
+* This function returns the pointer to HDMI RX SS DRM InfoFrame
+* structure
+*
+* @param  InstancePtr pointer to XV_HdmiRxSs instance
+*
+* @return struct v4l2_hdr10_payload pointer
+*
+* @note   None.
+*
+******************************************************************************/
+struct v4l2_hdr10_payload *XV_HdmiRxSs_GetDrmInfoframe(XV_HdmiRxSs *InstancePtr)
+{
+    return (&(InstancePtr->DrmInfoframe));
+}
+
+/*****************************************************************************/
+/**
+*
 * This function set HDMI RX susbsystem stream parameters
 *
 * @param  None.
@@ -1981,6 +2020,44 @@ static void XV_HdmiRxSs_ReportLinkQuality(XV_HdmiRxSs *InstancePtr)
 /*****************************************************************************/
 /**
 *
+* This function prints the HDMI RX SS DRM If information
+*
+* @param  None.
+*
+* @return None.
+*
+* @note   None.
+*
+******************************************************************************/
+static void XV_HdmiRxSs_ReportDRMInfo(XV_HdmiRxSs *InstancePtr)
+{
+	struct v4l2_hdr10_payload *DrmInfoFramePtr;
+	DrmInfoFramePtr = XV_HdmiRxSs_GetDrmInfoframe(InstancePtr);
+
+	if (DrmInfoFramePtr->metadata_type == 0xFF) {
+		xil_printf("No DRM info\r\n");
+		return;
+	}
+
+	xil_printf("DRM IF info:\n");
+	xil_printf("desc id: %d\r\n", DrmInfoFramePtr->metadata_type);
+	xil_printf("display primaries x0, y0, x1, y1, x2, y2: %d %d %d %d %d %d\r\n",
+			DrmInfoFramePtr->display_primaries[0].x, DrmInfoFramePtr->display_primaries[0].y,
+			DrmInfoFramePtr->display_primaries[1].x, DrmInfoFramePtr->display_primaries[1].y,
+			DrmInfoFramePtr->display_primaries[2].x, DrmInfoFramePtr->display_primaries[2].y
+		  );
+	xil_printf("white point x, y: %d %d\r\n",
+			DrmInfoFramePtr->white_point.x, DrmInfoFramePtr->white_point.y);
+	xil_printf("min/max display mastering luminance: %d %d\r\n",
+			DrmInfoFramePtr->min_mdl,
+			DrmInfoFramePtr->max_mdl);
+	xil_printf("Max_CLL: %d\r\n", DrmInfoFramePtr->max_cll);
+	xil_printf("max_fall: %d\r\n", DrmInfoFramePtr->max_fall);
+}
+
+/*****************************************************************************/
+/**
+*
 * This function prints the HDMI RX SS audio information
 *
 * @param  None.
@@ -2209,6 +2286,8 @@ int XV_HdmiRxSs_ShowInfo(XV_HdmiRxSs *InstancePtr, char *buff, int buff_size)
 	u32 Errors;
 	const char* AudioFormatStr[] = {"Unknown", "L-PCM", "HBR"};
 	XV_HdmiRx_AudioFormatType AudioFormat = 0;
+	struct v4l2_hdr10_payload *DrmInfoFramePtr =
+			XV_HdmiRxSs_GetDrmInfoframe(InstancePtr);
 
 	strSize = scnprintf(buff+strSize, buff_size-strSize,
 				"\r\nRx Info\r\n" \
@@ -2274,6 +2353,33 @@ int XV_HdmiRxSs_ShowInfo(XV_HdmiRxSs *InstancePtr, char *buff, int buff_size)
 		}
 		strSize += scnprintf(buff+strSize, buff_size-strSize,
 			" (%0d)\r\n", Errors);
+	}
+
+	if (DrmInfoFramePtr->metadata_type == 0xFF) {
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"\r\nNo DRM info\r\n");
+	} else {
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"\r\nDRM IF Info\r\n" \
+				"------------\r\n");
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"desc id: %d\r\n", DrmInfoFramePtr->metadata_type);
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"display primaries x0, y0, x1, y1, x2, y2: %d %d %d %d %d %d\r\n",
+				DrmInfoFramePtr->display_primaries[0].x, DrmInfoFramePtr->display_primaries[0].y,
+				DrmInfoFramePtr->display_primaries[1].x, DrmInfoFramePtr->display_primaries[1].y,
+				DrmInfoFramePtr->display_primaries[2].x, DrmInfoFramePtr->display_primaries[2].y);
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"white point x, y: %d %d\r\n",
+				DrmInfoFramePtr->white_point.x, DrmInfoFramePtr->white_point.y);
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"min/max display mastering luminance: %d %d\r\n",
+				DrmInfoFramePtr->min_mdl,
+				DrmInfoFramePtr->max_mdl);
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"max_cll: %d\r\n", DrmInfoFramePtr->max_cll);
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"max_fall: %d\r\n", DrmInfoFramePtr->max_fall);
 	}
 
 	/* Clear link error counters */
