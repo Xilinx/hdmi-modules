@@ -20,11 +20,12 @@
 
 /* @TODO change directory name on production release */
 #include "xvphy.h"
+#include "xhdmiphy1.h"
 
 struct phy;
 
 /* VPHY is built (either as module or built-in) */
-extern XVphy *xvphy_get_xvphy(struct phy *phy);
+extern void *xvphy_get_xvphy(struct phy *phy);
 extern void xvphy_mutex_lock(struct phy *phy);
 extern void xvphy_mutex_unlock(struct phy *phy);
 extern int xvphy_do_something(struct phy *phy);

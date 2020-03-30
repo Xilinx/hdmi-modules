@@ -43,6 +43,8 @@
 /* baseline driver includes */
 #include "phy-xilinx-vphy/xvphy.h"
 #include "phy-xilinx-vphy/xvphy_i.h"
+#include "phy-xilinx-vphy/xhdmiphy1.h"
+#include "phy-xilinx-vphy/xhdmiphy1_i.h"
 
 /* common RX/TX */
 #include "phy-xilinx-vphy/xdebug.h"
@@ -61,6 +63,8 @@
 #include "phy-xilinx-vphy/xv_hdmic_vsif.h"
 
 #define XVPHY_DRU_REF_CLK_HZ	156250000
+/* TODO - [Versal] - This needs to be changed for versal */
+#define XHDMIPHY1_DRU_REF_CLK_HZ	200000000
 
 #define hdmi_mutex_lock(x) mutex_lock(x)
 #define hdmi_mutex_unlock(x) mutex_unlock(x)
@@ -100,29 +104,36 @@ struct xvphy_dev {
 	/* virtual remapped I/O memory */
 	void __iomem *iomem;
 	int irq;
-	/* protects the XVphy baseline against concurrent access */
+	/* protects the XVphy/XHdmiphy1 baseline against concurrent access */
 	struct mutex xvphy_mutex;
 	struct xvphy_lane *lanes[4];
 	/* bookkeeping for the baseline subsystem driver instance */
 	XVphy xvphy;
+	XHdmiphy1 xgtphy;
 	/* AXI Lite clock drives the clock detector */
 	struct clk *axi_lite_clk;
 	/* NI-DRU clock input */
 	struct clk *dru_clk;
+	/* If Video Phy flag */
+	u32 isvphy;
 };
 
 /* given the (Linux) phy handle, return the xvphy */
-XVphy *xvphy_get_xvphy(struct phy *phy)
+void *xvphy_get_xvphy(struct phy *phy)
 {
 	struct xvphy_lane *vphy_lane = phy_get_drvdata(phy);
 	struct xvphy_dev *vphy_dev = vphy_lane->data;
-	return &vphy_dev->xvphy;
+
+	if (vphy_dev->isvphy)
+		return (void *)&vphy_dev->xvphy;
+
+	return (void *)&vphy_dev->xgtphy;
 }
 EXPORT_SYMBOL_GPL(xvphy_get_xvphy);
 
 /* given the (Linux) phy handle, enter critical section of xvphy baseline code
- * XVphy functions must be called with mutex acquired to prevent concurrent access
- * by XVphy and upper-layer video protocol drivers */
+ * XVphy/XHdmiphy1 functions must be called with mutex acquired to prevent concurrent access
+ * by XVphy/XHdmiphy1 and upper-layer video protocol drivers */
 void xvphy_mutex_lock(struct phy *phy)
 {
 	struct xvphy_lane *vphy_lane = phy_get_drvdata(phy);
@@ -159,9 +170,30 @@ EXPORT_SYMBOL_GPL(XVphy_IsBonded);
 EXPORT_SYMBOL_GPL(XVphy_ClkDetFreqReset);
 EXPORT_SYMBOL_GPL(XVphy_ClkDetGetRefClkFreqHz);
 
-static xvphy_intr_disable(struct xvphy_dev *vphydev)
+/* XHdmiphy1 functions must be called with mutex acquired to prevent concurrent access
+ * by XHdmiphy1 and upper-layer video protocol drivers */
+EXPORT_SYMBOL_GPL(XHdmiphy1_GetPllType);
+EXPORT_SYMBOL_GPL(XHdmiphy1_IBufDsEnable);
+EXPORT_SYMBOL_GPL(XHdmiphy1_SetHdmiCallback);
+EXPORT_SYMBOL_GPL(XHdmiphy1_HdmiCfgCalcMmcmParam);
+EXPORT_SYMBOL_GPL(XHdmiphy1_MmcmStart);
+EXPORT_SYMBOL_GPL(XHdmiphy1_HdmiDebugInfo);
+EXPORT_SYMBOL_GPL(XHdmiphy1_RegisterDebug);
+EXPORT_SYMBOL_GPL(XHdmiphy1_LogShow);
+EXPORT_SYMBOL_GPL(XHdmiphy1_DruGetRefClkFreqHz);
+EXPORT_SYMBOL_GPL(XHdmiphy1_GetLineRateHz);
+
+/* exclusively required by TX */
+EXPORT_SYMBOL_GPL(XHdmiphy1_Clkout1OBufTdsEnable);
+EXPORT_SYMBOL_GPL(XHdmiphy1_SetHdmiTxParam);
+//EXPORT_SYMBOL_GPL(XHdmiphy1_IsBonded);
+EXPORT_SYMBOL_GPL(XHdmiphy1_ClkDetFreqReset);
+EXPORT_SYMBOL_GPL(XHdmiphy1_ClkDetGetRefClkFreqHz);
+
+static void xvphy_intr_disable(struct xvphy_dev *vphydev)
 {
-	XVphy_IntrDisable(&vphydev->xvphy, XVPHY_INTR_HANDLER_TYPE_TXRESET_DONE |
+	if (vphydev->isvphy)
+		XVphy_IntrDisable(&vphydev->xvphy, XVPHY_INTR_HANDLER_TYPE_TXRESET_DONE |
 			XVPHY_INTR_HANDLER_TYPE_RXRESET_DONE |
 			XVPHY_INTR_HANDLER_TYPE_CPLL_LOCK |
 			XVPHY_INTR_HANDLER_TYPE_QPLL0_LOCK |
@@ -173,22 +205,49 @@ static xvphy_intr_disable(struct xvphy_dev *vphydev)
 			XVPHY_INTR_HANDLER_TYPE_RX_MMCM_LOCK_CHANGE |
 			XVPHY_INTR_HANDLER_TYPE_TX_TMR_TIMEOUT |
 			XVPHY_INTR_HANDLER_TYPE_RX_TMR_TIMEOUT);
+	else
+		XHdmiphy1_IntrDisable(&vphydev->xgtphy, XHDMIPHY1_INTR_HANDLER_TYPE_TXRESET_DONE |
+			XHDMIPHY1_INTR_HANDLER_TYPE_RXRESET_DONE |
+			XHDMIPHY1_INTR_HANDLER_TYPE_LCPLL_LOCK |
+			XHDMIPHY1_INTR_HANDLER_TYPE_RPLL_LOCK |
+			XHDMIPHY1_INTR_HANDLER_TYPE_TX_GPO_RISING_EDGE |
+			XHDMIPHY1_INTR_HANDLER_TYPE_RX_GPO_RISING_EDGE |
+			XHDMIPHY1_INTR_HANDLER_TYPE_TX_CLKDET_FREQ_CHANGE |
+			XHDMIPHY1_INTR_HANDLER_TYPE_RX_CLKDET_FREQ_CHANGE |
+			XHDMIPHY1_INTR_HANDLER_TYPE_TX_MMCM_LOCK_CHANGE |
+			XHDMIPHY1_INTR_HANDLER_TYPE_RX_MMCM_LOCK_CHANGE |
+			XHDMIPHY1_INTR_HANDLER_TYPE_TX_TMR_TIMEOUT |
+			XHDMIPHY1_INTR_HANDLER_TYPE_RX_TMR_TIMEOUT);
 }
 
-static xvphy_intr_enable(struct xvphy_dev *vphydev)
+static void xvphy_intr_enable(struct xvphy_dev *vphydev)
 {
-	XVphy_IntrEnable(&vphydev->xvphy, XVPHY_INTR_HANDLER_TYPE_TXRESET_DONE |
-		XVPHY_INTR_HANDLER_TYPE_RXRESET_DONE |
-		XVPHY_INTR_HANDLER_TYPE_CPLL_LOCK |
-		XVPHY_INTR_HANDLER_TYPE_QPLL0_LOCK |
-		XVPHY_INTR_HANDLER_TYPE_TXALIGN_DONE |
-		XVPHY_INTR_HANDLER_TYPE_QPLL1_LOCK |
-		XVPHY_INTR_HANDLER_TYPE_TX_CLKDET_FREQ_CHANGE |
-		XVPHY_INTR_HANDLER_TYPE_RX_CLKDET_FREQ_CHANGE |
-		XVPHY_INTR_HANDLER_TYPE_TX_MMCM_LOCK_CHANGE |
-		XVPHY_INTR_HANDLER_TYPE_RX_MMCM_LOCK_CHANGE |
-		XVPHY_INTR_HANDLER_TYPE_TX_TMR_TIMEOUT |
-		XVPHY_INTR_HANDLER_TYPE_RX_TMR_TIMEOUT);
+	if (vphydev->isvphy)
+		XVphy_IntrEnable(&vphydev->xvphy, XVPHY_INTR_HANDLER_TYPE_TXRESET_DONE |
+			XVPHY_INTR_HANDLER_TYPE_RXRESET_DONE |
+			XVPHY_INTR_HANDLER_TYPE_CPLL_LOCK |
+			XVPHY_INTR_HANDLER_TYPE_QPLL0_LOCK |
+			XVPHY_INTR_HANDLER_TYPE_TXALIGN_DONE |
+			XVPHY_INTR_HANDLER_TYPE_QPLL1_LOCK |
+			XVPHY_INTR_HANDLER_TYPE_TX_CLKDET_FREQ_CHANGE |
+			XVPHY_INTR_HANDLER_TYPE_RX_CLKDET_FREQ_CHANGE |
+			XVPHY_INTR_HANDLER_TYPE_TX_MMCM_LOCK_CHANGE |
+			XVPHY_INTR_HANDLER_TYPE_RX_MMCM_LOCK_CHANGE |
+			XVPHY_INTR_HANDLER_TYPE_TX_TMR_TIMEOUT |
+			XVPHY_INTR_HANDLER_TYPE_RX_TMR_TIMEOUT);
+	else
+		XHdmiphy1_IntrEnable(&vphydev->xgtphy, XHDMIPHY1_INTR_HANDLER_TYPE_TXRESET_DONE |
+			XHDMIPHY1_INTR_HANDLER_TYPE_RXRESET_DONE |
+			XHDMIPHY1_INTR_HANDLER_TYPE_LCPLL_LOCK |
+			XHDMIPHY1_INTR_HANDLER_TYPE_RPLL_LOCK |
+			XHDMIPHY1_INTR_HANDLER_TYPE_TX_GPO_RISING_EDGE |
+			XHDMIPHY1_INTR_HANDLER_TYPE_RX_GPO_RISING_EDGE |
+			XHDMIPHY1_INTR_HANDLER_TYPE_TX_CLKDET_FREQ_CHANGE |
+			XHDMIPHY1_INTR_HANDLER_TYPE_RX_CLKDET_FREQ_CHANGE |
+			XHDMIPHY1_INTR_HANDLER_TYPE_TX_MMCM_LOCK_CHANGE |
+			XHDMIPHY1_INTR_HANDLER_TYPE_RX_MMCM_LOCK_CHANGE |
+			XHDMIPHY1_INTR_HANDLER_TYPE_TX_TMR_TIMEOUT |
+			XHDMIPHY1_INTR_HANDLER_TYPE_RX_TMR_TIMEOUT);
 }
 
 static irqreturn_t xvphy_irq_handler(int irq, void *dev_id)
@@ -217,11 +276,19 @@ static irqreturn_t xvphy_irq_thread(int irq, void *dev_id)
 	/* call baremetal interrupt handler with mutex locked */
 	hdmi_mutex_lock(&vphydev->xvphy_mutex);
 
-	IntrStatus = XVphy_ReadReg(vphydev->xvphy.Config.BaseAddr, XVPHY_INTR_STS_REG);
-	dev_dbg(vphydev->dev,"XVphy IntrStatus = 0x%08x\n", IntrStatus);
+	if (vphydev->isvphy) {
+		IntrStatus = XVphy_ReadReg(vphydev->xvphy.Config.BaseAddr, XVPHY_INTR_STS_REG);
+		dev_dbg(vphydev->dev,"XVphy IntrStatus = 0x%08x\n", IntrStatus);
+	} else {
+		IntrStatus = XHdmiphy1_ReadReg(vphydev->xgtphy.Config.BaseAddr, XHDMIPHY1_INTR_STS_REG);
+		dev_dbg(vphydev->dev,"XHdmiphy1 IntrStatus = 0x%08x\n", IntrStatus);
+	}
 
 	/* handle pending interrupts */
-	XVphy_InterruptHandler(&vphydev->xvphy);
+	if (vphydev->isvphy)
+		XVphy_InterruptHandler(&vphydev->xvphy);
+	else
+		XHdmiphy1_InterruptHandler(&vphydev->xgtphy);
 	hdmi_mutex_unlock(&vphydev->xvphy_mutex);
 
 	/* Enable interrupt requesting in the VPHY */
@@ -238,7 +305,10 @@ static irqreturn_t xvphy_irq_thread(int irq, void *dev_id)
  */
 static int xvphy_phy_init(struct phy *phy)
 {
-	printk(KERN_INFO "xvphy_phy_init(%p).\n", phy);
+	struct xvphy_lane *vphy_lane = phy_get_drvdata(phy);
+	struct xvphy_dev *vphy_dev = vphy_lane->data;
+
+	dev_dbg(vphy_dev->dev, "xvphy_phy_init(%p).\n", phy);
 	return 0;
 }
 
@@ -296,6 +366,7 @@ static struct phy *xvphy_xlate(struct device *dev,
 
 /* Local Global table for phy instance(s) configuration settings */
 XVphy_Config XVphy_ConfigTable[XPAR_XVPHY_NUM_INSTANCES];
+XHdmiphy1_Config XHdmiphy1_ConfigTable[XPAR_XHDMIPHY1_NUM_INSTANCES];
 
 static struct phy_ops xvphy_phyops = {
 	.init		= xvphy_phy_init,
@@ -306,97 +377,162 @@ static int instance = 0;
 /* TX uses [1, 127], RX uses [128, 254] and VPHY uses [256, ...]. Note that 255 is used for not-present. */
 #define VPHY_DEVICE_ID_BASE 256
 
-static int vphy_parse_of(struct xvphy_dev *vphydev, XVphy_Config *c)
+static int vphy_parse_of(struct xvphy_dev *vphydev, void *c)
 {
 	struct device *dev = vphydev->dev;
 	struct device_node *node = dev->of_node;
 	int rc;
 	u32 val;
 	bool has_err_irq;
+	XVphy_Config *vphycfg = (XVphy_Config *)c;
+	XHdmiphy1_Config *xgtphycfg = (XHdmiphy1_Config *)c;
 
 	rc = of_property_read_u32(node, "xlnx,transceiver-type", &val);
 	if (rc < 0)
 		goto error_dt;
-	c->XcvrType = val;
+	if (vphydev->isvphy)
+		vphycfg->XcvrType = val;
+	else
+		xgtphycfg->XcvrType = val;
 
 	rc = of_property_read_u32(node, "xlnx,tx-buffer-bypass", &val);
 	if (rc < 0)
 		goto error_dt;
-	c->TxBufferBypass = val;
+	if (vphydev->isvphy)
+		vphycfg->TxBufferBypass = val;
+	else
+		xgtphycfg->TxBufferBypass = val;
 
 	rc = of_property_read_u32(node, "xlnx,input-pixels-per-clock", &val);
 	if (rc < 0)
 		goto error_dt;
-	c->Ppc = val;
+	if (vphydev->isvphy)
+		vphycfg->Ppc = val;
+	else
+		xgtphycfg->Ppc = val;
 
 	rc = of_property_read_u32(node, "xlnx,nidru", &val);
 	if (rc < 0)
 		goto error_dt;
-	c->DruIsPresent = val;
+	if (vphydev->isvphy)
+		vphycfg->DruIsPresent = val;
+	else
+		xgtphycfg->DruIsPresent = val;
 
 	rc = of_property_read_u32(node, "xlnx,nidru-refclk-sel", &val);
 	if (rc < 0)
 		goto error_dt;
-	c->DruRefClkSel = val;
+	if (vphydev->isvphy)
+		vphycfg->DruRefClkSel = val;
+	else
+		xgtphycfg->DruRefClkSel = val;
 
 	rc = of_property_read_u32(node, "xlnx,rx-no-of-channels", &val);
 	if (rc < 0)
 		goto error_dt;
-	c->RxChannels = val;
+	if (vphydev->isvphy)
+		vphycfg->RxChannels = val;
+	else
+		xgtphycfg->RxChannels = val;
 
 	rc = of_property_read_u32(node, "xlnx,tx-no-of-channels", &val);
 	if (rc < 0)
 		goto error_dt;
-	c->TxChannels = val;
+	if (vphydev->isvphy)
+		vphycfg->TxChannels = val;
+	else
+		xgtphycfg->TxChannels = val;
 
 	rc = of_property_read_u32(node, "xlnx,rx-protocol", &val);
 	if (rc < 0)
 		goto error_dt;
-	c->RxProtocol = val;
+	if (vphydev->isvphy)
+		vphycfg->RxProtocol = val;
+	else
+		xgtphycfg->RxProtocol = val;
 
 	rc = of_property_read_u32(node, "xlnx,tx-protocol", &val);
 	if (rc < 0)
 		goto error_dt;
-	c->TxProtocol = val;
+	if (vphydev->isvphy)
+		vphycfg->TxProtocol = val;
+	else
+		xgtphycfg->TxProtocol = val;
 
 	rc = of_property_read_u32(node, "xlnx,rx-refclk-sel", &val);
 	if (rc < 0)
 		goto error_dt;
-	c->RxRefClkSel = val;
+	if (vphydev->isvphy)
+		vphycfg->RxRefClkSel = val;
+	else
+		xgtphycfg->RxRefClkSel = val;
 
 	rc = of_property_read_u32(node, "xlnx,tx-refclk-sel", &val);
 	if (rc < 0)
 		goto error_dt;
-	c->TxRefClkSel = val;
+	if (vphydev->isvphy)
+		vphycfg->TxRefClkSel = val;
+	else
+		xgtphycfg->TxRefClkSel = val;
 
 	rc = of_property_read_u32(node, "xlnx,rx-pll-selection", &val);
 	if (rc < 0)
 		goto error_dt;
-	c->RxSysPllClkSel = val;
+	if (vphydev->isvphy)
+		vphycfg->RxSysPllClkSel = val;
+	else
+		xgtphycfg->RxSysPllClkSel = val;
 
 	rc = of_property_read_u32(node, "xlnx,tx-pll-selection", &val);
 	if (rc < 0)
 		goto error_dt;
-	c->TxSysPllClkSel = val;
+	if (vphydev->isvphy)
+		vphycfg->TxSysPllClkSel = val;
+	else
+		xgtphycfg->TxSysPllClkSel = val;
 
 	rc = of_property_read_u32(node, "xlnx,hdmi-fast-switch", &val);
 	if (rc < 0)
 		goto error_dt;
-	c->HdmiFastSwitch = val;
+	if (vphydev->isvphy)
+		vphycfg->HdmiFastSwitch = val;
+	else
+		xgtphycfg->HdmiFastSwitch = val;
 
 	rc = of_property_read_u32(node, "xlnx,transceiver-width", &val);
 	if (rc < 0)
 		goto error_dt;
-	c->TransceiverWidth = val;
+	if (vphydev->isvphy)
+		vphycfg->TransceiverWidth = val;
+	else
+		xgtphycfg->TransceiverWidth = val;
 
 	has_err_irq = false;
 	has_err_irq = of_property_read_bool(node, "xlnx,err-irq-en");
-	c->ErrIrq = has_err_irq;
+	if (vphydev->isvphy)
+		vphycfg->ErrIrq = has_err_irq;
+	else
+		xgtphycfg->ErrIrq = has_err_irq;
 
 	rc = of_property_read_u32(node, "xlnx,use-gt-ch4-hdmi", &val);
 	if (rc < 0)
 		goto error_dt;
-	c->UseGtAsTxTmdsClk = val;
+	if (vphydev->isvphy)
+		vphycfg->UseGtAsTxTmdsClk = val;
+	else
+		xgtphycfg->UseGtAsTxTmdsClk = val;
+
+	if (!vphydev->isvphy) {
+		rc = of_property_read_u32(node, "xlnx,rx-frl-refclk-sel", &val);
+		if (rc < 0)
+			goto error_dt;
+		xgtphycfg->RxFrlRefClkSel = val;
+
+		rc = of_property_read_u32(node, "xlnx,tx-frl-refclk-sel", &val);
+		if (rc < 0)
+			goto error_dt;
+		xgtphycfg->TxFrlRefClkSel = val;
+	}
 
 	return 0;
 
@@ -404,6 +540,14 @@ error_dt:
 	dev_err(vphydev->dev, "Error parsing device tree");
 	return -EINVAL;
 }
+
+/* Match table for of_platform binding */
+static const struct of_device_id xvphy_of_match[] = {
+	{ .compatible = "xlnx,hdmi-gt-controller-1.0" },
+	{ .compatible = "xlnx,vid-phy-controller-2.2" },
+	{ /* end of table */ },
+};
+MODULE_DEVICE_TABLE(of, xvphy_of_match);
 
 /**
  * xvphy_probe - The device probe function for driver initialization.
@@ -427,7 +571,10 @@ static int xvphy_probe(struct platform_device *pdev)
 	u32 Data;
 	u16 DrpVal;
 
-	dev_info(&pdev->dev, "probed\n");
+	void __iomem *iomem1;
+	const struct of_device_id *match;
+
+	dev_info(&pdev->dev, "probe started\n");
 	vphydev = devm_kzalloc(&pdev->dev, sizeof(*vphydev), GFP_KERNEL);
 	if (!vphydev)
 		return -ENOMEM;
@@ -439,10 +586,23 @@ static int xvphy_probe(struct platform_device *pdev)
 	/* set a pointer to our driver data */
 	platform_set_drvdata(pdev, vphydev);
 
+	match = of_match_node(xvphy_of_match, np);
+	if (!match)
+		return -ENODEV;
+
+	if (strncmp(match->compatible, "xlnx,vid-phy-controller", 23) == 0)
+		vphydev->isvphy = 1;
+	else
+		vphydev->isvphy = 0;
+
 	XVphy_ConfigTable[instance].DeviceId = VPHY_DEVICE_ID_BASE + instance;
+	XHdmiphy1_ConfigTable[instance].DeviceId = VPHY_DEVICE_ID_BASE + instance;
 
 	dev_dbg(vphydev->dev,"DT parse start\n");
-	ret = vphy_parse_of(vphydev, &XVphy_ConfigTable[instance]);
+	if (vphydev->isvphy)
+		ret = vphy_parse_of(vphydev, &XVphy_ConfigTable[instance]);
+	else
+		ret = vphy_parse_of(vphydev, &XHdmiphy1_ConfigTable[instance]);
 	if (ret) return ret;
 	dev_dbg(vphydev->dev,"DT parse done\n");
 
@@ -495,6 +655,7 @@ static int xvphy_probe(struct platform_device *pdev)
 
 	/* set address in configuration data */
 	XVphy_ConfigTable[instance].BaseAddr = (uintptr_t)vphydev->iomem;
+	XHdmiphy1_ConfigTable[instance].BaseAddr = (uintptr_t)vphydev->iomem;
 
 	vphydev->irq = platform_get_irq(pdev, 0);
 	if (vphydev->irq <= 0) {
@@ -503,7 +664,10 @@ static int xvphy_probe(struct platform_device *pdev)
 	}
 
 	/* the AXI lite clock is used for the clock rate detector */
-	vphydev->axi_lite_clk = devm_clk_get(&pdev->dev, "vid_phy_axi4lite_aclk");
+	if (vphydev->isvphy)
+		vphydev->axi_lite_clk = devm_clk_get(&pdev->dev, "vid_phy_axi4lite_aclk");
+	else
+		vphydev->axi_lite_clk = devm_clk_get(&pdev->dev, "axi4lite_aclk");
 	if (IS_ERR(vphydev->axi_lite_clk)) {
 		ret = PTR_ERR(vphydev->axi_lite_clk);
 		vphydev->axi_lite_clk = NULL;
@@ -525,9 +689,12 @@ static int xvphy_probe(struct platform_device *pdev)
 	/* set axi-lite clk in configuration data */
 	XVphy_ConfigTable[instance].AxiLiteClkFreq = axi_lite_rate;
 	XVphy_ConfigTable[instance].DrpClkFreq = axi_lite_rate;
+	XHdmiphy1_ConfigTable[instance].AxiLiteClkFreq = axi_lite_rate;
+	XHdmiphy1_ConfigTable[instance].DrpClkFreq = axi_lite_rate;
 
 	/* dru-clk is used for the nidru block for low res support */
-	if (XVphy_ConfigTable[instance].DruIsPresent == (TRUE)) {
+	if ((vphydev->isvphy && (XVphy_ConfigTable[instance].DruIsPresent == (TRUE))) ||
+		(!vphydev->isvphy && (XHdmiphy1_ConfigTable[instance].DruIsPresent == (TRUE)))) {
 		vphydev->dru_clk = devm_clk_get(&pdev->dev, "dru-clk");
 		if (IS_ERR(vphydev->dru_clk)) {
 			ret = PTR_ERR(vphydev->dru_clk);
@@ -546,19 +713,25 @@ static int xvphy_probe(struct platform_device *pdev)
 		}
 
 		dru_clk_rate = clk_get_rate(vphydev->dru_clk);
-		dev_dbg(vphydev->dev,"default dru-clk rate = %lu\n", dru_clk_rate);
-		if (dru_clk_rate != XVPHY_DRU_REF_CLK_HZ) {
-			ret = clk_set_rate(vphydev->dru_clk, XVPHY_DRU_REF_CLK_HZ);
+		dev_dbg(vphydev->dev, "default dru-clk rate = %lu\n", dru_clk_rate);
+		if ((vphydev->isvphy && (dru_clk_rate != XVPHY_DRU_REF_CLK_HZ)) ||
+			(!vphydev->isvphy && (dru_clk_rate != XHDMIPHY1_DRU_REF_CLK_HZ))) {
+
+			if (vphydev->isvphy)
+				ret = clk_set_rate(vphydev->dru_clk, XVPHY_DRU_REF_CLK_HZ);
+			else
+				ret = clk_set_rate(vphydev->dru_clk, XHDMIPHY1_DRU_REF_CLK_HZ);
+
 			if (ret != 0) {
 				dev_err(&pdev->dev, "Cannot set rate : %d\n", ret);
 			}
 			dru_clk_rate = clk_get_rate(vphydev->dru_clk);
-			dev_dbg(vphydev->dev,"ref dru-clk rate = %lu\n", dru_clk_rate);
+			dev_dbg(vphydev->dev, "ref dru-clk rate = %lu\n", dru_clk_rate);
 		}
 	}
 	else
 	{
-		dev_dbg(vphydev->dev,"DRU is not enabled from device tree\n");
+		dev_dbg(vphydev->dev, "DRU is not enabled from device tree\n");
 	}
 
 	provider = devm_of_phy_provider_register(&pdev->dev, xvphy_xlate);
@@ -567,17 +740,64 @@ static int xvphy_probe(struct platform_device *pdev)
 			return PTR_ERR(provider);
 	}
 
+	if (!vphydev->isvphy) {
+		/* For Versal */
+		iomem1 = ioremap(0xF70E000C, 4);
+		if (IS_ERR(iomem1))
+			dev_err(vphydev->dev, "[Versal] - Error in iomem 5\n");
+		XHdmiphy1_Out32((INTPTR)iomem1, 0xF9E8D7C6);
+		dev_dbg(vphydev->dev, "To: 0x%08x \r\n", XHdmiphy1_In32((INTPTR)iomem1));
+		iounmap(iomem1);
+
+		iomem1 = ioremap(0xF70E3C4C, 4);
+		if (IS_ERR(iomem1))
+			dev_err(vphydev->dev, "[Versal] - Error in iomem 6\n");
+		dev_dbg(vphydev->dev, "RX:HS1 RPLL IPS  From: 0x%08x ", XHdmiphy1_In32((INTPTR)iomem1));
+		XHdmiphy1_Out32((INTPTR)iomem1, 0x03E00810);
+		dev_dbg(vphydev->dev, "To: 0x%08x \r\n", XHdmiphy1_In32((INTPTR)iomem1));
+		iounmap(iomem1);
+
+		iomem1 = ioremap(0xF70E3C48, 4);
+		if (IS_ERR(iomem1))
+			dev_err(vphydev->dev, "[Versal] - Error in iomem 7\n");
+		dev_dbg(vphydev->dev, "TX:HS1 LCPLL IPS From: 0x%08x ", XHdmiphy1_In32((INTPTR)iomem1));
+		XHdmiphy1_Out32((INTPTR)iomem1, 0x03E00840);
+		dev_dbg(vphydev->dev, "To: 0x%08x \r\n", XHdmiphy1_In32((INTPTR)iomem1));
+		iounmap(iomem1);
+
+		/* Deassert the GTWiz_RESET_ALL */
+		XHdmiphy1_WriteReg(XHdmiphy1_ConfigTable[instance].BaseAddr, 0x14,
+			(XHdmiphy1_ReadReg(XHdmiphy1_ConfigTable[instance].BaseAddr, 0x14) & ~0x1));
+		dev_dbg(vphydev->dev, "To: 0x14 PHY1 Reg 0x%08x \r\n",
+			XHdmiphy1_ReadReg(XHdmiphy1_ConfigTable[instance].BaseAddr, 0x14));
+
+		/* Release RXPLL dependency from TXPLL RESET */
+		XHdmiphy1_WriteReg(XHdmiphy1_ConfigTable[instance].BaseAddr, 0x14,
+			(XHdmiphy1_ReadReg(XHdmiphy1_ConfigTable[instance].BaseAddr, 0x14) | 0x80000000));
+		dev_dbg(vphydev->dev, "To: 0x14 PHY1 Reg 0x%08x \r\n",
+			XHdmiphy1_ReadReg(XHdmiphy1_ConfigTable[instance].BaseAddr, 0x14));
+
+		/* Delay 50ms for GT to complete initialization */
+		usleep_range(50000, 50000);
+	}
 
 	/* Initialize HDMI VPHY */
-	Status = XVphy_Hdmi_CfgInitialize(&vphydev->xvphy, 0/*QuadID*/,
-		&XVphy_ConfigTable[instance]);
+	if (vphydev->isvphy)
+		Status = XVphy_Hdmi_CfgInitialize(&vphydev->xvphy, 0/*QuadID*/,
+				&XVphy_ConfigTable[instance]);
+	else
+		Status = XHdmiphy1_Hdmi_CfgInitialize(&vphydev->xgtphy, 0/*QuadID*/,
+				&XHdmiphy1_ConfigTable[instance]);
 	if (Status != XST_SUCCESS) {
 		dev_err(&pdev->dev, "HDMI VPHY initialization error\n");
 		return ENODEV;
 	}
 
-	Data = XVphy_GetVersion(&vphydev->xvphy);
-	printk(KERN_INFO "VPhy version : %02d.%02d (%04x)\n", ((Data >> 24) & 0xFF),
+	if (vphydev->isvphy)
+		Data = XVphy_GetVersion(&vphydev->xvphy);
+	else
+		Data = XHdmiphy1_GetVersion(&vphydev->xgtphy);
+	dev_info(vphydev->dev, "VPhy version : %02d.%02d (%04x)\n", ((Data >> 24) & 0xFF),
 			((Data >> 16) & 0xFF), (Data & 0xFFFF));
 
 
@@ -589,11 +809,20 @@ static int xvphy_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dev_dbg(vphydev->dev,"config.DruIsPresent = %d\n", XVphy_ConfigTable[instance].DruIsPresent);
-	if (vphydev->xvphy.Config.DruIsPresent == (TRUE)) {
-		dev_dbg(vphydev->dev,"DRU reference clock frequency %0d Hz\n\r",
+	if (vphydev->isvphy) {
+		dev_dbg(vphydev->dev,"config.DruIsPresent = %d\n", XVphy_ConfigTable[instance].DruIsPresent);
+		if (vphydev->xvphy.Config.DruIsPresent == (TRUE)) {
+			dev_dbg(vphydev->dev,"DRU reference clock frequency %0d Hz\n\r",
 						XVphy_DruGetRefClkFreqHz(&vphydev->xvphy));
+		}
+	} else {
+		dev_dbg(vphydev->dev,"config.DruIsPresent = %d\n", XHdmiphy1_ConfigTable[instance].DruIsPresent);
+		if (vphydev->xgtphy.Config.DruIsPresent == (TRUE)) {
+			dev_info(vphydev->dev,"DRU reference clock frequency %0d Hz\n",
+						XHdmiphy1_DruGetRefClkFreqHz(&vphydev->xgtphy));
+		}
 	}
+
 	dev_info(&pdev->dev, "probe successful\n");
 	/* probe has succeeded for this instance, increment instance index */
 	instance++;
@@ -620,13 +849,6 @@ static const struct dev_pm_ops xvphy_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(xvphy_pm_suspend, xvphy_pm_resume)
 };
 
-/* Match table for of_platform binding */
-static const struct of_device_id xvphy_of_match[] = {
-	{ .compatible = "xlnx,vid-phy-controller-2.2" },
-	{ /* end of table */ },
-};
-MODULE_DEVICE_TABLE(of, xvphy_of_match);
-
 static struct platform_driver xvphy_driver = {
 	.probe = xvphy_probe,
 	.driver = {
@@ -639,7 +861,7 @@ module_platform_driver(xvphy_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Leon Woestenberg <leon@sidebranch.com>");
-MODULE_DESCRIPTION("Xilinx Vphy driver");
+MODULE_DESCRIPTION("Xilinx Vphy / HDMI GT Controller  driver");
 
 /* phy sub-directory is used as a place holder for all shared code for
    hdmi-rx and hdmi-tx driver. All shared API's need to be exported */
