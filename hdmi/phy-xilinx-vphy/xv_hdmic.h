@@ -50,7 +50,7 @@ extern "C" {
 #include "xil_assert.h"
 
 /************************** Constant Definitions ******************************/
-#define VICTABLE_SIZE 73
+#define VICTABLE_SIZE 126
 #define AUX_VSIF_TYPE 0x81
 #define AUX_AVI_INFOFRAME_TYPE 0x82
 #define AUX_GENERAL_CONTROL_PACKET_TYPE 0x3
@@ -302,6 +302,7 @@ typedef enum {
 	R_444_444,		/*  8 Gbps */
 	R_555_556,		/* 10 Gbps */
 	R_666_667,		/* 12 Gbps */
+	XHDMIC_FRLCHARRATE_SIZE,
 } XHdmiC_FRLCharRate;
 
 /**
@@ -429,6 +430,7 @@ XHdmiC_SamplingFrequency
 	XHdmiC_GetAudIFSampFreq (XHdmiC_SamplingFrequencyVal AudSampFreqVal);
 XHdmiC_SamplingFrequencyVal
 	XHdmiC_GetAudSampFreqVal(XHdmiC_SamplingFrequency AudSampFreqVal);
+
 #ifdef __cplusplus
 }
 #endif

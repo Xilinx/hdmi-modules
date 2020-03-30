@@ -835,6 +835,7 @@ const char *XVidC_GetColorFormatStr(XVidC_ColorFormat ColorFormatId)
 		case XVIDC_CSF_MEM_BGR8:       return ("BGR8");
 		case XVIDC_CSF_YCBCR_422:      return ("YCBCR_422");
 		case XVIDC_CSF_YCBCR_420:      return ("YCBCR_420");
+		case XVIDC_CSF_YCBCR_444:      return ("YCBCR_444");
 		case XVIDC_CSF_MEM_RGBX12:     return ("RGBX12");
 		case XVIDC_CSF_MEM_RGB16:      return ("RGB16");
 		case XVIDC_CSF_MEM_YUVX12:     return ("YUVX12");
@@ -1268,7 +1269,7 @@ int XVidC_ShowStreamInfo(const XVidC_VideoStream *Stream, char *buff, int buff_s
 				"\tResolution:       %dx%d [Custom Mode]\r\n",
 				Stream->Timing.HActive, Stream->Timing.VActive);
 		strSize += scnprintf(buff+strSize, buff_size-strSize,
-				"\tPixel Clock:      %d\r\n",
+				"\tPixel Clock:      %lld\r\n",
 				XVidC_GetPixelClockHzByHVFr(
 					Stream->Timing.HTotal,
 					Stream->Timing.F0PVTotal,
@@ -1282,7 +1283,7 @@ int XVidC_ShowStreamInfo(const XVidC_VideoStream *Stream, char *buff, int buff_s
 				"\tResolution:       %s\r\n",
 				XVidC_GetVideoModeStr(Stream->VmId));
 		strSize += scnprintf(buff+strSize, buff_size-strSize,
-				"\tPixel Clock:      %d\r\n",
+				"\tPixel Clock:      %lld\r\n",
 				XVidC_GetPixelClockHzByVmId(Stream->VmId));
 	}
 

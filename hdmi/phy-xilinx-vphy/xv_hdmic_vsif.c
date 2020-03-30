@@ -460,15 +460,12 @@ XHdmiC_Aux XV_HdmiC_VSIF_GeneratePacket(XHdmiC_VSIF  *VSIFPtr)
     u8 ByteCount = 0;
     u8 Crc = 0;
     XHdmiC_Aux Aux;
-//    XHdmiC_Aux *AuxPtr;
+
+    (void)memset((void *)&Aux, 0, sizeof(XHdmiC_Aux));
 
     XHdmiC_3D_Struct_Field Format;
     XHdmiC_3D_Sampling_Method SampMethod;
     XHdmiC_3D_Sampling_Position SampPos;
-
-    /* Verify arguments */
-//    Xil_AssertNonvoid(VSIFPtr != NULL);
-//    Xil_AssertNonvoid(AuxPtr != NULL);
 
     /* Header, Packet type*/
     Aux.Header.Byte[0] = AUX_VSIF_TYPE;
