@@ -122,6 +122,10 @@ struct xhdmi_device {
 	u32 IntrStatus[7];
 	/* pointer to xvphy */
 	XVphy *xvphy;
+	/* pointer to HDMI GT controller phy */
+	XHdmiphy1 *xgtphy;
+	/* flag to determine which phy */
+	u32 isvphy;
 	/* HDCP keys */
 	u8 hdcp_password[32];
 	u8 Hdcp22Lc128[16];
@@ -695,7 +699,11 @@ static void RxConnectCallback(void *CallbackRef)
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)CallbackRef;
 	XV_HdmiRxSs *HdmiRxSsPtr = &xhdmi->xv_hdmirxss;
 	XVphy *VphyPtr = xhdmi->xvphy;
-	if (!xhdmi || !HdmiRxSsPtr || !VphyPtr) return;
+	XHdmiphy1 *XGtPhyPtr = xhdmi->xgtphy;
+
+	if (!xhdmi || !HdmiRxSsPtr || (xhdmi->isvphy && !VphyPtr) ||
+		(!xhdmi->isvphy && !XGtPhyPtr))
+		return;
 
 	xhdmi->cable_is_connected = !!HdmiRxSsPtr->IsStreamConnected;
 	dev_dbg(xhdmi->dev,"RxConnectCallback(): cable is %sconnected.\n",
@@ -704,11 +712,20 @@ static void RxConnectCallback(void *CallbackRef)
 	xvphy_mutex_lock(xhdmi->phy[0]);
 	/* RX cable is connected? */
 	if (HdmiRxSsPtr->IsStreamConnected) {
-		XVphy_IBufDsEnable(VphyPtr, 0, XVPHY_DIR_RX, (TRUE));
+		if (xhdmi->isvphy)
+			XVphy_IBufDsEnable(VphyPtr, 0, XVPHY_DIR_RX, (TRUE));
+		else
+			XHdmiphy1_IBufDsEnable(XGtPhyPtr, 0, XHDMIPHY1_DIR_RX, (TRUE));
 	} else {
-		/* clear GT RX TMDS clock ratio */
-		VphyPtr->HdmiRxTmdsClockRatio = 0;
-		XVphy_IBufDsEnable(VphyPtr, 0, XVPHY_DIR_RX, (FALSE));
+		if (xhdmi->isvphy) {
+			/* clear GT RX TMDS clock ratio */
+			VphyPtr->HdmiRxTmdsClockRatio = 0;
+			XVphy_IBufDsEnable(VphyPtr, 0, XVPHY_DIR_RX, (FALSE));
+		} else {
+			/* clear GT RX TMDS clock ratio */
+			XGtPhyPtr->HdmiRxTmdsClockRatio = 0;
+			XHdmiphy1_IBufDsEnable(XGtPhyPtr, 0, XHDMIPHY1_DIR_RX, (FALSE));
+		}
 	}
 	xvphy_mutex_unlock(xhdmi->phy[0]);
 }
@@ -730,9 +747,14 @@ static void RxStreamInitCallback(void *CallbackRef)
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)CallbackRef;
 	XV_HdmiRxSs *HdmiRxSsPtr = &xhdmi->xv_hdmirxss;
 	XVphy *VphyPtr = xhdmi->xvphy;
+	XHdmiphy1 *XGtPhyPtr = xhdmi->xgtphy;
 	XVidC_VideoStream *HdmiRxSsVidStreamPtr;
 	u32 Status;
-	if (!xhdmi || !HdmiRxSsPtr || !VphyPtr) return;
+
+	if (!xhdmi || !HdmiRxSsPtr || (xhdmi->isvphy && !VphyPtr) ||
+		(!xhdmi->isvphy && !XGtPhyPtr))
+		return;
+
 	dev_dbg(xhdmi->dev,"RxStreamInitCallback\r\n");
 	// Calculate RX MMCM parameters
 	// In the application the YUV422 colordepth is 12 bits
@@ -744,16 +766,30 @@ static void RxStreamInitCallback(void *CallbackRef)
 	xvphy_mutex_lock(xhdmi->phy[0]);
 
 	if (HdmiRxSsVidStreamPtr->ColorFormatId == XVIDC_CSF_YCRCB_422) {
-		Status = XVphy_HdmiCfgCalcMmcmParam(VphyPtr, 0, XVPHY_CHANNEL_ID_CH1,
-				XVPHY_DIR_RX,
-				HdmiRxSsVidStreamPtr->PixPerClk,
-				XVIDC_BPC_8);
+		if (xhdmi->isvphy) {
+			Status = XVphy_HdmiCfgCalcMmcmParam(VphyPtr, 0, XVPHY_CHANNEL_ID_CH1,
+					XVPHY_DIR_RX,
+					HdmiRxSsVidStreamPtr->PixPerClk,
+					XVIDC_BPC_8);
+		} else {
+			Status = XHdmiphy1_HdmiCfgCalcMmcmParam(XGtPhyPtr, 0, XHDMIPHY1_CHANNEL_ID_CH1,
+					XHDMIPHY1_DIR_RX,
+					HdmiRxSsVidStreamPtr->PixPerClk,
+					XVIDC_BPC_8);
+		}
 	// Other colorspaces
 	} else {
-		Status = XVphy_HdmiCfgCalcMmcmParam(VphyPtr, 0, XVPHY_CHANNEL_ID_CH1,
-				XVPHY_DIR_RX,
-				HdmiRxSsVidStreamPtr->PixPerClk,
-				HdmiRxSsVidStreamPtr->ColorDepth);
+		if (xhdmi->isvphy) {
+			Status = XVphy_HdmiCfgCalcMmcmParam(VphyPtr, 0, XVPHY_CHANNEL_ID_CH1,
+					XVPHY_DIR_RX,
+					HdmiRxSsVidStreamPtr->PixPerClk,
+					HdmiRxSsVidStreamPtr->ColorDepth);
+		} else {
+			Status = XHdmiphy1_HdmiCfgCalcMmcmParam(XGtPhyPtr, 0, XHDMIPHY1_CHANNEL_ID_CH1,
+					XHDMIPHY1_DIR_RX,
+					HdmiRxSsVidStreamPtr->PixPerClk,
+					HdmiRxSsVidStreamPtr->ColorDepth);
+		}
 	}
 
 	if (Status == XST_FAILURE) {
@@ -762,7 +798,10 @@ static void RxStreamInitCallback(void *CallbackRef)
 	}
 
 	// Enable and configure RX MMCM
-	XVphy_MmcmStart(VphyPtr, 0, XVPHY_DIR_RX);
+	if (xhdmi->isvphy)
+		XVphy_MmcmStart(VphyPtr, 0, XVPHY_DIR_RX);
+	else
+		XHdmiphy1_MmcmStart(XGtPhyPtr, 0, XHDMIPHY1_DIR_RX);
 	//wait 10ms for PLL to stabilize
 	usleep_range(10000, 11000);
 	xvphy_mutex_unlock(xhdmi->phy[0]);
@@ -1010,8 +1049,12 @@ static void VphyHdmiRxInitCallback(void *CallbackRef)
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)CallbackRef;
 	XV_HdmiRxSs *HdmiRxSsPtr = &xhdmi->xv_hdmirxss;
 	XVphy *VphyPtr = xhdmi->xvphy;
+	XHdmiphy1 *XGtPhyPtr = xhdmi->xgtphy;
 
-	if (!xhdmi || !VphyPtr) return;
+	if ((!xhdmi) || (xhdmi->isvphy && !VphyPtr) ||
+		(!xhdmi->isvphy && !XGtPhyPtr))
+		return;
+
 	dev_dbg(xhdmi->dev,"VphyHdmiRxInitCallback()\n");
 
 	/* a pair of mutexes must be locked in fixed order to prevent deadlock,
@@ -1022,7 +1065,11 @@ static void VphyHdmiRxInitCallback(void *CallbackRef)
 
 	XV_HdmiRxSs_RefClockChangeInit(HdmiRxSsPtr);
 	/* @NOTE maybe implement xvphy_set_hdmirx_tmds_clockratio(); */
-	VphyPtr->HdmiRxTmdsClockRatio = HdmiRxSsPtr->TMDSClockRatio;
+	if (xhdmi->isvphy)
+		VphyPtr->HdmiRxTmdsClockRatio = HdmiRxSsPtr->TMDSClockRatio;
+	else
+		XGtPhyPtr->HdmiRxTmdsClockRatio = HdmiRxSsPtr->TMDSClockRatio;
+
 	/* unlock RX SS but keep XVPHY locked */
 	hdmi_mutex_unlock(&xhdmi->xhdmi_mutex);
 }
@@ -1034,8 +1081,13 @@ static void VphyHdmiRxReadyCallback(void *CallbackRef)
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)CallbackRef;
 	XVphy *VphyPtr = xhdmi->xvphy;
 	XVphy_PllType RxPllType;
+	XHdmiphy1 *XGtPhyPtr = xhdmi->xgtphy;
+	XHdmiphy1_PllType GtRxPllType;
 
-	if (!xhdmi || !VphyPtr) return;
+	if ((!xhdmi) || (xhdmi->isvphy && !VphyPtr) ||
+		(!xhdmi->isvphy && !XGtPhyPtr))
+		return;
+
 	dev_dbg(xhdmi->dev,"VphyHdmiRxReadyCallback()\n");
 
 	/* a pair of mutexes must be locked in fixed order to prevent deadlock,
@@ -1044,15 +1096,27 @@ static void VphyHdmiRxReadyCallback(void *CallbackRef)
 	hdmi_mutex_lock(&xhdmi->xhdmi_mutex);
 	xvphy_mutex_lock(xhdmi->phy[0]);
 
-	RxPllType = XVphy_GetPllType(VphyPtr, 0, XVPHY_DIR_RX,
-		XVPHY_CHANNEL_ID_CH1);
-	if (!(RxPllType == XVPHY_PLL_TYPE_CPLL)) {
-		XV_HdmiRxSs_SetStream(&xhdmi->xv_hdmirxss, VphyPtr->HdmiRxRefClkHz,
-				(XVphy_GetLineRateHz(VphyPtr, 0, XVPHY_CHANNEL_ID_CMN0)/1000000));
-	}
-	else {
-		XV_HdmiRxSs_SetStream(&xhdmi->xv_hdmirxss, VphyPtr->HdmiRxRefClkHz,
-				(XVphy_GetLineRateHz(VphyPtr, 0, XVPHY_CHANNEL_ID_CH1)/1000000));
+	if (xhdmi->isvphy) {
+		RxPllType = XVphy_GetPllType(VphyPtr, 0, XVPHY_DIR_RX,
+			XVPHY_CHANNEL_ID_CH1);
+		if (!(RxPllType == XVPHY_PLL_TYPE_CPLL)) {
+			XV_HdmiRxSs_SetStream(&xhdmi->xv_hdmirxss, VphyPtr->HdmiRxRefClkHz,
+					(XVphy_GetLineRateHz(VphyPtr, 0, XVPHY_CHANNEL_ID_CMN0)/1000000));
+		}
+		else {
+			XV_HdmiRxSs_SetStream(&xhdmi->xv_hdmirxss, VphyPtr->HdmiRxRefClkHz,
+					(XVphy_GetLineRateHz(VphyPtr, 0, XVPHY_CHANNEL_ID_CH1)/1000000));
+		}
+	} else {
+		GtRxPllType = XHdmiphy1_GetPllType(XGtPhyPtr, 0, XHDMIPHY1_DIR_RX,
+			XHDMIPHY1_CHANNEL_ID_CH1);
+		if (!(GtRxPllType == XHDMIPHY1_PLL_TYPE_CPLL)) {
+			XV_HdmiRxSs_SetStream(&xhdmi->xv_hdmirxss, XGtPhyPtr->HdmiRxRefClkHz,
+				(XHdmiphy1_GetLineRateHz(XGtPhyPtr, 0, XHDMIPHY1_CHANNEL_ID_CMN0)/1000000));
+		} else {
+			XV_HdmiRxSs_SetStream(&xhdmi->xv_hdmirxss, XGtPhyPtr->HdmiRxRefClkHz,
+				(XHdmiphy1_GetLineRateHz(XGtPhyPtr, 0, XHDMIPHY1_CHANNEL_ID_CH1)/1000000));
+		}
 	}
 	hdmi_mutex_unlock(&xhdmi->xhdmi_mutex);
 }
@@ -1338,12 +1402,16 @@ static ssize_t vphy_log_show(struct device *sysfs_dev, struct device_attribute *
 {
 	ssize_t count;
 	XV_HdmiRxSs *HdmiRxSsPtr;
-	XVphy *VphyPtr;
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)dev_get_drvdata(sysfs_dev);
+	XVphy *VphyPtr = xhdmi->xvphy;
+	XHdmiphy1 *XGtPhyPtr = xhdmi->xgtphy;
 
 	HdmiRxSsPtr = (XV_HdmiRxSs *)&xhdmi->xv_hdmirxss;
-	VphyPtr = xhdmi->xvphy;
-	count = XVphy_LogShow(VphyPtr, buf, PAGE_SIZE);
+	if (xhdmi->isvphy)
+		count = XVphy_LogShow(VphyPtr, buf, PAGE_SIZE);
+	else
+		count = XHdmiphy1_LogShow(XGtPhyPtr, buf, PAGE_SIZE);
+
 	return count;
 }
 
@@ -1353,15 +1421,26 @@ static ssize_t vphy_info_show(struct device *sysfs_dev, struct device_attribute 
 	ssize_t count;
 	XV_HdmiRxSs *HdmiRxSsPtr;
 	XVphy *VphyPtr;
+	XHdmiphy1 *XGtPhyPtr;
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)dev_get_drvdata(sysfs_dev);
 
 	HdmiRxSsPtr = (XV_HdmiRxSs *)&xhdmi->xv_hdmirxss;
-	VphyPtr = xhdmi->xvphy;
-	count = XVphy_HdmiDebugInfo(VphyPtr, 0, XVPHY_CHANNEL_ID_CHA, buf, PAGE_SIZE);
-	count += scnprintf(&buf[count], (PAGE_SIZE-count), "Rx Ref Clk: %0d Hz\n",
-				XVphy_ClkDetGetRefClkFreqHz(xhdmi->xvphy, XVPHY_DIR_RX));
-	count += scnprintf(&buf[count], (PAGE_SIZE-count), "DRU Ref Clk: %0d Hz\n",
-				XVphy_DruGetRefClkFreqHz(xhdmi->xvphy));
+
+	if (xhdmi->isvphy) {
+		VphyPtr = xhdmi->xvphy;
+		count = XVphy_HdmiDebugInfo(VphyPtr, 0, XVPHY_CHANNEL_ID_CHA, buf, PAGE_SIZE);
+		count += scnprintf(&buf[count], (PAGE_SIZE-count), "Rx Ref Clk: %0d Hz\n",
+					XVphy_ClkDetGetRefClkFreqHz(xhdmi->xvphy, XVPHY_DIR_RX));
+		count += scnprintf(&buf[count], (PAGE_SIZE-count), "DRU Ref Clk: %0d Hz\n",
+					XVphy_DruGetRefClkFreqHz(xhdmi->xvphy));
+	} else {
+		XGtPhyPtr = xhdmi->xgtphy;
+		count = XHdmiphy1_HdmiDebugInfo(XGtPhyPtr, 0, XHDMIPHY1_CHANNEL_ID_CHA, buf, PAGE_SIZE);
+		count += scnprintf(&buf[count], (PAGE_SIZE-count), "Rx Ref Clk: %0d Hz\n",
+					XHdmiphy1_ClkDetGetRefClkFreqHz(xhdmi->xgtphy, XHDMIPHY1_DIR_RX));
+		count += scnprintf(&buf[count], (PAGE_SIZE-count), "DRU Ref Clk: %0d Hz\n",
+					XHdmiphy1_DruGetRefClkFreqHz(xhdmi->xgtphy));
+	}
 	return count;
 }
 
@@ -1812,7 +1891,7 @@ static int xhdmi_probe(struct platform_device *pdev)
 	struct xlnx_hdmirx_audio_data *adata;
 	u32 Status;
 
-	dev_info(&pdev->dev, "probed\n");
+	dev_info(&pdev->dev, "probe started\n");
 	/* allocate zeroed HDMI RX device structure */
 	xhdmi = devm_kzalloc(&pdev->dev, sizeof(*xhdmi), GFP_KERNEL);
 	if (!xhdmi)
@@ -1852,6 +1931,13 @@ static int xhdmi_probe(struct platform_device *pdev)
 	/* acquire vphy lanes */
 	for (index = 0; index < 3; index++)
 	{
+		static const struct of_device_id xlnx_hdmi_phy_id_table[] = {
+			{ .compatible = "xlnx,hdmi-gt-controller-1.0", },
+			{ .compatible = "xlnx,vid-phy-controller-2.2", },
+			{ /* end of table */ },
+		};
+		const struct of_device_id *match;
+
 		char phy_name[16];
 		snprintf(phy_name, sizeof(phy_name), "hdmi-phy%d", index);
 		xhdmi->phy[index] = devm_phy_get(xhdmi->dev, phy_name);
@@ -1859,7 +1945,7 @@ static int xhdmi_probe(struct platform_device *pdev)
 			ret = PTR_ERR(xhdmi->phy[index]);
 			xhdmi->phy[index] = NULL;
 			if (ret == -EPROBE_DEFER) {
-				dev_info(xhdmi->dev, "xvphy not ready -EPROBE_DEFER\n");
+				dev_info(xhdmi->dev, "xvphy/xgtphy not ready -EPROBE_DEFER\n");
 				return ret;
 			}
 			if (ret != -EPROBE_DEFER)
@@ -1867,6 +1953,12 @@ static int xhdmi_probe(struct platform_device *pdev)
 					phy_name, index, ret);
 			goto error_phy;
 		}
+
+		match = of_match_node(xlnx_hdmi_phy_id_table, xhdmi->phy[index]->dev.parent->of_node);
+		if (strncmp(match->compatible, "xlnx,vid-phy-controller", 23) == 0)
+			xhdmi->isvphy = 1;
+		else
+			xhdmi->isvphy = 0;
 
 		ret = phy_init(xhdmi->phy[index]);
 		if (ret) {
@@ -2093,16 +2185,26 @@ static int xhdmi_probe(struct platform_device *pdev)
 	XV_HdmiRxSs_SetCallback(HdmiRxSsPtr, XV_HDMIRXSS_HANDLER_AUX,
 		RxAuxCallback, (void *)xhdmi);
 
-	/* get a reference to the XVphy data structure */
-	xhdmi->xvphy = xvphy_get_xvphy(xhdmi->phy[0]);
+	/* get a reference to the XVphy/ XHdmiphy1 data structure */
+	if (xhdmi->isvphy)
+		xhdmi->xvphy = xvphy_get_xvphy(xhdmi->phy[0]);
+	else
+		xhdmi->xgtphy = xvphy_get_xvphy(xhdmi->phy[0]);
 
 	xvphy_mutex_lock(xhdmi->phy[0]);
 	/* the callback is not specific to a single lane, but we need to
 	 * provide one of the phy's as reference */
-	XVphy_SetHdmiCallback(xhdmi->xvphy, XVPHY_HDMI_HANDLER_RXINIT,
-		VphyHdmiRxInitCallback, (void *)xhdmi);
-	XVphy_SetHdmiCallback(xhdmi->xvphy, XVPHY_HDMI_HANDLER_RXREADY,
-		VphyHdmiRxReadyCallback, (void *)xhdmi);
+	if (xhdmi->isvphy) {
+		XVphy_SetHdmiCallback(xhdmi->xvphy, XVPHY_HDMI_HANDLER_RXINIT,
+			VphyHdmiRxInitCallback, (void *)xhdmi);
+		XVphy_SetHdmiCallback(xhdmi->xvphy, XVPHY_HDMI_HANDLER_RXREADY,
+			VphyHdmiRxReadyCallback, (void *)xhdmi);
+	} else {
+		XHdmiphy1_SetHdmiCallback(xhdmi->xgtphy, XHDMIPHY1_HDMI_HANDLER_RXINIT,
+			VphyHdmiRxInitCallback, (void *)xhdmi);
+		XHdmiphy1_SetHdmiCallback(xhdmi->xgtphy, XHDMIPHY1_HDMI_HANDLER_RXREADY,
+			VphyHdmiRxReadyCallback, (void *)xhdmi);
+	}
 
 	xvphy_mutex_unlock(xhdmi->phy[0]);
 

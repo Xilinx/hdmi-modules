@@ -3,6 +3,7 @@ obj-m += xilinx-vphy.o xilinx-hdmi-rx.o xilinx-hdmi-tx.o
 
 # in same cases only used to check against presence, i.e. >0, actual number is not used
 ccflags-y := -DXPAR_XVPHY_NUM_INSTANCES=4
+ccflags-y += -DXPAR_XHDMIPHY1_NUM_INSTANCES=4
 ccflags-y += -DXPAR_XV_HDMIRXSS_NUM_INSTANCES=4
 ccflags-y += -DXPAR_XV_HDMITXSS_NUM_INSTANCES=4
 ccflags-y += -DXPAR_XV_HDMIRX_NUM_INSTANCES=4
@@ -12,6 +13,10 @@ ccflags-y += -DXPAR_XVTC_NUM_INSTANCES=4
 ccflags-y += -DXPAR_VPHY_0_TRANSCEIVER=5
 ccflags-y += -DXPAR_VPHY_0_RX_PROTOCOL=1
 ccflags-y += -DXPAR_VPHY_0_TX_PROTOCOL=1
+ccflags-y += -DXPAR_HDMIPHY1_0_TRANSCEIVER=7
+# Below two parameters are notused anywhere in the code
+ccflags-y += -DXPAR_HDMIPHY1_0_RX_PROTOCOL=1
+ccflags-y += -DXPAR_HDMIPHY1_0_TX_PROTOCOL=1
 ccflags-y += -DXPAR_XV_HDMIRX_0_DEVICE_ID=0
 ccflags-y += -DXPAR_XV_HDMITX_0_DEVICE_ID=0
 
@@ -82,6 +87,15 @@ xilinx-vphy-objs += phy-xilinx-vphy/xvphy_hdmi_intr.o
 xilinx-vphy-objs += phy-xilinx-vphy/xvphy_intr.o
 xilinx-vphy-objs += phy-xilinx-vphy/xvphy_log.o
 xilinx-vphy-objs += phy-xilinx-vphy/xvphy_sinit.o
+xilinx-vphy-objs += phy-xilinx-vphy/xhdmiphy1.o
+xilinx-vphy-objs += phy-xilinx-vphy/xhdmiphy1_i.o
+xilinx-vphy-objs += phy-xilinx-vphy/xhdmiphy1_gtye5.o
+xilinx-vphy-objs += phy-xilinx-vphy/xhdmiphy1_mmcme5.o
+xilinx-vphy-objs += phy-xilinx-vphy/xhdmiphy1_hdmi.o
+xilinx-vphy-objs += phy-xilinx-vphy/xhdmiphy1_hdmi_intr.o
+xilinx-vphy-objs += phy-xilinx-vphy/xhdmiphy1_intr.o
+xilinx-vphy-objs += phy-xilinx-vphy/xhdmiphy1_log.o
+xilinx-vphy-objs += phy-xilinx-vphy/xhdmiphy1_sinit.o
 xilinx-vphy-objs += phy-xilinx-vphy/xvidc.o
 xilinx-vphy-objs += phy-xilinx-vphy/xvidc_timings_table.o
 

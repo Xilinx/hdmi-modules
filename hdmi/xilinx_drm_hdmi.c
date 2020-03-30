@@ -57,6 +57,8 @@
 
 #define XVPHY_TXREFCLK_RDY_LOW		0
 #define XVPHY_TXREFCLK_RDY_HIGH		1
+#define XHDMIPHY1_TXREFCLK_RDY_LOW		0
+#define XHDMIPHY1_TXREFCLK_RDY_HIGH		1
 
 #define hdmi_mutex_lock(x) mutex_lock(x)
 #define hdmi_mutex_unlock(x) mutex_unlock(x)
@@ -110,6 +112,8 @@
  * @xv_hdmitxss: IP low level driver structure
  * @IntrStatus: Flag to indicate irq status
  * @xvphy: pointer to xilinx video phy
+ * @xgtphy: pointer to Xilinx HDMI GT Controller phy
+ * @isvphy: Flag to determine which Phy
  * @audio_enabled: flag to indicate audio is enabled in device tree
  * @audio_init: flag to indicate audio is initialized
  * @tx_audio_data: audio data to be shared with audio module
@@ -173,6 +177,10 @@ struct xlnx_drm_hdmi {
 	u32 IntrStatus;
 	/* pointer to xvphy */
 	XVphy *xvphy;
+	/* pointer to xgtphy */
+	XHdmiphy1 *xgtphy;
+	/* flag to determine which Phy */
+	u32 isvphy;
 	/* HDCP keys */
 	u8 hdcp_password[32];
 	u8 Hdcp22Lc128[16];
@@ -523,6 +531,7 @@ static void TxConnectCallback(void *CallbackRef)
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)CallbackRef;
 	XV_HdmiTxSs *HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
 	XVphy *VphyPtr = xhdmi->xvphy;
+	XHdmiphy1 *XGtPhyPtr = xhdmi->xgtphy;
 
 	dev_dbg(xhdmi->dev,"%s()\n", __func__);
 	xvphy_mutex_lock(xhdmi->phy[0]);
@@ -535,7 +544,10 @@ static void TxConnectCallback(void *CallbackRef)
 		dev_dbg(xhdmi->dev,"TxConnectCallback(): TX connected to HDMI %s Sink Device\n",
 			(xst_hdmi20 == XST_SUCCESS)? "2.0": "1.4");
 		xhdmi->is_hdmi_20_sink = (xst_hdmi20 == XST_SUCCESS);
-		XVphy_IBufDsEnable(VphyPtr, 0, XVPHY_DIR_TX, (TRUE));
+		if (xhdmi->isvphy)
+			XVphy_IBufDsEnable(VphyPtr, 0, XVPHY_DIR_TX, (TRUE));
+		else
+			XHdmiphy1_IBufDsEnable(XGtPhyPtr, 0, XHDMIPHY1_DIR_TX, (TRUE));
 		XV_HdmiTxSs_StreamStart(HdmiTxSsPtr);
 		/* stream never goes down on disconnect. Force hdcp event */
 		if (xhdmi->hdmi_stream_up &&
@@ -552,7 +564,10 @@ static void TxConnectCallback(void *CallbackRef)
 		xhdmi->have_edid = 0;
 		xhdmi->is_hdmi_20_sink = 0;
 		/* do not disable ibufds - stream will not go down*/
-		XVphy_IBufDsEnable(VphyPtr, 0, XVPHY_DIR_TX, (FALSE));
+		if (xhdmi->isvphy)
+			XVphy_IBufDsEnable(VphyPtr, 0, XVPHY_DIR_TX, (FALSE));
+		else
+			XHdmiphy1_IBufDsEnable(XGtPhyPtr, 0, XHDMIPHY1_DIR_TX, (FALSE));
 	}
 	xvphy_mutex_unlock(xhdmi->phy[0]);
 
@@ -577,14 +592,18 @@ static void TxStreamUpCallback(void *CallbackRef)
 {
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)CallbackRef;
 	XVphy *VphyPtr;
+	XHdmiphy1 *XGtPhyPtr;
 	XV_HdmiTxSs *HdmiTxSsPtr;
 	XVphy_PllType TxPllType;
-	u64 TxLineRate;
+	XHdmiphy1_PllType GtTxPllType;
+	u64 TxLineRate = 0;
 	XHdmiC_AVI_InfoFrame *AVIInfoFramePtr;
 	XVidC_VideoStream *HdmiTxSsVidStreamPtr;
 
 	HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
+
 	VphyPtr = xhdmi->xvphy;
+	XGtPhyPtr = xhdmi->xgtphy;
 
 	dev_dbg(xhdmi->dev,"TxStreamUpCallback(): TX stream is up\n");
 	xhdmi->hdmi_stream_up = 1;
@@ -603,17 +622,33 @@ static void TxStreamUpCallback(void *CallbackRef)
 	}
 
 	xvphy_mutex_lock(xhdmi->phy[0]);
-	TxPllType = XVphy_GetPllType(VphyPtr, 0, XVPHY_DIR_TX, XVPHY_CHANNEL_ID_CH1);
-	if ((TxPllType == XVPHY_PLL_TYPE_CPLL)) {
-		TxLineRate = XVphy_GetLineRateHz(VphyPtr, 0, XVPHY_CHANNEL_ID_CH1);
-	}
-	else if((TxPllType == XVPHY_PLL_TYPE_QPLL) ||
+	if (xhdmi->isvphy) {
+		TxPllType = XVphy_GetPllType(VphyPtr, 0, XVPHY_DIR_TX, XVPHY_CHANNEL_ID_CH1);
+		if ((TxPllType == XVPHY_PLL_TYPE_CPLL)) {
+			TxLineRate = XVphy_GetLineRateHz(VphyPtr, 0, XVPHY_CHANNEL_ID_CH1);
+		}
+		else if((TxPllType == XVPHY_PLL_TYPE_QPLL) ||
 			(TxPllType == XVPHY_PLL_TYPE_QPLL0) ||
 			(TxPllType == XVPHY_PLL_TYPE_PLL0)) {
-		TxLineRate = XVphy_GetLineRateHz(VphyPtr, 0, XVPHY_CHANNEL_ID_CMN0);
-	}
-	else {
-		TxLineRate = XVphy_GetLineRateHz(VphyPtr, 0, XVPHY_CHANNEL_ID_CMN1);
+			TxLineRate = XVphy_GetLineRateHz(VphyPtr, 0, XVPHY_CHANNEL_ID_CMN0);
+		}
+		else {
+			TxLineRate = XVphy_GetLineRateHz(VphyPtr, 0, XVPHY_CHANNEL_ID_CMN1);
+		}
+	} else {
+		GtTxPllType = XHdmiphy1_GetPllType(XGtPhyPtr, 0, XHDMIPHY1_DIR_TX, XHDMIPHY1_CHANNEL_ID_CH1);
+		/* Versal - Implementation different here */
+		if (GtTxPllType == XHDMIPHY1_PLL_TYPE_LCPLL) {
+			TxLineRate =
+				XHdmiphy1_GetLineRateHz(XGtPhyPtr, 0, XHDMIPHY1_CHANNEL_ID_CMN0);
+			dev_dbg(xhdmi->dev, "GtPhy TxLineRate LCPLL %lld Kbps\r\n",(TxLineRate/1000));
+		} else if (GtTxPllType == XHDMIPHY1_PLL_TYPE_RPLL) {
+			TxLineRate =
+				XHdmiphy1_GetLineRateHz(XGtPhyPtr, 0, XHDMIPHY1_CHANNEL_ID_CMN1);
+			dev_dbg(xhdmi->dev, "GtPhy TxLineRate RPLL %lld Kbps\r\n",(TxLineRate/1000));
+		} else {
+			dev_err(xhdmi->dev, "GtPhy Error! Invalid GtTxPllType in TxStreamUpCallback.\r\n");
+		}
 	}
 
 	/* configure an external retimer through a (virtual) CCF clock
@@ -623,10 +658,16 @@ static void TxStreamUpCallback(void *CallbackRef)
 		(void)clk_set_rate(xhdmi->retimer_clk, (signed long long)TxLineRate);
 	}
 	/* Copy Sampling Rate */
-	XV_HdmiTxSs_SetSamplingRate(HdmiTxSsPtr, VphyPtr->HdmiTxSampleRate);
+	if (xhdmi->isvphy)
+		XV_HdmiTxSs_SetSamplingRate(HdmiTxSsPtr, VphyPtr->HdmiTxSampleRate);
+	else
+		XV_HdmiTxSs_SetSamplingRate(HdmiTxSsPtr, XGtPhyPtr->HdmiTxSampleRate);
 
 	/* Enable TX TMDS clock*/
-	XVphy_Clkout1OBufTdsEnable(VphyPtr, XVPHY_DIR_TX, (TRUE));
+	if (xhdmi->isvphy)
+		XVphy_Clkout1OBufTdsEnable(VphyPtr, XVPHY_DIR_TX, (TRUE));
+	else
+		XHdmiphy1_Clkout1OBufTdsEnable(XGtPhyPtr, XHDMIPHY1_DIR_TX, (TRUE));
 
 	xvphy_mutex_unlock(xhdmi->phy[0]);
 
@@ -747,10 +788,15 @@ static void VphyHdmiTxInitCallback(void *CallbackRef)
 {
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)CallbackRef;
 	XVphy *VphyPtr;
+	XHdmiphy1 *XGtPhyPtr;
 	XV_HdmiTxSs *HdmiTxSsPtr;
 
 	HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
-	VphyPtr = xhdmi->xvphy;
+
+	if (xhdmi->isvphy)
+		VphyPtr = xhdmi->xvphy;
+	else
+		XGtPhyPtr = xhdmi->xgtphy;
 
 	dev_dbg(xhdmi->dev,"VphyHdmiTxInitCallback(): XV_HdmiTxSs_RefClockChangeInit()\n");
 
@@ -1079,6 +1125,7 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 
 	XVidC_VideoTiming vt;
 	XVphy *VphyPtr;
+	XHdmiphy1 *XGtPhyPtr;
 	XV_HdmiTxSs *HdmiTxSsPtr;
 	XVidC_VideoStream *HdmiTxSsVidStreamPtr;
 	XHdmiC_AVI_InfoFrame *AviInfoFramePtr;
@@ -1092,7 +1139,9 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 
 	dev_dbg(xhdmi->dev,"%s\n", __func__);
 	HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
+
 	VphyPtr = xhdmi->xvphy;
+	XGtPhyPtr = xhdmi->xgtphy;
 
 	hdmi_mutex_lock(&xhdmi->hdmi_mutex);
 	xvphy_mutex_lock(xhdmi->phy[0]);
@@ -1181,11 +1230,19 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	// Reset Vendor Specific InfoFrame
 	(void)memset((void *)VSIFPtr, 0, sizeof(XHdmiC_VSIF));
 
-	/* Get current Tx Ref clock from PHY */
-	PrevPhyTxRefClock = VphyPtr->HdmiTxRefClkHz;
+	if (xhdmi->isvphy) {
+		/* Get current Tx Ref clock from PHY */
+		PrevPhyTxRefClock = VphyPtr->HdmiTxRefClkHz;
 
-	/* Disable TX TDMS clock */
-	XVphy_Clkout1OBufTdsEnable(VphyPtr, XVPHY_DIR_TX, (FALSE));
+		/* Disable TX TDMS clock */
+		XVphy_Clkout1OBufTdsEnable(VphyPtr, XVPHY_DIR_TX, (FALSE));
+	} else {
+		/* Get current Tx Ref clock from PHY */
+		PrevPhyTxRefClock = XGtPhyPtr->HdmiTxRefClkHz;
+
+		/* Disable TX TDMS clock */
+		XHdmiphy1_Clkout1OBufTdsEnable(XGtPhyPtr, XHDMIPHY1_DIR_TX, (FALSE));
+	}
 
 	/* The isExtensive is made true to get the correct video timing by matching
 	 * all the parameters */
@@ -1242,18 +1299,34 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	}
 
 	// Set TX reference clock
-	VphyPtr->HdmiTxRefClkHz = TmdsClock;
+	if (xhdmi->isvphy)
+		VphyPtr->HdmiTxRefClkHz = TmdsClock;
+	else
+		XGtPhyPtr->HdmiTxRefClkHz = TmdsClock;
+
 	dev_dbg(xhdmi->dev,"(TmdsClock = %u, from XV_HdmiTxSs_SetStream())\n", TmdsClock);
 
-	dev_dbg(xhdmi->dev,"XVphy_SetHdmiTxParam(PixPerClk = %d, ColorDepth = %d, ColorFormatId=%d)\n",
+	if (xhdmi->isvphy) {
+		dev_dbg(xhdmi->dev,"XVphy_SetHdmiTxParam(PixPerClk = %d, ColorDepth = %d, ColorFormatId=%d)\n",
 		(int)HdmiTxSsVidStreamPtr->PixPerClk, (int)HdmiTxSsVidStreamPtr->ColorDepth,
 		(int)HdmiTxSsVidStreamPtr->ColorFormatId);
 
-	// Set GT TX parameters, this might change VphyPtr->HdmiTxRefClkHz
-	Result = XVphy_SetHdmiTxParam(VphyPtr, 0, XVPHY_CHANNEL_ID_CHA,
+		// Set GT TX parameters, this might change VphyPtr->HdmiTxRefClkHz
+		Result = XVphy_SetHdmiTxParam(VphyPtr, 0, XVPHY_CHANNEL_ID_CHA,
 					HdmiTxSsVidStreamPtr->PixPerClk,
 					HdmiTxSsVidStreamPtr->ColorDepth,
 					HdmiTxSsVidStreamPtr->ColorFormatId);
+	} else {
+		dev_dbg(xhdmi->dev,"XHdmiphy1_SetHdmiTxParam(PixPerClk = %d, ColorDepth = %d, ColorFormatId=%d)\n",
+		(int)HdmiTxSsVidStreamPtr->PixPerClk, (int)HdmiTxSsVidStreamPtr->ColorDepth,
+		(int)HdmiTxSsVidStreamPtr->ColorFormatId);
+
+		// Set GT TX parameters, this might change XGtPhyPtr->HdmiTxRefClkHz
+		Result = XHdmiphy1_SetHdmiTxParam(XGtPhyPtr, 0, XHDMIPHY1_CHANNEL_ID_CHA,
+					HdmiTxSsVidStreamPtr->PixPerClk,
+					HdmiTxSsVidStreamPtr->ColorDepth,
+					HdmiTxSsVidStreamPtr->ColorFormatId);
+	}
 	if (Result == (XST_FAILURE)) {
 		dev_dbg(xhdmi->dev,"Unable to set requested TX video resolution.\n\r");
 		xvphy_mutex_unlock(xhdmi->phy[0]);
@@ -1261,7 +1334,11 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 		return;
 	}
 
-	adjusted_mode->clock = VphyPtr->HdmiTxRefClkHz / 1000;
+	if (xhdmi->isvphy)
+		adjusted_mode->clock = VphyPtr->HdmiTxRefClkHz / 1000;
+	else
+		adjusted_mode->clock = XGtPhyPtr->HdmiTxRefClkHz / 1000;
+
 	dev_dbg(xhdmi->dev,"adjusted_mode->clock = %u Hz\n", adjusted_mode->clock);
 
 	/* request required tmds clock rate */
@@ -1274,11 +1351,20 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	 * signal must be toggled (asserted and de-asserted) to reset phy's
 	 * internal frequency detection state machine
 	 */
-	dev_dbg(xhdmi->dev,"PrevPhyTxRefClock: %d, NewRefClock: %d\n", PrevPhyTxRefClock, VphyPtr->HdmiTxRefClkHz);
-	if (PrevPhyTxRefClock == VphyPtr->HdmiTxRefClkHz) {
-		/* Switching between resolutions with same frequency */
-		dev_dbg(xhdmi->dev,"***** Reset Phy Tx Frequency *******\n");
-		XVphy_ClkDetFreqReset(VphyPtr, 0, XVPHY_DIR_TX);
+	if (xhdmi->isvphy) {
+		dev_dbg(xhdmi->dev,"PrevPhyTxRefClock: %d, NewRefClock: %d\n", PrevPhyTxRefClock, VphyPtr->HdmiTxRefClkHz);
+		if (PrevPhyTxRefClock == VphyPtr->HdmiTxRefClkHz) {
+			/* Switching between resolutions with same frequency */
+			dev_dbg(xhdmi->dev,"***** Reset Phy Tx Frequency *******\n");
+			XVphy_ClkDetFreqReset(VphyPtr, 0, XVPHY_DIR_TX);
+		}
+	} else {
+		dev_dbg(xhdmi->dev,"PrevPhyTxRefClock: %d, NewRefClock: %d\n", PrevPhyTxRefClock, XGtPhyPtr->HdmiTxRefClkHz);
+		if (PrevPhyTxRefClock == XGtPhyPtr->HdmiTxRefClkHz) {
+			/* Switching between resolutions with same frequency */
+			dev_dbg(xhdmi->dev,"***** Reset Phy Tx Frequency *******\n");
+			XHdmiphy1_ClkDetFreqReset(XGtPhyPtr, 0, XHDMIPHY1_DIR_TX);
+		}
 	}
 
 	xhdmi->tx_audio_data->tmds_clk = clk_get_rate(xhdmi->tmds_clk);
@@ -1572,10 +1658,16 @@ static ssize_t vphy_log_show(struct device *sysfs_dev, struct device_attribute *
 {
 	ssize_t count;
 	XVphy *VphyPtr;
+	XHdmiphy1 *XGtPhyPtr;
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)dev_get_drvdata(sysfs_dev);
 
-	VphyPtr = xhdmi->xvphy;
-	count = XVphy_LogShow(VphyPtr, buf, PAGE_SIZE);
+	if (xhdmi->isvphy) {
+		VphyPtr = xhdmi->xvphy;
+		count = XVphy_LogShow(VphyPtr, buf, PAGE_SIZE);
+	} else {
+		XGtPhyPtr = xhdmi->xgtphy;
+		count = XHdmiphy1_LogShow(XGtPhyPtr, buf, PAGE_SIZE);
+	}
 	return count;
 }
 
@@ -1584,12 +1676,20 @@ static ssize_t vphy_info_show(struct device *sysfs_dev, struct device_attribute 
 {
 	ssize_t count;
 	XVphy *VphyPtr;
+	XHdmiphy1 *XGtPhyPtr;
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)dev_get_drvdata(sysfs_dev);
 
-	VphyPtr = xhdmi->xvphy;
-	count = XVphy_HdmiDebugInfo(VphyPtr, 0, XVPHY_CHANNEL_ID_CHA, buf, PAGE_SIZE);
-	count += scnprintf(&buf[count], (PAGE_SIZE-count), "Tx Ref Clk: %0d Hz\n",
+	if (xhdmi->isvphy) {
+		VphyPtr = xhdmi->xvphy;
+		count = XVphy_HdmiDebugInfo(VphyPtr, 0, XVPHY_CHANNEL_ID_CHA, buf, PAGE_SIZE);
+		count += scnprintf(&buf[count], (PAGE_SIZE-count), "Tx Ref Clk: %0d Hz\n",
 				XVphy_ClkDetGetRefClkFreqHz(xhdmi->xvphy, XVPHY_DIR_TX));
+	} else {
+		XGtPhyPtr = xhdmi->xgtphy;
+		count = XHdmiphy1_HdmiDebugInfo(XGtPhyPtr, 0, XHDMIPHY1_CHANNEL_ID_CHA, buf, PAGE_SIZE);
+		count += scnprintf(&buf[count], (PAGE_SIZE-count), "Tx Ref Clk: %0d Hz\n",
+				XHdmiphy1_ClkDetGetRefClkFreqHz(xhdmi->xgtphy, XHDMIPHY1_DIR_TX));
+	}
 	return count;
 }
 
@@ -2132,14 +2232,26 @@ static void xlnx_drm_hdmi_initialize(struct xlnx_drm_hdmi *xhdmi)
 		TxBrdgUnderflowCallback, (void *)xhdmi);
 
 	/* get a reference to the XVphy data structure */
-	xhdmi->xvphy = xvphy_get_xvphy(xhdmi->phy[0]);
+	if (xhdmi->isvphy)
+		xhdmi->xvphy = xvphy_get_xvphy(xhdmi->phy[0]);
+	else
+		xhdmi->xgtphy = xvphy_get_xvphy(xhdmi->phy[0]);
+
 	xvphy_mutex_lock(xhdmi->phy[0]);
 	/* the callback is not specific to a single lane, but we need to
 	 * provide one of the phys as reference */
-	XVphy_SetHdmiCallback(xhdmi->xvphy, XVPHY_HDMI_HANDLER_TXINIT,
-		VphyHdmiTxInitCallback, (void *)xhdmi);
-	XVphy_SetHdmiCallback(xhdmi->xvphy, XVPHY_HDMI_HANDLER_TXREADY,
-		VphyHdmiTxReadyCallback, (void *)xhdmi);
+
+	if (xhdmi->isvphy) {
+		XVphy_SetHdmiCallback(xhdmi->xvphy, XVPHY_HDMI_HANDLER_TXINIT,
+			VphyHdmiTxInitCallback, (void *)xhdmi);
+		XVphy_SetHdmiCallback(xhdmi->xvphy, XVPHY_HDMI_HANDLER_TXREADY,
+			VphyHdmiTxReadyCallback, (void *)xhdmi);
+	} else {
+		XHdmiphy1_SetHdmiCallback(xhdmi->xgtphy, XHDMIPHY1_HDMI_HANDLER_TXINIT,
+			VphyHdmiTxInitCallback, (void *)xhdmi);
+		XHdmiphy1_SetHdmiCallback(xhdmi->xgtphy, XHDMIPHY1_HDMI_HANDLER_TXREADY,
+			VphyHdmiTxReadyCallback, (void *)xhdmi);
+	}
 	xvphy_mutex_unlock(xhdmi->phy[0]);
 
 	/* Request the interrupt */
@@ -2307,7 +2419,7 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 	struct resource *res;
 	unsigned long axi_clk_rate;
 
-	dev_info(&pdev->dev, "probed\n");
+	dev_info(&pdev->dev, "probe started\n");
 	/* allocate zeroed HDMI TX device structure */
 	xhdmi = devm_kzalloc(&pdev->dev, sizeof(*xhdmi), GFP_KERNEL);
 	if (!xhdmi)
@@ -2344,6 +2456,13 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 	/* acquire vphy lanes */
 	for (index = 0; index < 3; index++)
 	{
+		static const struct of_device_id xlnx_hdmi_phy_id_table[] = {
+			{ .compatible = "xlnx,hdmi-gt-controller-1.0", },
+			{ .compatible = "xlnx,vid-phy-controller-2.2", },
+			{ /* end of table */ },
+		};
+		const struct of_device_id *match;
+
 		char phy_name[16];
 		snprintf(phy_name, sizeof(phy_name), "hdmi-phy%d", index);
 		xhdmi->phy[index] = devm_phy_get(xhdmi->dev, phy_name);
@@ -2351,7 +2470,7 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 			ret = PTR_ERR(xhdmi->phy[index]);
 			xhdmi->phy[index] = NULL;
 			if (ret == -EPROBE_DEFER) {
-				dev_info(xhdmi->dev, "xvphy not ready -EPROBE_DEFER\n");
+				dev_info(xhdmi->dev, "xvphy/xgtphy not ready -EPROBE_DEFER\n");
 				return ret;
 			}
 			if (ret != -EPROBE_DEFER)
@@ -2359,6 +2478,12 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 					phy_name, index, ret);
 			goto error_phy;
 		}
+
+		match = of_match_node(xlnx_hdmi_phy_id_table, xhdmi->phy[index]->dev.parent->of_node);
+		if (strncmp(match->compatible, "xlnx,vid-phy-controller", 23) == 0)
+			xhdmi->isvphy = 1;
+		else
+			xhdmi->isvphy = 0;
 
 		ret = phy_init(xhdmi->phy[index]);
 		if (ret) {
