@@ -309,6 +309,7 @@ int XV_HdmiRxSs_LogShow(XV_HdmiRxSs *InstancePtr, char *buff, int buff_size)
         case (XV_HDMIRXSS_LOG_EVT_VICERROR):
 			strSize += scnprintf(buff+strSize, buff_size-strSize,
 					"Vic and video timing mismatch\r\n");
+			break;
         default:
         	strSize += scnprintf(buff+strSize, buff_size-strSize,
         			"Unknown event: %i\r\n", Evt);
