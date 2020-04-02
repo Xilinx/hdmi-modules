@@ -742,6 +742,9 @@ static int xvphy_probe(struct platform_device *pdev)
 
 	if (!vphydev->isvphy) {
 		/* For Versal */
+		XHdmiphy1_Config *xgtphycfg =
+			(XHdmiphy1_Config *)(&XHdmiphy1_ConfigTable[instance]);
+
 		iomem1 = ioremap(0xF70E000C, 4);
 		if (IS_ERR(iomem1))
 			dev_err(vphydev->dev, "[Versal] - Error in iomem 5\n");
@@ -749,34 +752,23 @@ static int xvphy_probe(struct platform_device *pdev)
 		dev_dbg(vphydev->dev, "To: 0x%08x \r\n", XHdmiphy1_In32((INTPTR)iomem1));
 		iounmap(iomem1);
 
-		iomem1 = ioremap(0xF70E3C4C, 4);
-		if (IS_ERR(iomem1))
-			dev_err(vphydev->dev, "[Versal] - Error in iomem 6\n");
-		dev_dbg(vphydev->dev, "RX:HS1 RPLL IPS  From: 0x%08x ", XHdmiphy1_In32((INTPTR)iomem1));
-		XHdmiphy1_Out32((INTPTR)iomem1, 0x03E00810);
-		dev_dbg(vphydev->dev, "To: 0x%08x \r\n", XHdmiphy1_In32((INTPTR)iomem1));
-		iounmap(iomem1);
-
-		iomem1 = ioremap(0xF70E3C48, 4);
-		if (IS_ERR(iomem1))
-			dev_err(vphydev->dev, "[Versal] - Error in iomem 7\n");
-		dev_dbg(vphydev->dev, "TX:HS1 LCPLL IPS From: 0x%08x ", XHdmiphy1_In32((INTPTR)iomem1));
-		XHdmiphy1_Out32((INTPTR)iomem1, 0x03E00840);
-		dev_dbg(vphydev->dev, "To: 0x%08x \r\n", XHdmiphy1_In32((INTPTR)iomem1));
-		iounmap(iomem1);
-
-		/* Deassert the GTWiz_RESET_ALL */
-		XHdmiphy1_WriteReg(XHdmiphy1_ConfigTable[instance].BaseAddr, 0x14,
-			(XHdmiphy1_ReadReg(XHdmiphy1_ConfigTable[instance].BaseAddr, 0x14) & ~0x1));
-		dev_dbg(vphydev->dev, "To: 0x14 PHY1 Reg 0x%08x \r\n",
-			XHdmiphy1_ReadReg(XHdmiphy1_ConfigTable[instance].BaseAddr, 0x14));
-
-		/* Release RXPLL dependency from TXPLL RESET */
-		XHdmiphy1_WriteReg(XHdmiphy1_ConfigTable[instance].BaseAddr, 0x14,
-			(XHdmiphy1_ReadReg(XHdmiphy1_ConfigTable[instance].BaseAddr, 0x14) | 0x80000000));
-		dev_dbg(vphydev->dev, "To: 0x14 PHY1 Reg 0x%08x \r\n",
-			XHdmiphy1_ReadReg(XHdmiphy1_ConfigTable[instance].BaseAddr, 0x14));
-
+		if (xgtphycfg->TxSysPllClkSel == 7 || xgtphycfg->RxSysPllClkSel == 8) {
+			iomem1 = ioremap(0xF70E3C4C, 4);
+			if (IS_ERR(iomem1))
+				dev_err(vphydev->dev, "[Versal] - Error in iomem 6\n");
+			dev_dbg(vphydev->dev, "RX:HS1 RPLL IPS  From: 0x%08x ", XHdmiphy1_In32((INTPTR)iomem1));
+			XHdmiphy1_Out32((INTPTR)iomem1, 0x03000810);
+			dev_dbg(vphydev->dev, "To: 0x%08x \r\n", XHdmiphy1_In32((INTPTR)iomem1));
+			iounmap(iomem1);
+		} else {
+			iomem1 = ioremap(0xF70E3C48, 4);
+			if (IS_ERR(iomem1))
+				dev_err(vphydev->dev, "[Versal] - Error in iomem 7\n");
+			dev_dbg(vphydev->dev, "TX:HS1 LCPLL IPS From: 0x%08x ", XHdmiphy1_In32((INTPTR)iomem1));
+			XHdmiphy1_Out32((INTPTR)iomem1, 0x03E00810);
+			dev_dbg(vphydev->dev, "To: 0x%08x \r\n", XHdmiphy1_In32((INTPTR)iomem1));
+			iounmap(iomem1);
+		}
 		/* Delay 50ms for GT to complete initialization */
 		usleep_range(50000, 50000);
 	}
