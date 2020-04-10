@@ -1,4 +1,4 @@
-Components: xhdmi 2019.2
+Components: xhdmi 2020.1
 
 
 		    GNU GENERAL PUBLIC LICENSE
@@ -542,7 +542,7 @@ Exhibit B - ?Incompatible With Secondary Licenses? Notice
 This Source Code Form is ?Incompatible With Secondary Licenses?, as defined by the Mozilla Public License, v. 2.0.
 
 
-Copyright 2001 D.I. Management Services Pty Ltd
+copyright (c) 2001-15 by D.I. Management Services Pty Limited
 Copyright 2001 David Ireland D.I. Management Services Pty Ltd
 
 
@@ -687,6 +687,6 @@ Ty Coon, President of Vice
 This General Public License does not permit incorporating your program into proprietary programs. If your program is a subroutine library, you may consider it more useful to permit linking proprietary applications with the library. If this is what you want to do, use the GNU Lesser General Public License instead of this License.
 
 
-Copyright 2007 Hans Verkuil
+Copyright (C) 2007 Hans Verkuil
 Copyright 2016-2017 Leon Woestenberg <leon@sidebranch.com>
 
