@@ -388,120 +388,150 @@ static int vphy_parse_of(struct xvphy_dev *vphydev, void *c)
 	XHdmiphy1_Config *xgtphycfg = (XHdmiphy1_Config *)c;
 
 	rc = of_property_read_u32(node, "xlnx,transceiver-type", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "Error parsing device tree: xlnx,transceiver-type not specified");
+		return -EINVAL;
+	}
 	if (vphydev->isvphy)
 		vphycfg->XcvrType = val;
 	else
 		xgtphycfg->XcvrType = val;
 
 	rc = of_property_read_u32(node, "xlnx,tx-buffer-bypass", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "Error parsing device tree: xlnx,tx-buffer-bypass not specified");
+		return -EINVAL;
+	}
 	if (vphydev->isvphy)
 		vphycfg->TxBufferBypass = val;
 	else
 		xgtphycfg->TxBufferBypass = val;
 
 	rc = of_property_read_u32(node, "xlnx,input-pixels-per-clock", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "Error parsing device tree: xlnx,input-pixels-per-clock not specified");
+		return -EINVAL;
+	}
 	if (vphydev->isvphy)
 		vphycfg->Ppc = val;
 	else
 		xgtphycfg->Ppc = val;
 
 	rc = of_property_read_u32(node, "xlnx,nidru", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "Error parsing device tree: xlnx,nidru not specified");
+		return -EINVAL;
+	}
 	if (vphydev->isvphy)
 		vphycfg->DruIsPresent = val;
 	else
 		xgtphycfg->DruIsPresent = val;
 
 	rc = of_property_read_u32(node, "xlnx,nidru-refclk-sel", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "Error parsing device tree: xlnx,nidru-refclk-sel not specified");
+		return -EINVAL;
+	}
 	if (vphydev->isvphy)
 		vphycfg->DruRefClkSel = val;
 	else
 		xgtphycfg->DruRefClkSel = val;
 
 	rc = of_property_read_u32(node, "xlnx,rx-no-of-channels", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "Error parsing device tree: xlnx,rx-no-of-channels not specified");
+		return -EINVAL;
+	}
 	if (vphydev->isvphy)
 		vphycfg->RxChannels = val;
 	else
 		xgtphycfg->RxChannels = val;
 
 	rc = of_property_read_u32(node, "xlnx,tx-no-of-channels", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "Error parsing device tree: xlnx,tx-no-of-channels not specified");
+		return -EINVAL;
+	}
 	if (vphydev->isvphy)
 		vphycfg->TxChannels = val;
 	else
 		xgtphycfg->TxChannels = val;
 
 	rc = of_property_read_u32(node, "xlnx,rx-protocol", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "Error parsing device tree: xlnx,rx-protocol not specified");
+		return -EINVAL;
+	}
 	if (vphydev->isvphy)
 		vphycfg->RxProtocol = val;
 	else
 		xgtphycfg->RxProtocol = val;
 
 	rc = of_property_read_u32(node, "xlnx,tx-protocol", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "Error parsing device tree: xlnx,tx-protocol not specified");
+		return -EINVAL;
+	}
 	if (vphydev->isvphy)
 		vphycfg->TxProtocol = val;
 	else
 		xgtphycfg->TxProtocol = val;
 
 	rc = of_property_read_u32(node, "xlnx,rx-refclk-sel", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "Error parsing device tree: xlnx,rx-refclk-sel not specified");
+		return -EINVAL;
+	}
 	if (vphydev->isvphy)
 		vphycfg->RxRefClkSel = val;
 	else
 		xgtphycfg->RxRefClkSel = val;
 
 	rc = of_property_read_u32(node, "xlnx,tx-refclk-sel", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "Error parsing device tree: xlnx,tx-refclk-sel not specified");
+		return -EINVAL;
+	}
 	if (vphydev->isvphy)
 		vphycfg->TxRefClkSel = val;
 	else
 		xgtphycfg->TxRefClkSel = val;
 
 	rc = of_property_read_u32(node, "xlnx,rx-pll-selection", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "Error parsing device tree: xlnx,rx-pll-selection not specified");
+		return -EINVAL;
+	}
 	if (vphydev->isvphy)
 		vphycfg->RxSysPllClkSel = val;
 	else
 		xgtphycfg->RxSysPllClkSel = val;
 
 	rc = of_property_read_u32(node, "xlnx,tx-pll-selection", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "Error parsing device tree: xlnx,tx-pll-selection not specified");
+		return -EINVAL;
+	}
 	if (vphydev->isvphy)
 		vphycfg->TxSysPllClkSel = val;
 	else
 		xgtphycfg->TxSysPllClkSel = val;
 
 	rc = of_property_read_u32(node, "xlnx,hdmi-fast-switch", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "Error parsing device tree: xlnx,hdmi-fast-switch not specified");
+		return -EINVAL;
+	}
 	if (vphydev->isvphy)
 		vphycfg->HdmiFastSwitch = val;
 	else
 		xgtphycfg->HdmiFastSwitch = val;
 
 	rc = of_property_read_u32(node, "xlnx,transceiver-width", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "Error parsing device tree: xlnx,transceiver-width not specified");
+		return -EINVAL;
+	}
 	if (vphydev->isvphy)
 		vphycfg->TransceiverWidth = val;
 	else
@@ -515,8 +545,10 @@ static int vphy_parse_of(struct xvphy_dev *vphydev, void *c)
 		xgtphycfg->ErrIrq = has_err_irq;
 
 	rc = of_property_read_u32(node, "xlnx,use-gt-ch4-hdmi", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "Error parsing device tree: xlnx,use-gt-ch4-hdmi not specified");
+		return -EINVAL;
+	}
 	if (vphydev->isvphy)
 		vphycfg->UseGtAsTxTmdsClk = val;
 	else
@@ -524,21 +556,21 @@ static int vphy_parse_of(struct xvphy_dev *vphydev, void *c)
 
 	if (!vphydev->isvphy) {
 		rc = of_property_read_u32(node, "xlnx,rx-frl-refclk-sel", &val);
-		if (rc < 0)
-			goto error_dt;
+		if (rc < 0) {
+			dev_err(vphydev->dev, "Error parsing device tree: xlnx,rx-frl-refclk-sel not specified");
+			return -EINVAL;
+		}
 		xgtphycfg->RxFrlRefClkSel = val;
 
 		rc = of_property_read_u32(node, "xlnx,tx-frl-refclk-sel", &val);
-		if (rc < 0)
-			goto error_dt;
+		if (rc < 0) {
+			dev_err(vphydev->dev, "Error parsing device tree: xlnx,tx-frl-refclk-sel not specified");
+			return -EINVAL;
+		}
 		xgtphycfg->TxFrlRefClkSel = val;
 	}
 
 	return 0;
-
-error_dt:
-	dev_err(vphydev->dev, "Error parsing device tree");
-	return -EINVAL;
 }
 
 /* Match table for of_platform binding */
