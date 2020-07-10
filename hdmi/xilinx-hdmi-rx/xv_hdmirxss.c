@@ -501,6 +501,7 @@ int XV_HdmiRxSs_CfgInitialize(XV_HdmiRxSs *InstancePtr,
   DrmInfoFramePtr = XV_HdmiRxSs_GetDrmInfoframe(HdmiRxSsPtr);
 
   DrmInfoFramePtr->metadata_type = 0xFF;
+  DrmInfoFramePtr->eotf = 0xFF;
 
   return(XST_SUCCESS);
 }
@@ -1205,6 +1206,7 @@ static void XV_HdmiRxSs_StreamDownCallback(void *CallbackRef)
   DrmInfoFramePtr = XV_HdmiRxSs_GetDrmInfoframe(HdmiRxSsPtr);
 
   DrmInfoFramePtr->metadata_type = 0xFF;
+  DrmInfoFramePtr->eotf = 0xFF;
 #ifdef XV_HDMIRXSS_LOG_ENABLE
   XV_HdmiRxSs_LogWrite(HdmiRxSsPtr, XV_HDMIRXSS_LOG_EVT_STREAMDOWN, 0);
 #endif
@@ -2034,6 +2036,10 @@ static void XV_HdmiRxSs_ReportDRMInfo(XV_HdmiRxSs *InstancePtr)
 	struct v4l2_hdr10_payload *DrmInfoFramePtr;
 	DrmInfoFramePtr = XV_HdmiRxSs_GetDrmInfoframe(InstancePtr);
 
+
+	if (DrmInfoFramePtr->eotf != 0xFF)
+		xil_printf("eotf: %d\r\n", DrmInfoFramePtr->eotf);
+
 	if (DrmInfoFramePtr->metadata_type == 0xFF) {
 		xil_printf("No DRM info\r\n");
 		return;
@@ -2353,6 +2359,11 @@ int XV_HdmiRxSs_ShowInfo(XV_HdmiRxSs *InstancePtr, char *buff, int buff_size)
 		}
 		strSize += scnprintf(buff+strSize, buff_size-strSize,
 			" (%0d)\r\n", Errors);
+	}
+
+	if (DrmInfoFramePtr->eotf != 0xFF) {
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"eotf: %d\r\n", DrmInfoFramePtr->eotf);
 	}
 
 	if (DrmInfoFramePtr->metadata_type == 0xFF) {

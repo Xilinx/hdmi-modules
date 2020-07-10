@@ -468,6 +468,7 @@ int XV_HdmiTxSs_CfgInitialize(XV_HdmiTxSs *InstancePtr,
   (void)memset((void *)&(HdmiTxSsPtr->AudioInfoframe), 0, sizeof(XHdmiC_AudioInfoFrame));
   memset((void *)&(HdmiTxSsPtr->DrmInfoframe), 0, sizeof(struct v4l2_hdr10_payload));
   HdmiTxSsPtr->DrmInfoframe.metadata_type = 0xff;
+  HdmiTxSsPtr->DrmInfoframe.eotf = 0xff;
 
   /* Determine sub-cores included in the provided instance of subsystem */
   XV_HdmiTxSs_GetIncludedSubcores(HdmiTxSsPtr, CfgPtr->DeviceId);
@@ -2343,6 +2344,9 @@ static void XV_HdmiTxSs_ReportDRMInfo(XV_HdmiTxSs *InstancePtr)
 	struct v4l2_hdr10_payload *DrmInfoFramePtr;
 	DrmInfoFramePtr = XV_HdmiTxSs_GetDrmInfoframe(InstancePtr);
 
+	if (DrmInfoFramePtr->eotf != 0xFF)
+		xil_printf("eotf: %d\r\n", DrmInfoFramePtr->eotf);
+
 	if (DrmInfoFramePtr->metadata_type == 0xFF) {
 		xil_printf("No DRM info\r\n");
 		return;
@@ -2883,6 +2887,11 @@ int XV_HdmiTxSs_ShowInfo(XV_HdmiTxSs *InstancePtr, char *buff, int buff_size)
 	strSize += scnprintf(buff+strSize, buff_size-strSize,
 			"Audio channels: %0d\r\n\r\n",
 			(XV_HdmiTx_GetAudioChannels(InstancePtr->HdmiTxPtr)));
+
+	if (DrmInfoFramePtr->eotf != 0xFF) {
+		strSize += scnprintf(buff+strSize, buff_size-strSize,
+				"eotf: %d\r\n", DrmInfoFramePtr->eotf);
+	}
 
 	if (DrmInfoFramePtr->metadata_type == 0xFF) {
 		strSize += scnprintf(buff+strSize, buff_size-strSize,
