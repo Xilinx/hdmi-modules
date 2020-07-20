@@ -869,6 +869,161 @@ static void RxStreamInitCallback(void *CallbackRef)
 	xvphy_mutex_unlock(xhdmi->phy[0]);
 }
 
+/*
+ * Duplicate of v4l2_hdmi_rx_colorimetry to fit xilinx hdmi structure
+ * definition. Ideally we could use the API directly, but limited by the AVI
+ * infoframe definition as it is only for AVI version 2 only. In future extend
+ * the framework to handle higher AVI infoframe version and use the
+ * structures/APIs directly from framework.
+ *
+ * By default, an SD Video Format shall be encoded according to SMPTE 170M [1]
+ * color space, an HD Video Format shall be encoded according to ITU-R BT.709
+ * [7] color space.
+ */
+
+void hdmirx_getformat(struct xhdmi_device *xhdmi,
+		XV_HdmiRxSs *HdmiRxSsPtr,
+		XVidC_VideoStream *Stream)
+{
+	XHdmiC_AVI_InfoFrame *avi =
+		XV_HdmiRxSs_GetAviInfoframe(HdmiRxSsPtr);
+
+	XHdmiC_VSIF *vsif = XV_HdmiRxSs_GetVSIF(HdmiRxSsPtr);
+	bool default_is_lim_range_rgb = avi->VIC > 1;
+	bool is_ce = avi->VIC || (vsif && vsif->HDMI_VIC);
+	bool is_sdtv = (xhdmi->detected_format.height) <= 576;
+	xhdmi->detected_format.colorspace = V4L2_COLORSPACE_DEFAULT;
+	xhdmi->detected_format.xfer_func = V4L2_XFER_FUNC_DEFAULT;
+	xhdmi->detected_format.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
+	xhdmi->detected_format.quantization = V4L2_QUANTIZATION_DEFAULT;
+
+	switch (avi->ColorSpace) {
+	case HDMI_COLORSPACE_RGB:
+		/* RGB pixel encoding */
+		switch (avi->Colorimetry) {
+		case HDMI_COLORIMETRY_EXTENDED:
+			switch (avi->ExtendedColorimetry) {
+			case HDMI_EXTENDED_COLORIMETRY_OPRGB:
+				xhdmi->detected_format.colorspace = V4L2_COLORSPACE_OPRGB;
+				xhdmi->detected_format.xfer_func = V4L2_XFER_FUNC_OPRGB;
+				xhdmi->detected_format.ycbcr_enc = V4L2_YCBCR_ENC_601;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_BT2020:
+				xhdmi->detected_format.colorspace = V4L2_COLORSPACE_BT2020;
+				xhdmi->detected_format.xfer_func = V4L2_XFER_FUNC_709;
+				xhdmi->detected_format.ycbcr_enc = V4L2_YCBCR_ENC_BT2020;
+				break;
+			default:
+				break;
+			}
+			break;
+		default:
+			break;
+		}
+
+		switch (avi->QuantizationRange) {
+		case HDMI_QUANTIZATION_RANGE_LIMITED:
+			xhdmi->detected_format.quantization = V4L2_QUANTIZATION_LIM_RANGE;
+			break;
+		case HDMI_QUANTIZATION_RANGE_FULL:
+			break;
+		default:
+			if (default_is_lim_range_rgb)
+				xhdmi->detected_format.quantization = V4L2_QUANTIZATION_LIM_RANGE;
+			break;
+		}
+		break;
+
+	default:
+		/* YCbCr pixel encoding */
+		switch (avi->YccQuantizationRange) {
+		case HDMI_YCC_QUANTIZATION_RANGE_FULL:
+			xhdmi->detected_format.quantization = V4L2_QUANTIZATION_FULL_RANGE;
+			break;
+		default:
+			xhdmi->detected_format.quantization = V4L2_QUANTIZATION_LIM_RANGE;
+			break;
+		}
+		/*
+		 * TODO: Add based on color components. Refer 14 of CTA-861-G
+		 * specification
+		 */
+		switch (avi->Colorimetry) {
+		case HDMI_COLORIMETRY_NONE:
+			if (!is_ce)
+				break;
+			if (is_sdtv) {
+				xhdmi->detected_format.colorspace = V4L2_COLORSPACE_SMPTE170M;
+				xhdmi->detected_format.ycbcr_enc = V4L2_YCBCR_ENC_601;
+			} else {
+				xhdmi->detected_format.colorspace = V4L2_COLORSPACE_REC709;
+				xhdmi->detected_format.ycbcr_enc = V4L2_YCBCR_ENC_709;
+			}
+			xhdmi->detected_format.xfer_func = V4L2_XFER_FUNC_709;
+			break;
+		case HDMI_COLORIMETRY_ITU_601:
+			xhdmi->detected_format.colorspace = V4L2_COLORSPACE_SMPTE170M;
+			xhdmi->detected_format.ycbcr_enc = V4L2_YCBCR_ENC_601;
+			xhdmi->detected_format.xfer_func = V4L2_XFER_FUNC_709;
+			break;
+		case HDMI_COLORIMETRY_ITU_709:
+			xhdmi->detected_format.colorspace = V4L2_COLORSPACE_REC709;
+			xhdmi->detected_format.ycbcr_enc = V4L2_YCBCR_ENC_709;
+			xhdmi->detected_format.xfer_func = V4L2_XFER_FUNC_709;
+			break;
+		case HDMI_COLORIMETRY_EXTENDED:
+			switch (avi->ExtendedColorimetry) {
+			case HDMI_EXTENDED_COLORIMETRY_XV_YCC_601:
+				xhdmi->detected_format.colorspace = V4L2_COLORSPACE_REC709;
+				xhdmi->detected_format.ycbcr_enc = V4L2_YCBCR_ENC_XV709;
+				xhdmi->detected_format.xfer_func = V4L2_XFER_FUNC_709;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_XV_YCC_709:
+				xhdmi->detected_format.colorspace = V4L2_COLORSPACE_REC709;
+				xhdmi->detected_format.ycbcr_enc = V4L2_YCBCR_ENC_XV601;
+				xhdmi->detected_format.xfer_func = V4L2_XFER_FUNC_709;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_S_YCC_601:
+				xhdmi->detected_format.colorspace = V4L2_COLORSPACE_SRGB;
+				xhdmi->detected_format.ycbcr_enc = V4L2_YCBCR_ENC_601;
+				xhdmi->detected_format.xfer_func = V4L2_XFER_FUNC_SRGB;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_OPYCC_601:
+				xhdmi->detected_format.colorspace = V4L2_COLORSPACE_OPRGB;
+				xhdmi->detected_format.ycbcr_enc = V4L2_YCBCR_ENC_601;
+				xhdmi->detected_format.xfer_func = V4L2_XFER_FUNC_OPRGB;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_BT2020:
+				xhdmi->detected_format.colorspace = V4L2_COLORSPACE_BT2020;
+				xhdmi->detected_format.ycbcr_enc = V4L2_YCBCR_ENC_BT2020;
+				xhdmi->detected_format.xfer_func = V4L2_XFER_FUNC_709;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_BT2020_CONST_LUM:
+				xhdmi->detected_format.colorspace = V4L2_COLORSPACE_BT2020;
+				xhdmi->detected_format.ycbcr_enc = V4L2_YCBCR_ENC_BT2020_CONST_LUM;
+				xhdmi->detected_format.xfer_func = V4L2_XFER_FUNC_709;
+				break;
+			default: /* fall back to ITU_709 */
+				xhdmi->detected_format.colorspace = V4L2_COLORSPACE_REC709;
+				xhdmi->detected_format.ycbcr_enc = V4L2_YCBCR_ENC_709;
+				xhdmi->detected_format.xfer_func = V4L2_XFER_FUNC_709;
+				break;
+			}
+			break;
+		default:
+			break;
+		}
+		break;
+	}
+
+	dev_dbg(xhdmi->dev,"colorspace = %d, xfer_func =%d, \
+			ycbcr_enc = %d, quantization = %d\n",
+			xhdmi->detected_format.colorspace,
+			xhdmi->detected_format.xfer_func,
+			xhdmi->detected_format.ycbcr_enc,
+			xhdmi->detected_format.quantization);
+}
+
 /* @TODO Once this upstream V4L2 patch lands, consider VIC support: https://patchwork.linuxtv.org/patch/37137/ */
 static void RxStreamUpCallback(void *CallbackRef)
 {
@@ -904,13 +1059,7 @@ static void RxStreamUpCallback(void *CallbackRef)
 	xhdmi->detected_format.field = V4L2_FIELD_NONE;
 
 	/* https://linuxtv.org/downloads/v4l-dvb-apis/ch02s05.html#v4l2-colorspace */
-	if (Stream->ColorFormatId == XVIDC_CSF_RGB) {
-		dev_dbg(xhdmi->dev,"xhdmi->detected_format.colorspace = V4L2_COLORSPACE_SRGB\n");
-		xhdmi->detected_format.colorspace = V4L2_COLORSPACE_SRGB;
-	} else {
-		dev_dbg(xhdmi->dev,"xhdmi->detected_format.colorspace = V4L2_COLORSPACE_REC709\n");
-		xhdmi->detected_format.colorspace = V4L2_COLORSPACE_REC709;
-	}
+	hdmirx_getformat(xhdmi, HdmiRxSsPtr, Stream);
 
 	/* https://linuxtv.org/downloads/v4l-dvb-apis/subdev.html#v4l2-mbus-framefmt */
 	/* see UG934 page 8 */
@@ -972,10 +1121,6 @@ static void RxStreamUpCallback(void *CallbackRef)
 			dev_dbg(xhdmi->dev,"XVIDC_CSF_YCRCB_420 -> MEDIA_BUS_FMT_VYYUYY8_1X24\n");
 		}
 	}
-
-	xhdmi->detected_format.xfer_func = V4L2_XFER_FUNC_DEFAULT;
-	xhdmi->detected_format.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
-	xhdmi->detected_format.quantization = V4L2_QUANTIZATION_DEFAULT;
 
 	/* map to v4l2_dv_timings */
 	xhdmi->detected_timings.type =  V4L2_DV_BT_656_1120;
