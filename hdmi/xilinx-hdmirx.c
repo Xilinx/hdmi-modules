@@ -1233,6 +1233,8 @@ static void RxAuxCallback(void *CallbackRef)
 	XV_HdmiRxSs *HdmiRxSsPtr = &xhdmi->xv_hdmirxss;
 	XHdmiC_Aux *AuxPtr;
 	XHdmiC_Aux AuxFifo;
+	bool AviInfoFrameChangeStatus = false;
+	unsigned long flags;
 
 	AuxPtr = XV_HdmiRxSs_GetAuxiliary(HdmiRxSsPtr);
 
@@ -1242,6 +1244,15 @@ static void RxAuxCallback(void *CallbackRef)
 	 */
 	if (AuxPtr->Header.Byte[0] != AUX_GENERAL_CONTROL_PACKET_TYPE) {
 		memcpy(&AuxFifo, AuxPtr, sizeof(XHdmiC_Aux));
+	}
+
+	spin_lock_irqsave(&xhdmi->irq_lock, flags);
+	AviInfoFrameChangeStatus = IsAVIInfoFrameChanged(HdmiRxSsPtr);
+	spin_unlock_irqrestore(&xhdmi->irq_lock, flags);
+
+	if (AviInfoFrameChangeStatus &&
+			XV_HdmiRxSs_IsStreamUp(HdmiRxSsPtr)) {
+		RxStreamUpCallback(CallbackRef);
 	}
 	//ToDO: Insert registered ALSA driver callback
 }

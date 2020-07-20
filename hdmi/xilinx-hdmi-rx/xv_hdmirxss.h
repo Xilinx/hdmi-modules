@@ -446,6 +446,8 @@ typedef struct
   u8 TMDSClockRatio;            /**< HDMI RX TMDS clock ratio */
 
   XHdmiC_AVI_InfoFrame AVIInfoframe;	/**< AVI InfoFrame */
+  XHdmiC_AVI_InfoFrame AVIInfoframePrev;	/**< AVI InfoFrame */
+  bool AVIInfoChanged;
   XHdmiC_GeneralControlPacket GCP;		/**< General Control Packet */
   XHdmiC_AudioInfoFrame AudioInfoframe;	/**< Audio InfoFrame */
   XHdmiC_VSIF VSIF;						/**< Vendor Specific InfoFrame */
@@ -510,6 +512,8 @@ void XV_HdmiRxSs_SetHpd(XV_HdmiRxSs *InstancePtr, u8 Value);
 void XV_HdmiRxSs_ToggleHpd(XV_HdmiRxSs *InstancePtr);
 XHdmiC_Aux *XV_HdmiRxSs_GetAuxiliary(XV_HdmiRxSs *InstancePtr);
 XHdmiC_AVI_InfoFrame *XV_HdmiRxSs_GetAviInfoframe(XV_HdmiRxSs *InstancePtr);
+XHdmiC_AVI_InfoFrame *XV_HdmiRxSs_GetAviInfoframePrev(XV_HdmiRxSs *InstancePtr);
+bool IsAVIInfoFrameChanged(XV_HdmiRxSs *InstancePtr);
 XHdmiC_AudioInfoFrame *XV_HdmiRxSs_GetAudioInfoframe(XV_HdmiRxSs *InstancePtr);
 struct v4l2_hdr10_payload *XV_HdmiRxSs_GetDrmInfoframe(XV_HdmiRxSs *InstancePtr);
 XHdmiC_VSIF *XV_HdmiRxSs_GetVSIF(XV_HdmiRxSs *InstancePtr);
