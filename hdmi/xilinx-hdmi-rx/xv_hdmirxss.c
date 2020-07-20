@@ -863,11 +863,13 @@ static void XV_HdmiRxSs_AuxCallback(void *CallbackRef)
   XV_HdmiRxSs *HdmiRxSsPtr = (XV_HdmiRxSs *)CallbackRef;
   XHdmiC_Aux *AuxPtr;
   XHdmiC_AVI_InfoFrame *AviInfoFramePtr;
+  XHdmiC_AVI_InfoFrame *AviInfoFramePrevPtr;
   XHdmiC_GeneralControlPacket *GeneralControlPacketPtr;
   XHdmiC_AudioInfoFrame *AudioInfoFramePtr;
   struct v4l2_hdr10_payload *DrmInfoFramePtr;
 
   AviInfoFramePtr = XV_HdmiRxSs_GetAviInfoframe(HdmiRxSsPtr);
+  AviInfoFramePrevPtr = XV_HdmiRxSs_GetAviInfoframePrev(HdmiRxSsPtr);
   GeneralControlPacketPtr = XV_HdmiRxSs_GetGCP(HdmiRxSsPtr);
   AudioInfoFramePtr = XV_HdmiRxSs_GetAudioInfoframe(HdmiRxSsPtr);
   DrmInfoFramePtr = XV_HdmiRxSs_GetDrmInfoframe(HdmiRxSsPtr);
@@ -877,10 +879,18 @@ static void XV_HdmiRxSs_AuxCallback(void *CallbackRef)
 	  // Retrieve Vendor Specific Info Frame
 	  XV_HdmiRxSs_RetrieveVSInfoframe(HdmiRxSsPtr);
   } else if(AuxPtr->Header.Byte[0] == AUX_AVI_INFOFRAME_TYPE){
+
 	  // Reset Avi InfoFrame
 	  (void)memset((void *)AviInfoFramePtr, 0, sizeof(XHdmiC_AVI_InfoFrame));
 	  // Parse Aux to retrieve Avi InfoFrame
 	  XV_HdmiC_ParseAVIInfoFrame(AuxPtr, AviInfoFramePtr);
+	  if (memcmp(AviInfoFramePrevPtr, AviInfoFramePtr,
+				  sizeof(XHdmiC_AVI_InfoFrame))) {
+		memcpy(AviInfoFramePrevPtr, AviInfoFramePtr,
+				  sizeof(XHdmiC_AVI_InfoFrame));
+		HdmiRxSsPtr->AVIInfoChanged = true;
+	  }
+
 	  HdmiRxSsPtr->HdmiRxPtr->Stream.Video.ColorFormatId =
 	  			XV_HdmiRx_GetAviColorSpace(HdmiRxSsPtr->HdmiRxPtr);
 	  HdmiRxSsPtr->HdmiRxPtr->Stream.Vic =
@@ -1704,6 +1714,21 @@ XHdmiC_Aux *XV_HdmiRxSs_GetAuxiliary(XV_HdmiRxSs *InstancePtr)
 XHdmiC_AVI_InfoFrame *XV_HdmiRxSs_GetAviInfoframe(XV_HdmiRxSs *InstancePtr)
 {
     return (&(InstancePtr->AVIInfoframe));
+}
+
+XHdmiC_AVI_InfoFrame *XV_HdmiRxSs_GetAviInfoframePrev(XV_HdmiRxSs *InstancePtr)
+{
+    return (&(InstancePtr->AVIInfoframePrev));
+}
+
+/* Clear on read */
+bool IsAVIInfoFrameChanged(XV_HdmiRxSs *InstancePtr) {
+	bool status = false;
+
+	status = InstancePtr->AVIInfoChanged;
+	InstancePtr->AVIInfoChanged = false;
+
+	return status;
 }
 
 /*****************************************************************************/
