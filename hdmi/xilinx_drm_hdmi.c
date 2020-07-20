@@ -199,6 +199,20 @@ struct xlnx_drm_hdmi {
 	bool audio_init;
 	struct xlnx_hdmitx_audio_data *tx_audio_data;
 	struct platform_device *audio_pdev;
+
+	/*
+	 * Map of v4l2_hdmi_rx_colorimetry.
+	 * AVI infoframe values are derived in driver reverse of how the
+	 * values are populated for v4l2.
+	 */
+	struct drm_property *colorspace;
+	u32 colorspace_val;
+	struct drm_property *ycbcr_enc;
+	u32 ycbcr_enc_val;
+	struct drm_property *xfer_func;
+	u32 xfer_func_val;
+	struct drm_property *quantization;
+	enum hdmi_quantization_range quantization_val;
 };
 
 static const u8 Hdcp22Srm[] = {
@@ -909,6 +923,46 @@ static void xlnx_drm_hdmi_connector_destroy(struct drm_connector *connector)
 	connector->dev = NULL;
 }
 
+static int xlnx_drm_hdmi_set_property(struct drm_connector *connector,
+			     struct drm_connector_state *state,
+			     struct drm_property *property, uint64_t val)
+{
+	struct xlnx_drm_hdmi *xhdmi = connector_to_hdmi(connector);
+
+	if (property == xhdmi->colorspace)
+		xhdmi->colorspace_val = (u32)val;
+	else if (property == xhdmi->ycbcr_enc)
+		xhdmi->ycbcr_enc_val = (u32)val;
+	else if (property == xhdmi->xfer_func)
+		xhdmi->xfer_func_val = (u32)val;
+	else if (property == xhdmi->quantization)
+		xhdmi->quantization_val = (u32)val;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int xlnx_drm_hdmi_get_property(struct drm_connector *connector,
+			     const struct drm_connector_state *state,
+			     struct drm_property *property, uint64_t *val)
+{
+	struct xlnx_drm_hdmi *xhdmi = connector_to_hdmi(connector);
+
+	if (property == xhdmi->colorspace)
+		*val = xhdmi->colorspace_val;
+	else if (property == xhdmi->ycbcr_enc)
+		*val = xhdmi->ycbcr_enc_val;
+	else if (property == xhdmi->xfer_func)
+		*val = xhdmi->xfer_func_val;
+	else if (property == xhdmi->quantization)
+		*val = xhdmi->quantization_val;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
 static const struct drm_connector_funcs xlnx_drm_hdmi_connector_funcs = {
 //	.dpms			= drm_helper_connector_dpms,
 	.detect			= xlnx_drm_hdmi_connector_detect,
@@ -917,6 +971,8 @@ static const struct drm_connector_funcs xlnx_drm_hdmi_connector_funcs = {
 	.atomic_duplicate_state	= drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_connector_destroy_state,
 	.reset			= drm_atomic_helper_connector_reset,
+	.atomic_set_property = xlnx_drm_hdmi_set_property,
+	.atomic_get_property = xlnx_drm_hdmi_get_property,
 };
 
 static int xlnx_drm_hdmi_connector_mode_valid(struct drm_connector *connector,
@@ -1161,6 +1217,117 @@ static XVidC_ColorFormat hdmitx_find_media_bus(struct xlnx_drm_hdmi *xhdmi,
 	}
 }
 
+/*
+ * Refer table 14 of CTA-861-G. Doesn't comply completely due to gap between
+ * v4l2 and drm. Also extended colorimetry of XHDMIC_AVI_InfoFrame is not upto
+ * date with CTA-861-G spec.  So override the ones with
+ * HDMI_EXTENDED_COLORIMETRY_xx without actually modifying the structures.
+ *
+ * Implementation partially referred from xxx_set_fmt API from driver
+ * adv7511-v4l2.c
+ */
+static void xlnx_drm_hdmi_set_colorimetry(struct xlnx_drm_hdmi *xhdmi)
+{
+	XV_HdmiTxSs *HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
+	XHdmiC_AVI_InfoFrame *AviInfoFramePtr =
+				XV_HdmiTxSs_GetAviInfoframe(HdmiTxSsPtr);
+	/*
+	 * c = Colorimetry
+	 * ec = Extended Colorimetry
+	 * y = RGB or YCbCr
+	 * q = RGB Quantization Range
+	 * yq = YCC Quantization Range
+	 */
+	u8 c = HDMI_COLORIMETRY_NONE;
+	u8 ec = HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
+	u8 y = HDMI_COLORSPACE_RGB;
+	u8 q = HDMI_QUANTIZATION_RANGE_DEFAULT;
+	u8 yq = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
+
+	switch (xhdmi->xvidc_colorfmt) {
+	case XVIDC_CSF_YCRCB_444:
+		y = HDMI_COLORSPACE_YUV444;
+		break;
+	case XVIDC_CSF_YCRCB_420:
+		y = HDMI_COLORSPACE_YUV420;
+		break;
+	case XVIDC_CSF_YCRCB_422:
+		y = HDMI_COLORSPACE_YUV422;
+		break;
+	default:
+		break;
+	};
+
+	switch (xhdmi->colorspace_val) {
+	case V4L2_COLORSPACE_OPRGB:
+		c = HDMI_COLORIMETRY_EXTENDED;
+		ec = y ? HDMI_EXTENDED_COLORIMETRY_OPYCC_601 :
+			 HDMI_EXTENDED_COLORIMETRY_OPRGB;
+		break;
+	case V4L2_COLORSPACE_SMPTE170M:
+		c = y ? HDMI_COLORIMETRY_ITU_601 : HDMI_COLORIMETRY_NONE;
+		if (y && xhdmi->ycbcr_enc_val == V4L2_YCBCR_ENC_XV601) {
+			c = HDMI_COLORIMETRY_EXTENDED;
+			ec = HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
+		}
+		break;
+	case V4L2_COLORSPACE_REC709:
+		c = y ? HDMI_COLORIMETRY_ITU_709 : HDMI_COLORIMETRY_NONE;
+		if (y && xhdmi->ycbcr_enc_val == V4L2_YCBCR_ENC_XV709) {
+			c = HDMI_COLORIMETRY_EXTENDED;
+			ec = HDMI_EXTENDED_COLORIMETRY_XV_YCC_709;
+		}
+		break;
+	case V4L2_COLORSPACE_SRGB:
+		c = y ? HDMI_COLORIMETRY_EXTENDED : HDMI_COLORIMETRY_NONE;
+		ec = y ? HDMI_EXTENDED_COLORIMETRY_S_YCC_601 :
+			 HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
+		break;
+	case V4L2_COLORSPACE_BT2020:
+		c = HDMI_COLORIMETRY_EXTENDED;
+		if (y && xhdmi->ycbcr_enc_val == V4L2_YCBCR_ENC_BT2020_CONST_LUM)
+			ec = 5; /* Not yet available in hdmi.h */
+		else
+			ec = 6; /* Not yet available in hdmi.h */
+		break;
+	default:
+		break;
+	}
+
+	/*
+	 * CEA-861-F says that for RGB formats the YCC range must match the
+	 * RGB range, although sources should ignore the YCC range.
+	 *
+	 * The RGB quantization range shouldn't be non-zero if the EDID doesn't
+	 * have the Q bit set in the Video Capabilities Data Block, however this
+	 * isn't checked at the moment. The assumption is that the application
+	 * knows the EDID and can detect this.
+	 *
+	 * The same is true for the YCC quantization range: non-standard YCC
+	 * quantization ranges should only be sent if the EDID has the YQ bit
+	 * set in the Video Capabilities Data Block.
+	 */
+	switch (xhdmi->quantization_val) {
+	case V4L2_QUANTIZATION_FULL_RANGE:
+		q = y ? HDMI_QUANTIZATION_RANGE_DEFAULT :
+			HDMI_QUANTIZATION_RANGE_FULL;
+		yq = q ? q - 1 : HDMI_YCC_QUANTIZATION_RANGE_FULL;
+		break;
+	case V4L2_QUANTIZATION_LIM_RANGE:
+		q = y ? HDMI_QUANTIZATION_RANGE_DEFAULT :
+			HDMI_QUANTIZATION_RANGE_LIMITED;
+		yq = q ? q - 1 : HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
+		break;
+	default:
+		break;
+	}
+
+	AviInfoFramePtr->Colorimetry = c;
+	AviInfoFramePtr->ExtendedColorimetry= ec;
+	AviInfoFramePtr->QuantizationRange = q;
+	AviInfoFramePtr->YccQuantizationRange = yq;
+}
+
 /**
  * xlnx_drm_hdmi_encoder_atomic_mode_set -  drive the HDMI timing parameters
  *
@@ -1345,6 +1512,7 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	AviInfoFramePtr->Version = 2;
 	AviInfoFramePtr->ColorSpace = XV_HdmiC_XVidC_To_IfColorformat(xhdmi->xvidc_colorfmt);
 	AviInfoFramePtr->VIC = HdmiTxSsPtr->HdmiTxPtr->Stream.Vic;
+	xlnx_drm_hdmi_set_colorimetry(xhdmi);
 
 	if ( (HdmiTxSsVidStreamPtr->VmId == XVIDC_VM_1440x480_60_I) ||
 			(HdmiTxSsVidStreamPtr->VmId == XVIDC_VM_1440x576_50_I) ) {
@@ -2173,6 +2341,38 @@ static struct attribute_group attr_group = {
 	.attrs = attrs,
 };
 
+static void xlnx_drm_hdmi_create_connector_property(
+		struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct xlnx_drm_hdmi *xhdmi = connector_to_hdmi(connector);
+
+	xhdmi->colorspace =
+		drm_property_create_range(dev, 0, "colorspace", 0, 12);
+	xhdmi->ycbcr_enc =
+		drm_property_create_range(dev, 0, "ycbcr_enc", 0, 8);
+	xhdmi->xfer_func =
+		drm_property_create_range(dev, 0, "xfer_func", 0, 7);
+	xhdmi->quantization =
+		drm_property_create_range(dev, 0, "quantization", 0, 2);
+}
+
+static void xlnx_drm_hdmi_attach_connector_property(
+		struct drm_connector *connector)
+{
+	struct xlnx_drm_hdmi *xhdmi = connector_to_hdmi(connector);
+	struct drm_mode_object *obj = &connector->base;
+
+	if (xhdmi->colorspace)
+		drm_object_attach_property(obj, xhdmi->colorspace, 0);
+	if (xhdmi->ycbcr_enc)
+		drm_object_attach_property(obj, xhdmi->ycbcr_enc, 0);
+	if (xhdmi->xfer_func)
+		drm_object_attach_property(obj, xhdmi->xfer_func, 0);
+	if (xhdmi->quantization)
+		drm_object_attach_property(obj, xhdmi->quantization, 0);
+}
+
 static int xlnx_drm_hdmi_create_connector(struct drm_encoder *encoder)
 {
 	struct xlnx_drm_hdmi *xhdmi = encoder_to_hdmi(encoder);
@@ -2206,6 +2406,9 @@ static int xlnx_drm_hdmi_create_connector(struct drm_encoder *encoder)
 	drm_object_attach_property(&connector->base,
 			connector->dev->mode_config.gen_hdr_output_metadata_property,
 			0);
+
+	xlnx_drm_hdmi_create_connector_property(connector);
+	xlnx_drm_hdmi_attach_connector_property(connector);
 
 	return 0;
 }
