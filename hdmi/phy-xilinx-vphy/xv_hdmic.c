@@ -979,7 +979,7 @@ void XV_HdmiC_DRMIF_GeneratePacket(struct v4l2_hdr10_payload *DRMInfoFrame, XHdm
 	aux->Header.Byte[1] = 0x1;
 
 	/* Length of DRM InfoFrame */
-	aux->Header.Byte[2] = 27;
+	aux->Header.Byte[2] = 26;
 
 	/* HB3 */
 	aux->Header.Byte[3] = 0; /* CRC */
