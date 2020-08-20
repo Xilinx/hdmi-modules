@@ -1290,7 +1290,7 @@ static void XV_HdmiTxSs_StreamUpCallback(void *CallbackRef)
   XV_HdmiTx_SetSampleRate(HdmiTxSsPtr->HdmiTxPtr, HdmiTxSsPtr->SamplingRate);
 
   /* Release VID_IN bridge resets */
-  XV_HdmiTxSs_SYSRST(HdmiTxSsPtr, FALSE);
+  /* Linux - Remove the SYSRST deassert so that bridge is in reset */
   XV_HdmiTxSs_VRST(HdmiTxSsPtr, FALSE);
 
   /* Release HDMI TXCore resets */
