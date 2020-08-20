@@ -114,6 +114,8 @@
  * @xvphy: pointer to xilinx video phy
  * @xgtphy: pointer to Xilinx HDMI GT Controller phy
  * @isvphy: Flag to determine which Phy
+ * @wait_for_streamup: Flag for TxStreamUpCallback done
+ * @wait_event: Wait event queue for TxStreamUpCallback
  * @audio_enabled: flag to indicate audio is enabled in device tree
  * @audio_init: flag to indicate audio is initialized
  * @tx_audio_data: audio data to be shared with audio module
@@ -181,6 +183,12 @@ struct xlnx_drm_hdmi {
 	XHdmiphy1 *xgtphy;
 	/* flag to determine which Phy */
 	u32 isvphy;
+
+	/* flag for waiting till TxStreamUpCallback ends */
+	u32 wait_for_streamup:1;
+	/* Queue to wait on event of TxStreamUpCallback */
+	wait_queue_head_t wait_event;
+
 	/* HDCP keys */
 	u8 hdcp_password[32];
 	u8 Hdcp22Lc128[16];
@@ -606,6 +614,8 @@ static void TxStreamUpCallback(void *CallbackRef)
 	XGtPhyPtr = xhdmi->xgtphy;
 
 	dev_dbg(xhdmi->dev,"TxStreamUpCallback(): TX stream is up\n");
+	/* Ensure that the bridge SYSRST is not released */
+	XV_HdmiTxSs_SYSRST(HdmiTxSsPtr, TRUE);
 	xhdmi->hdmi_stream_up = 1;
 
 	AVIInfoFramePtr = XV_HdmiTxSs_GetAviInfoframe(HdmiTxSsPtr);
@@ -682,6 +692,24 @@ static void TxStreamUpCallback(void *CallbackRef)
 	if (xhdmi->audio_enabled) {
 		XV_HdmiTxSs_AudioMute(HdmiTxSsPtr, 0);
 	}
+
+	/* Check if Link Ready and Video Ready bits are set in PIO_IN register */
+	if ((XV_HDMITX_PIO_IN_VID_RDY_MASK | XV_HDMITX_PIO_IN_LNK_RDY_MASK) &&
+			XV_HdmiTx_ReadReg((uintptr_t)xhdmi->iomem,
+					XV_HDMITX_PIO_IN_OFFSET)) {
+		xhdmi->wait_for_streamup = 1;
+	} else {
+		xhdmi->wait_for_streamup = 0;
+	}
+
+	wake_up(&xhdmi->wait_event);
+
+	/* When YUYV is base color format for pl display then HDMI doesn't come up
+	 * first couple of tries as the EXT_SYSRST (bit 22) is cleared.
+	 * Set this bit in case stream is up and encoder is enabled
+	 */
+	if (xhdmi->dpms == DRM_MODE_DPMS_ON && HdmiTxSsPtr->HdmiTxPtr->Stream.IsConnected)
+		XV_HdmiTxSs_SYSRST(HdmiTxSsPtr, FALSE);
 
 	dev_dbg(xhdmi->dev,"TxStreamUpCallback(): done\n");
 }
@@ -1085,13 +1113,21 @@ done:
 static void xlnx_drm_hdmi_encoder_enable(struct drm_encoder *encoder)
 {
 	struct xlnx_drm_hdmi *xhdmi = encoder_to_hdmi(encoder);
+	XV_HdmiTxSs *HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
+
 	xlnx_drm_hdmi_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
+	/* Enable the EXT VRST which actually starts the bridge */
+	XV_HdmiTxSs_SYSRST(HdmiTxSsPtr, FALSE);
 }
 
 static void xlnx_drm_hdmi_encoder_disable(struct drm_encoder *encoder)
 {
 	struct xlnx_drm_hdmi *xhdmi = encoder_to_hdmi(encoder);
+	XV_HdmiTxSs *HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
+
 	xlnx_drm_hdmi_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
+	/* Disable the EXT VRST which actually starts the bridge */
+	XV_HdmiTxSs_SYSRST(HdmiTxSsPtr, TRUE);
 }
 
 static u32 hdmitx_find_media_bus(struct xlnx_drm_hdmi *xhdmi, u32 drm_fourcc)
@@ -1417,6 +1453,13 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 
 	xvphy_mutex_unlock(xhdmi->phy[0]);
 	hdmi_mutex_unlock(&xhdmi->hdmi_mutex);
+
+	xhdmi->wait_for_streamup = 0;
+	wait_event_timeout(xhdmi->wait_event, xhdmi->wait_for_streamup, msecs_to_jiffies(10000));
+	if (!xhdmi->wait_for_streamup)
+		dev_dbg(xhdmi->dev, "wait_for_streamup timeout\n");
+	/* Keep SYS_RST asserted */
+	XV_HdmiTxSs_SYSRST(HdmiTxSsPtr, TRUE);
 }
 
 static const struct drm_encoder_funcs xlnx_drm_hdmi_encoder_funcs = {
@@ -2487,6 +2530,8 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 	/* mutex that protects against concurrent access */
 	mutex_init(&xhdmi->hdmi_mutex);
 	spin_lock_init(&xhdmi->irq_lock);
+
+	init_waitqueue_head(&xhdmi->wait_event);
 
 	dev_dbg(xhdmi->dev,"DT parse start\n");
 	/* parse open firmware device tree data */
