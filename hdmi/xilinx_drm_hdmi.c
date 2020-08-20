@@ -1102,6 +1102,8 @@ static u32 hdmitx_find_media_bus(struct xlnx_drm_hdmi *xhdmi, u32 drm_fourcc)
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_BGR888:
 	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_ABGR8888:
 		xhdmi->xvidc_colordepth = XVIDC_BPC_8;
 		return XVIDC_CSF_RGB;
 	case DRM_FORMAT_XBGR2101010:
