@@ -2815,6 +2815,27 @@ void hdmitx_audio_mute(struct device *dev, bool enable)
 		hdmitx_audio_startup(dev);
 }
 
+int hdmitx_audio_geteld(struct device *dev, uint8_t *buf, size_t len)
+{
+	struct xlnx_drm_hdmi *xhdmi = dev_get_drvdata(dev);
+	struct edid *edid = NULL;
+	size_t size;
+
+	if (xhdmi->have_edid) {
+		size = drm_eld_size(xhdmi->connector.eld);
+		if (size != 0) {
+			if (len < size)
+				size = len;
+			memcpy(buf, xhdmi->connector.eld, size);
+			return 0;
+		} else {
+			return -EINVAL;
+		}
+	}
+
+	return -EIO;
+}
+
 static const struct dev_pm_ops xhdmitx_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(hdmitx_pm_suspend, hdmitx_pm_resume)
 };

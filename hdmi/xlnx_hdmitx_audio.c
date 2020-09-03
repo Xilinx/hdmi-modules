@@ -234,11 +234,18 @@ static int audio_codec_digital_mute(struct device *dev, void *data, bool enable)
 	return 0;
 }
 
+int audio_codec_get_eld(struct device *dev, void *data,
+			uint8_t *buf, size_t len)
+{
+	return hdmitx_audio_geteld(dev, buf, len);
+}
+
 static const struct hdmi_codec_ops audio_ops = {
 	.audio_startup = audio_codec_startup,
 	.hw_params = audio_codec_hw_params,
 	.audio_shutdown = audio_codec_shutdown,
 	.digital_mute = audio_codec_digital_mute,
+	.get_eld = audio_codec_get_eld,
 };
 
 /* hdmitx_register_aud_dev - register audio device
