@@ -190,6 +190,7 @@ static int audio_codec_hw_params(struct device *dev, void *data,
 	if (!adata)
 		return -EINVAL;
 
+	hdmitx_audio_hw_params(dev, frame);
 	hdmi_audio_infoframe_pack(&hparams->cea, adata->buffer,
 				  HDMI_INFOFRAME_SIZE(AUDIO));
 
@@ -255,7 +256,7 @@ struct platform_device *hdmitx_register_aud_dev(struct device *dev)
 	struct hdmi_codec_pdata codec_pdata = {
 		.ops = &audio_ops,
 		.i2s = 1,
-		.max_i2s_channels = 2,
+		.max_i2s_channels = 8,
 	};
 
 	audio_pdev = platform_device_register_data(dev, HDMI_CODEC_DRV_NAME,

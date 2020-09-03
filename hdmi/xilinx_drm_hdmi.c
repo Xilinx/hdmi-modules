@@ -2782,6 +2782,20 @@ void hdmitx_audio_startup(struct device *dev)
 	hdmi_mutex_unlock(&xhdmi->hdmi_mutex);
 }
 
+void hdmitx_audio_hw_params(struct device *dev,
+		struct hdmi_audio_infoframe *frame)
+{
+	XV_HdmiTxSs *HdmiTxSsPtr;
+	struct xlnx_drm_hdmi *xhdmi = dev_get_drvdata(dev);
+	XV_HdmiTxSs *xv_hdmitxss = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
+
+	hdmi_mutex_lock(&xhdmi->hdmi_mutex);
+	XV_HdmiTxSs_SetAudioChannels(xv_hdmitxss, frame->channels);
+	XV_HdmiTxSs_AudioMute(xv_hdmitxss, 0);
+	hdmi_mutex_unlock(&xhdmi->hdmi_mutex);
+
+}
+
 void hdmitx_audio_shutdown(struct device *dev)
 {
 	XV_HdmiTxSs *HdmiTxSsPtr;
