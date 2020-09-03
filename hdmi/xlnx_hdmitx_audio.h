@@ -30,6 +30,8 @@ void __iomem *hdmitx_parse_aud_dt(struct device *dev);
 struct platform_device *hdmitx_register_aud_dev(struct device *dev);
 
 void hdmitx_audio_startup(struct device *dev);
+void hdmitx_audio_hw_params(struct device *dev,
+		struct hdmi_audio_infoframe *frame);
 void hdmitx_audio_shutdown(struct device *dev);
 void hdmitx_audio_mute(struct device *dev, bool enable);
 
