@@ -34,5 +34,6 @@ void hdmitx_audio_hw_params(struct device *dev,
 		struct hdmi_audio_infoframe *frame);
 void hdmitx_audio_shutdown(struct device *dev);
 void hdmitx_audio_mute(struct device *dev, bool enable);
+int hdmitx_audio_geteld(struct device *dev, uint8_t *buf, size_t len);
 
 #endif /* __XILINX_HDMI_TX_AUD_H__ */
