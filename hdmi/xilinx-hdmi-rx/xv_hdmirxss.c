@@ -627,10 +627,6 @@ void XV_HdmiRxSs_Start(XV_HdmiRxSs *InstancePtr)
 #endif
   /* Drive HDMI RX HPD High */
   XV_HdmiRx_SetHpd(InstancePtr->HdmiRxPtr, TRUE);
-
-  /* Disable Audio Peripheral */
-  XV_HdmiRx_AudioDisable(InstancePtr->HdmiRxPtr);
-  XV_HdmiRx_AudioIntrDisable(InstancePtr->HdmiRxPtr);
 }
 
 /*****************************************************************************/
@@ -1203,6 +1199,7 @@ static void XV_HdmiRxSs_StreamDownCallback(void *CallbackRef)
 {
   XV_HdmiRxSs *HdmiRxSsPtr = (XV_HdmiRxSs *)CallbackRef;
   struct v4l2_hdr10_payload *DrmInfoFramePtr;
+  XHdmiC_AVI_InfoFrame *AviInfoFramePtr;
 
   /* Assert HDMI RX core resets */
   XV_HdmiRxSs_RXCore_VRST(HdmiRxSsPtr, TRUE);
@@ -1217,6 +1214,8 @@ static void XV_HdmiRxSs_StreamDownCallback(void *CallbackRef)
 
   DrmInfoFramePtr->metadata_type = 0xFF;
   DrmInfoFramePtr->eotf = 0xFF;
+  AviInfoFramePtr = XV_HdmiRxSs_GetAviInfoframe(HdmiRxSsPtr);
+  memset((void *)AviInfoFramePtr, 0, sizeof(XHdmiC_AVI_InfoFrame));
 #ifdef XV_HDMIRXSS_LOG_ENABLE
   XV_HdmiRxSs_LogWrite(HdmiRxSsPtr, XV_HDMIRXSS_LOG_EVT_STREAMDOWN, 0);
 #endif
@@ -2227,6 +2226,18 @@ static void XV_HdmiRxSs_ConfigBridgeMode(XV_HdmiRxSs *InstancePtr) {
 
     XHdmiC_AVI_InfoFrame *AviInfoFramePtr;
     AviInfoFramePtr = XV_HdmiRxSs_GetAviInfoframe(InstancePtr);
+
+    if ((!InstancePtr->HdmiRxPtr->Stream.IsHdmi) &&
+		    HdmiRxSsVidStreamPtr->IsInterlaced) {
+	if ((HdmiRxSsVidStreamPtr->Timing.HActive == 1440) &&
+			((HdmiRxSsVidStreamPtr->Timing.VActive == 288) ||
+			 (HdmiRxSsVidStreamPtr->Timing.VActive == 240))) {
+             XV_HdmiRxSs_BridgeYuv420(InstancePtr, FALSE);
+             XV_HdmiRxSs_BridgePixelDrop(InstancePtr, TRUE);
+
+	     return;
+	}
+    }
 
     // Pixel Repetition factor of 3 and above are not supported by the bridge
     if (AviInfoFramePtr->PixelRepetition > XHDMIC_PIXEL_REPETITION_FACTOR_2) {
