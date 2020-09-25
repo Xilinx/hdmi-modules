@@ -2603,7 +2603,11 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	clk_prepare_enable(xhdmi->clk);
+	ret = clk_prepare_enable(xhdmi->clk);
+	if (ret) {
+		dev_err(xhdmi->dev, "failed to prep and enable axis video clk!\n");
+		return ret;
+	}
 
 	/* acquire axi-lite register bus clock */
 	xhdmi->axi_lite_clk = devm_clk_get(xhdmi->dev, "s_axi_cpu_aclk");
@@ -2616,7 +2620,12 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	clk_prepare_enable(xhdmi->axi_lite_clk);
+	ret = clk_prepare_enable(xhdmi->axi_lite_clk);
+	if (ret) {
+		dev_err(xhdmi->dev, "failed to prep and enable axilite clk!\n");
+		return ret;
+	}
+
 	axi_clk_rate = clk_get_rate(xhdmi->axi_lite_clk);
 	dev_dbg(xhdmi->dev,"axi_clk_rate = %lu Hz\n", axi_clk_rate);
 	xhdmi->config.AxiLiteClkFreq = axi_clk_rate;
