@@ -1007,6 +1007,7 @@ static int xlnx_drm_hdmi_get_edid_block(void *data, u8 *buf, unsigned int block,
 	/* first obtain edid in local buffer */
 	ret = XV_HdmiTxSs_ReadEdid(HdmiTxSsPtr, buffer);
 	if (ret == XST_FAILURE) {
+		kfree(buffer);
 		dev_dbg(xhdmi->dev, "xlnx_drm_hdmi_get_edid_block() failed reading EDID\n");
 		return -EINVAL;
 	}
