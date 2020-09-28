@@ -1959,9 +1959,9 @@ static ssize_t hdcp_encrypted_show(struct device *sysfs_dev, struct device_attri
  * In this implementation, a local buffer is created (aligned to 16Byte boundary), the cipher is first copied to the local buffer,
  * where it is then decrypted in-place and then copied over to target Plain Buffer. This leaves the source buffer intact.
  */
-static void Decrypt(const u8 *CipherBufferPtr/*src*/, u8 *PlainBufferPtr/*dst*/, u8 *Key, u16 Length)
+static int Decrypt(const u8 *CipherBufferPtr/*src*/, u8 *PlainBufferPtr/*dst*/, u8 *Key, u16 Length)
 {
-	u8 i;
+	u16 i;
 	u8 *AesBufferPtr;
 	u8 *LocalBuf; //16Byte aligned
 	u16 AesLength;
