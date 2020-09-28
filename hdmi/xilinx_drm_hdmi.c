@@ -500,16 +500,10 @@ static void SendVSInfoframe(XV_HdmiTxSs *HdmiTxSsPtr)
  */
 static void SendInfoframe(XV_HdmiTxSs *HdmiTxSsPtr)
 {
-	u32 Status;
 	XHdmiC_AVI_InfoFrame *AviInfoFramePtr;
-	XHdmiC_AudioInfoFrame *AudioInfoFramePtr;
-	XHdmiC_VSIF *VSIFPtr;
 	XHdmiC_Aux AuxFifo;
 
 	AviInfoFramePtr = XV_HdmiTxSs_GetAviInfoframe(HdmiTxSsPtr);
-	AudioInfoFramePtr = XV_HdmiTxSs_GetAudioInfoframe(HdmiTxSsPtr);
-	VSIFPtr = XV_HdmiTxSs_GetVSIF(HdmiTxSsPtr);
-	Status = (XST_FAILURE);
 
 	// Generate Aux from the current TX InfoFrame
 	AuxFifo = XV_HdmiC_AVIIF_GeneratePacket(AviInfoFramePtr);
@@ -848,16 +842,9 @@ void TxHdcpUnauthenticatedCallback(void *CallbackRef)
 static void VphyHdmiTxInitCallback(void *CallbackRef)
 {
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)CallbackRef;
-	XVphy *VphyPtr;
-	XHdmiphy1 *XGtPhyPtr;
 	XV_HdmiTxSs *HdmiTxSsPtr;
 
 	HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
-
-	if (xhdmi->isvphy)
-		VphyPtr = xhdmi->xvphy;
-	else
-		XGtPhyPtr = xhdmi->xgtphy;
 
 	dev_dbg(xhdmi->dev,"VphyHdmiTxInitCallback(): XV_HdmiTxSs_RefClockChangeInit()\n");
 
@@ -1831,10 +1818,8 @@ static ssize_t hdcp_encrypt_store(struct device *sysfs_dev, struct device_attrib
 	const char *buf, size_t count)
 {
 	long int i;
-	XV_HdmiTxSs *HdmiTxSsPtr;
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)dev_get_drvdata(sysfs_dev);
 
-	HdmiTxSsPtr = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
 	if (kstrtol(buf, 10, &i)) {
 		dev_dbg(xhdmi->dev, "hdcp_encrypt_store() input invalid.\n");
 		return count;
@@ -1848,10 +1833,8 @@ static ssize_t hdcp_protect_store(struct device *sysfs_dev, struct device_attrib
 	const char *buf, size_t count)
 {
 	long int i;
-	XV_HdmiTxSs *HdmiTxSsPtr;
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)dev_get_drvdata(sysfs_dev);
 
-	HdmiTxSsPtr = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
 	if (kstrtol(buf, 10, &i)) {
 		dev_dbg(xhdmi->dev, "hdcp_protect_store() input invalid.\n");
 		return count;
@@ -1889,10 +1872,8 @@ static ssize_t hdcp_authenticate_show(struct device *sysfs_dev, struct device_at
 	char *buf)
 {
 	ssize_t count;
-	XV_HdmiTxSs *HdmiTxSsPtr;
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)dev_get_drvdata(sysfs_dev);
 
-	HdmiTxSsPtr = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
 	count = scnprintf(buf, PAGE_SIZE, "%d", xhdmi->hdcp_authenticate);
 	return count;
 }
@@ -1901,10 +1882,8 @@ static ssize_t hdcp_encrypt_show(struct device *sysfs_dev, struct device_attribu
 	char *buf)
 {
 	ssize_t count;
-	XV_HdmiTxSs *HdmiTxSsPtr;
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)dev_get_drvdata(sysfs_dev);
 
-	HdmiTxSsPtr = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
 	count = scnprintf(buf, PAGE_SIZE, "%d", xhdmi->hdcp_encrypt);
 	return count;
 }
@@ -1913,10 +1892,8 @@ static ssize_t hdcp_protect_show(struct device *sysfs_dev, struct device_attribu
 	char *buf)
 {
 	ssize_t count;
-	XV_HdmiTxSs *HdmiTxSsPtr;
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)dev_get_drvdata(sysfs_dev);
 
-	HdmiTxSsPtr = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
 	count = scnprintf(buf, PAGE_SIZE, "%d", xhdmi->hdcp_protect);
 	return count;
 }
@@ -1925,10 +1902,8 @@ static ssize_t hdcp_authenticated_show(struct device *sysfs_dev, struct device_a
 	char *buf)
 {
 	ssize_t count;
-	XV_HdmiTxSs *HdmiTxSsPtr;
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)dev_get_drvdata(sysfs_dev);
 
-	HdmiTxSsPtr = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
 	count = scnprintf(buf, PAGE_SIZE, "%d", xhdmi->hdcp_authenticated);
 	return count;
 }
@@ -1937,10 +1912,8 @@ static ssize_t hdcp_encrypted_show(struct device *sysfs_dev, struct device_attri
 	char *buf)
 {
 	ssize_t count;
-	XV_HdmiTxSs *HdmiTxSsPtr;
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)dev_get_drvdata(sysfs_dev);
 
-	HdmiTxSsPtr = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
 	count = scnprintf(buf, PAGE_SIZE, "%d", xhdmi->hdcp_encrypted);
 	return count;
 }
@@ -2133,10 +2106,8 @@ static ssize_t hdcp_password_show(struct device *sysfs_dev, struct device_attrib
 	char *buf)
 {
 	ssize_t count;
-	XV_HdmiTxSs *HdmiTxSsPtr;
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)dev_get_drvdata(sysfs_dev);
 
-	HdmiTxSsPtr = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
 	count = scnprintf(buf, PAGE_SIZE, "%s", xhdmi->hdcp_password_accepted? "accepted": "rejected");
 	return count;
 }
