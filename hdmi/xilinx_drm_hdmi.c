@@ -2014,7 +2014,7 @@ static int XHdcp_LoadKeys(const u8 *Buffer, u8 *Password, u8 *Hdcp22Lc128, u32 H
 {
 	u8 i;
 	const u8 HdcpSignature[16] = { "xilinx_hdcp_keys" };
-	u8 Key[32];
+	u8 Key[32] = {0};
 	u8 SignatureOk;
 	u8 HdcpSignatureBuffer[16];
 	int ret;
@@ -2393,7 +2393,7 @@ static int xlnx_drm_hdmi_parse_of(struct xlnx_drm_hdmi *xhdmi, XV_HdmiTxSs_Confi
 	struct device *dev = xhdmi->dev;
 	struct device_node *node = dev->of_node;
 	int rc;
-	u32 val;
+	u32 val = 0;
 	bool isHdcp14_en, isHdcp22_en;
 
 	rc = of_property_read_u32(node, "xlnx,input-pixels-per-clock", &val);
