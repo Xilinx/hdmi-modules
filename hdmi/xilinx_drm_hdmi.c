@@ -1974,6 +1974,11 @@ static void Decrypt(const u8 *CipherBufferPtr/*src*/, u8 *PlainBufferPtr/*dst*/,
 
 	//Allocate local buffer that is 16Byte aligned
 	LocalBuf = kzalloc((size_t)(AesLength*16), GFP_KERNEL);
+	if (!LocalBuf) {
+		printk(KERN_ERR "%s - %s Unable to allocate memory!\n",
+		       __FILE__, __func__);
+		return XST_FAILURE;
+	}
 
 	// Copy cipher into local buffer
 	memcpy(LocalBuf, CipherBufferPtr, (AesLength*16));
@@ -2001,6 +2006,8 @@ static void Decrypt(const u8 *CipherBufferPtr/*src*/, u8 *PlainBufferPtr/*dst*/,
 
 	//free local buffer
 	kfree(LocalBuf);
+
+	return XST_SUCCESS;
 }
 
 #define SIGNATURE_OFFSET			0
@@ -2018,12 +2025,15 @@ static int XHdcp_LoadKeys(const u8 *Buffer, u8 *Password, u8 *Hdcp22Lc128, u32 H
 	u8 Key[32];
 	u8 SignatureOk;
 	u8 HdcpSignatureBuffer[16];
+	int ret;
 
 	// Generate password hash
 	XHdcp22Cmn_Sha256Hash(Password, 32, Key);
 
 	/* decrypt the signature */
-	Decrypt(&Buffer[SIGNATURE_OFFSET]/*source*/, HdcpSignatureBuffer/*destination*/, Key, sizeof(HdcpSignature));
+	ret = Decrypt(&Buffer[SIGNATURE_OFFSET]/*source*/, HdcpSignatureBuffer/*destination*/, Key, sizeof(HdcpSignature));
+	if (ret != XST_SUCCESS)
+		return ret;
 
 	SignatureOk = 1;
 	for (i = 0; i < sizeof(HdcpSignature); i++) {
@@ -2034,10 +2044,19 @@ static int XHdcp_LoadKeys(const u8 *Buffer, u8 *Password, u8 *Hdcp22Lc128, u32 H
 	/* password and buffer are correct, as the generated key could correctly decrypt the signature */
 	if (SignatureOk == 1) {
 		/* decrypt the keys */
-		Decrypt(&Buffer[HDCP22_LC128_OFFSET], Hdcp22Lc128, Key, Hdcp22Lc128Size);
-		Decrypt(&Buffer[HDCP22_CERTIFICATE_OFFSET], Hdcp22RxPrivateKey, Key, Hdcp22RxPrivateKeySize);
-		Decrypt(&Buffer[HDCP14_KEY1_OFFSET], Hdcp14KeyA, Key, Hdcp14KeyASize);
-		Decrypt(&Buffer[HDCP14_KEY2_OFFSET], Hdcp14KeyB, Key, Hdcp14KeyBSize);
+		ret = Decrypt(&Buffer[HDCP22_LC128_OFFSET], Hdcp22Lc128, Key, Hdcp22Lc128Size);
+		if (ret != XST_SUCCESS)
+			return ret;
+		ret = Decrypt(&Buffer[HDCP22_CERTIFICATE_OFFSET], Hdcp22RxPrivateKey, Key, Hdcp22RxPrivateKeySize);
+		if (ret != XST_SUCCESS)
+			return ret;
+		ret = Decrypt(&Buffer[HDCP14_KEY1_OFFSET], Hdcp14KeyA, Key, Hdcp14KeyASize);
+		if (ret != XST_SUCCESS)
+			return ret;
+		ret = Decrypt(&Buffer[HDCP14_KEY2_OFFSET], Hdcp14KeyB, Key, Hdcp14KeyBSize);
+		if (ret != XST_SUCCESS)
+			return ret;
+
 		return XST_SUCCESS;
 	} else {
 		printk(KERN_INFO "HDCP key store signature mismatch; HDCP key data and/or password are invalid.\n");
