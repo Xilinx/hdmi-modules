@@ -2540,6 +2540,10 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 
 	/* get ownership of the HDMI TXSS MMIO register space resource */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "unable to get register space resource!\n");
+		return -EINVAL;
+	}
 	/* map the MMIO region */
 	xhdmi->iomem = devm_ioremap_resource(xhdmi->dev, res);
 	if (IS_ERR(xhdmi->iomem)) {
