@@ -2586,6 +2586,11 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 		}
 
 		match = of_match_node(xlnx_hdmi_phy_id_table, xhdmi->phy[index]->dev.parent->of_node);
+		if (!match) {
+			dev_err(xhdmi->dev, "of_match_node failed for phy!\n");
+			goto error_phy;
+		}
+
 		if (strncmp(match->compatible, "xlnx,vid-phy-controller", 23) == 0)
 			xhdmi->isvphy = 1;
 		else
