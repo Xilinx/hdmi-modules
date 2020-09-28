@@ -1124,7 +1124,8 @@ static void xlnx_drm_hdmi_encoder_disable(struct drm_encoder *encoder)
 	XV_HdmiTxSs_SYSRST(HdmiTxSsPtr, TRUE);
 }
 
-static u32 hdmitx_find_media_bus(struct xlnx_drm_hdmi *xhdmi, u32 drm_fourcc)
+static XVidC_ColorFormat hdmitx_find_media_bus(struct xlnx_drm_hdmi *xhdmi,
+					       u32 drm_fourcc)
 {
 	switch(drm_fourcc) {
 
@@ -1314,24 +1315,24 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	/* The isExtensive is made true to get the correct video timing by matching
 	 * all the parameters */
 	HdmiTxSsVidStreamPtr->VmId = XVidC_GetVideoModeIdExtensive(&vt,
-			mode->vrefresh, !!(mode->flags & DRM_MODE_FLAG_INTERLACE), TRUE);
+			mode->vrefresh, (u8)!!(mode->flags & DRM_MODE_FLAG_INTERLACE), (u8)TRUE);
 
 	dev_dbg(xhdmi->dev,"VmId = %d Interlaced = %d\n", HdmiTxSsVidStreamPtr->VmId, !!(mode->flags & DRM_MODE_FLAG_INTERLACE));
 	if (HdmiTxSsVidStreamPtr->VmId == XVIDC_VM_NOT_SUPPORTED) { //no match found in timing table
 		dev_dbg(xhdmi->dev,"Tx Video Mode not supported. Using DRM Timing\n");
 		HdmiTxSsVidStreamPtr->VmId = XVIDC_VM_CUSTOM;
-		HdmiTxSsVidStreamPtr->FrameRate = mode->vrefresh;
+		HdmiTxSsVidStreamPtr->FrameRate = (XVidC_FrameRate)mode->vrefresh;
 		HdmiTxSsVidStreamPtr->Timing = vt; //overwrite with drm detected timing
 		HdmiTxSsVidStreamPtr->IsInterlaced = (!!(mode->flags & DRM_MODE_FLAG_INTERLACE));
 #ifdef DEBUG
-		XVidC_ReportTiming(&HdmiTxSsVidStreamPtr->Timing, !!(mode->flags & DRM_MODE_FLAG_INTERLACE));
+		XVidC_ReportTiming(&HdmiTxSsVidStreamPtr->Timing, (u8)!!(mode->flags & DRM_MODE_FLAG_INTERLACE));
 #endif
 	}
 
 	/* The value of xvidc_colordepth is set by calling hdmitx_find_media_bus()
 	 * API earlier in this function. Check whether the value is valid or not */
 	if (XVIDC_BPC_UNKNOWN == xhdmi->xvidc_colordepth)
-		xhdmi->xvidc_colordepth = HdmiTxSsPtr->Config.MaxBitsPerPixel;
+		xhdmi->xvidc_colordepth = (XVidC_ColorDepth)HdmiTxSsPtr->Config.MaxBitsPerPixel;
 
 	/* check if resolution is supported at requested bit depth */
 	switch (xhdmi->xvidc_colorfmt) {
@@ -2098,7 +2099,7 @@ static ssize_t hdcp_key_store(struct device *sysfs_dev, struct device_attribute 
 	}
 	xhdmi->hdcp_password_accepted = 0;
 	/* decrypt the keys from the binary blob (buffer) into the C structures for keys */
-	if (XHdcp_LoadKeys(buf, xhdmi->hdcp_password,
+	if (XHdcp_LoadKeys((const u8 *)buf, xhdmi->hdcp_password,
 		xhdmi->Hdcp22Lc128, sizeof(xhdmi->Hdcp22Lc128),
 		xhdmi->Hdcp22PrivateKey, sizeof(xhdmi->Hdcp22PrivateKey),
 		xhdmi->Hdcp14KeyA, sizeof(xhdmi->Hdcp14KeyA),
@@ -2400,7 +2401,7 @@ static int xlnx_drm_hdmi_parse_of(struct xlnx_drm_hdmi *xhdmi, XV_HdmiTxSs_Confi
 	rc = of_property_read_u32(node, "xlnx,input-pixels-per-clock", &val);
 	if (rc < 0)
 		goto error_dt;
-	config->Ppc = val;
+	config->Ppc = (XVidC_PixelsPerClock)val;
 
 	rc = of_property_read_u32(node, "xlnx,max-bits-per-component", &val);
 	if (rc < 0)
@@ -2409,7 +2410,7 @@ static int xlnx_drm_hdmi_parse_of(struct xlnx_drm_hdmi *xhdmi, XV_HdmiTxSs_Confi
 
 
 	/* Tx Core */
-	config->HdmiTx.DeviceId = TX_DEVICE_ID_BASE + instance;
+	config->HdmiTx.DeviceId = (u16)(TX_DEVICE_ID_BASE + instance);
 	config->HdmiTx.IsPresent = 1;
 	config->HdmiTx.AbsAddr = TXSS_TX_OFFSET;
 	XV_HdmiTx_ConfigTable[instance].DeviceId = TX_DEVICE_ID_BASE + instance;
