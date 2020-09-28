@@ -125,7 +125,6 @@ static const unsigned int xhdmi_acr_get_n(unsigned int tmds_rate, int srate)
  */
 void __iomem *hdmitx_parse_aud_dt(struct device *dev)
 {
-	u32 val;
 	int rc;
 	struct device_node *node, *acr_node;
 	void __iomem *acr_base;
@@ -183,7 +182,7 @@ static int audio_codec_hw_params(struct device *dev, void *data,
 			 struct hdmi_codec_daifmt *fmt,
 			 struct hdmi_codec_params *hparams)
 {
-	u32 n, i, val;
+	u32 n, val;
 	struct hdmi_audio_infoframe *frame = &hparams->cea;
 	struct xlnx_hdmitx_audio_data *adata = hdmitx_get_audio_data(dev);
 

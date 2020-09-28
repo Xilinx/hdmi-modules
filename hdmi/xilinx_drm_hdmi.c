@@ -431,7 +431,6 @@ static void hdcp_protect_content(struct xlnx_drm_hdmi *xhdmi)
 
 static void XHdcp_Authenticate(XV_HdmiTxSs *HdmiTxSsPtr)
 {
-	u32 Status;
 	if (!XV_HdmiTxSs_HdcpIsReady(HdmiTxSsPtr)) return;
 	if (XV_HdmiTxSs_IsStreamUp(HdmiTxSsPtr)) {
 		/* Trigger authentication on Idle */
@@ -717,7 +716,6 @@ static void TxStreamUpCallback(void *CallbackRef)
 static void TxStreamDownCallback(void *CallbackRef)
 {
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)CallbackRef;
-	XV_HdmiTxSs *HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
 
 	dev_dbg(xhdmi->dev,"TxStreamDownCallback(): TX stream is down\n\r");
 	xhdmi->hdmi_stream_up = 0;
@@ -839,7 +837,6 @@ void TxHdcpAuthenticatedCallback(void *CallbackRef)
 void TxHdcpUnauthenticatedCallback(void *CallbackRef)
 {
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)CallbackRef;
-	XV_HdmiTxSs *HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
 
 	dev_dbg(xhdmi->dev,"TxHdcpUnauthenticatedCallback()\n");
 	xhdmi->hdcp_authenticated = 0;
@@ -880,7 +877,6 @@ static void VphyHdmiTxInitCallback(void *CallbackRef)
 static void VphyHdmiTxReadyCallback(void *CallbackRef)
 {
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)CallbackRef;
-	XV_HdmiTxSs *HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
 
 	dev_dbg(xhdmi->dev,"VphyHdmiTxReadyCallback(NOP) done\n");
 }
@@ -921,8 +917,6 @@ xlnx_drm_hdmi_connector_detect(struct drm_connector *connector, bool force)
 
 static void xlnx_drm_hdmi_connector_destroy(struct drm_connector *connector)
 {
-	struct xlnx_drm_hdmi *xhdmi = connector_to_hdmi(connector);
-
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	connector->dev = NULL;
@@ -1028,7 +1022,6 @@ static int xlnx_drm_hdmi_connector_get_modes(struct drm_connector *connector)
 {
 	struct xlnx_drm_hdmi *xhdmi = connector_to_hdmi(connector);
 	struct edid *edid = NULL;
-	struct drm_display_info *info = &connector->display_info;
 	int ret;
 	bool is_hdmi_sink;
 
@@ -1208,7 +1201,6 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	u32 PrevPhyTxRefClock = 0;
 	u32 Result;
 	u32 drm_fourcc;
-	XVidC_ColorDepth ColorDepth;
 	int ret;
 
 	dev_dbg(xhdmi->dev,"%s\n", __func__);
@@ -1816,7 +1808,6 @@ static ssize_t hdcp_authenticate_store(struct device *sysfs_dev, struct device_a
 	const char *buf, size_t count)
 {
 	long int i;
-	u8 Status;
 	XV_HdmiTxSs *HdmiTxSsPtr;
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)dev_get_drvdata(sysfs_dev);
 
@@ -2096,7 +2087,6 @@ static int hdcp_keys_configure(struct xlnx_drm_hdmi *xhdmi)
 static ssize_t hdcp_key_store(struct device *sysfs_dev, struct device_attribute *attr,
 	const char *buf, size_t count)
 {
-	long int i;
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)dev_get_drvdata(sysfs_dev);
 	XV_HdmiTxSs *HdmiTxSsPtr = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
 
@@ -2155,7 +2145,6 @@ static ssize_t hdcp_password_store(struct device *sysfs_dev, struct device_attri
 {
 	int i = 0;
 	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)dev_get_drvdata(sysfs_dev);
-	XV_HdmiTxSs *HdmiTxSsPtr = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
 
 	if (count > sizeof(xhdmi->hdcp_password)) return -EINVAL;
 	/* copy password characters up to newline or carriage return */
@@ -2406,7 +2395,6 @@ static int xlnx_drm_hdmi_parse_of(struct xlnx_drm_hdmi *xhdmi, XV_HdmiTxSs_Confi
 	int rc;
 	u32 val;
 	bool isHdcp14_en, isHdcp22_en;
-	const char *format;
 
 	rc = of_property_read_u32(node, "xlnx,input-pixels-per-clock", &val);
 	if (rc < 0)
@@ -2789,7 +2777,6 @@ error_phy:
 
 static int xlnx_drm_hdmi_remove(struct platform_device *pdev)
 {
-	struct platform_driver *pdrv;
 	struct xlnx_drm_hdmi *xhdmi = platform_get_drvdata(pdev);
 
 	if (xhdmi->audio_init)
@@ -2811,7 +2798,6 @@ struct xlnx_hdmitx_audio_data *hdmitx_get_audio_data(struct device *dev)
 
 void hdmitx_audio_startup(struct device *dev)
 {
-	XV_HdmiTxSs *HdmiTxSsPtr;
 	struct xlnx_drm_hdmi *xhdmi = dev_get_drvdata(dev);
 	XV_HdmiTxSs *xv_hdmitxss = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
 
@@ -2823,7 +2809,6 @@ void hdmitx_audio_startup(struct device *dev)
 void hdmitx_audio_hw_params(struct device *dev,
 		struct hdmi_audio_infoframe *frame)
 {
-	XV_HdmiTxSs *HdmiTxSsPtr;
 	struct xlnx_drm_hdmi *xhdmi = dev_get_drvdata(dev);
 	XV_HdmiTxSs *xv_hdmitxss = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
 
@@ -2836,7 +2821,6 @@ void hdmitx_audio_hw_params(struct device *dev,
 
 void hdmitx_audio_shutdown(struct device *dev)
 {
-	XV_HdmiTxSs *HdmiTxSsPtr;
 	struct xlnx_drm_hdmi *xhdmi = dev_get_drvdata(dev);
 	XV_HdmiTxSs *xv_hdmitxss = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
 
@@ -2856,7 +2840,6 @@ void hdmitx_audio_mute(struct device *dev, bool enable)
 int hdmitx_audio_geteld(struct device *dev, uint8_t *buf, size_t len)
 {
 	struct xlnx_drm_hdmi *xhdmi = dev_get_drvdata(dev);
-	struct edid *edid = NULL;
 	size_t size;
 
 	if (xhdmi->have_edid) {
