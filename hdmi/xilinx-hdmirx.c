@@ -2052,7 +2052,7 @@ static int xhdmi_probe(struct platform_device *pdev)
 	/* AXI lite register bus clock */
 	xhdmi->axi_lite_clk = devm_clk_get(xhdmi->dev, "s_axi_cpu_aclk");
 	if (IS_ERR(xhdmi->axi_lite_clk)) {
-		ret = PTR_ERR(xhdmi->clk);
+		ret = PTR_ERR(xhdmi->axi_lite_clk);
 		if (ret == -EPROBE_DEFER)
 			dev_info(xhdmi->dev, "axi-lite clk not ready -EPROBE_DEFER\n");
 		if (ret != -EPROBE_DEFER)
