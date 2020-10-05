@@ -1449,12 +1449,10 @@ static ssize_t vphy_log_show(struct device *sysfs_dev, struct device_attribute *
 	char *buf)
 {
 	ssize_t count;
-	XV_HdmiRxSs *HdmiRxSsPtr;
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)dev_get_drvdata(sysfs_dev);
 	XVphy *VphyPtr = xhdmi->xvphy;
 	XHdmiphy1 *XGtPhyPtr = xhdmi->xgtphy;
 
-	HdmiRxSsPtr = (XV_HdmiRxSs *)&xhdmi->xv_hdmirxss;
 	if (xhdmi->isvphy)
 		count = XVphy_LogShow(VphyPtr, buf, PAGE_SIZE);
 	else
@@ -1467,12 +1465,9 @@ static ssize_t vphy_info_show(struct device *sysfs_dev, struct device_attribute 
 	char *buf)
 {
 	ssize_t count;
-	XV_HdmiRxSs *HdmiRxSsPtr;
 	XVphy *VphyPtr;
 	XHdmiphy1 *XGtPhyPtr;
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)dev_get_drvdata(sysfs_dev);
-
-	HdmiRxSsPtr = (XV_HdmiRxSs *)&xhdmi->xv_hdmirxss;
 
 	if (xhdmi->isvphy) {
 		VphyPtr = xhdmi->xvphy;
@@ -1559,10 +1554,8 @@ static ssize_t hdcp_authenticated_show(struct device *sysfs_dev, struct device_a
 	char *buf)
 {
 	ssize_t count;
-	XV_HdmiRxSs *HdmiRxSsPtr;
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)dev_get_drvdata(sysfs_dev);
 
-	HdmiRxSsPtr = (XV_HdmiRxSs *)&xhdmi->xv_hdmirxss;
 	count = scnprintf(buf, PAGE_SIZE, "%d", xhdmi->hdcp_authenticated);
 	return count;
 }
@@ -1571,10 +1564,8 @@ static ssize_t hdcp_encrypted_show(struct device *sysfs_dev, struct device_attri
 	char *buf)
 {
 	ssize_t count;
-	XV_HdmiRxSs *HdmiRxSsPtr;
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)dev_get_drvdata(sysfs_dev);
 
-	HdmiRxSsPtr = (XV_HdmiRxSs *)&xhdmi->xv_hdmirxss;
 	count = scnprintf(buf, PAGE_SIZE, "%d", xhdmi->hdcp_encrypted);
 	return count;
 }
@@ -1761,10 +1752,8 @@ static ssize_t hdcp_password_show(struct device *sysfs_dev, struct device_attrib
 	char *buf)
 {
 	ssize_t count;
-	XV_HdmiRxSs *HdmiRxSsPtr;
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)dev_get_drvdata(sysfs_dev);
 
-	HdmiRxSsPtr = (XV_HdmiRxSs *)&xhdmi->xv_hdmirxss;
 	count = scnprintf(buf, PAGE_SIZE, "%s", xhdmi->hdcp_password_accepted? "accepted": "rejected");
 	return count;
 }
