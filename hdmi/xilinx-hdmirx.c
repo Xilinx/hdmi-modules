@@ -1050,9 +1050,6 @@ static void RxStreamUpCallback(void *CallbackRef)
 
 static void RxBrdgOverflowCallback(void *CallbackRef)
 {
-	struct xhdmi_device *xhdmi = (struct xhdmi_device *)CallbackRef;
-	XV_HdmiRxSs *HdmiRxSsPtr = &xhdmi->xv_hdmirxss;
-
 	//dev_dbg(xhdmi->dev,"RxBrdgOverflowCallback()\n");
 }
 
@@ -1195,7 +1192,6 @@ static void RxHdcpAuthenticatedCallback(void *CallbackRef)
 static void RxHdcpUnauthenticatedCallback(void *CallbackRef)
 {
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)CallbackRef;
-	XV_HdmiRxSs *HdmiRxSsPtr = &xhdmi->xv_hdmirxss;
 
 	xhdmi->hdcp_authenticated = 0;
 	dev_dbg(xhdmi->dev,"HDCP RX unauthenticated.\n");
@@ -1713,7 +1709,6 @@ static int hdcp_keys_configure(struct xhdmi_device *xhdmi)
 static ssize_t hdcp_key_store(struct device *sysfs_dev, struct device_attribute *attr,
 	const char *buf, size_t count)
 {
-	long int i;
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)dev_get_drvdata(sysfs_dev);
 	XV_HdmiRxSs *HdmiRxSsPtr = (XV_HdmiRxSs *)&xhdmi->xv_hdmirxss;
 
@@ -1780,7 +1775,6 @@ static ssize_t hdcp_password_store(struct device *sysfs_dev, struct device_attri
 {
 	int i = 0;
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)dev_get_drvdata(sysfs_dev);
-	XV_HdmiRxSs *HdmiRxSsPtr = (XV_HdmiRxSs *)&xhdmi->xv_hdmirxss;
 
 	if (count > sizeof(xhdmi->hdcp_password)) return -EINVAL;
 	/* copy password characters up to newline or carriage return */
@@ -1797,14 +1791,6 @@ static ssize_t hdcp_password_store(struct device *sysfs_dev, struct device_attri
 	}
 	return count;
 }
-
-static ssize_t null_show(struct device *sysfs_dev, struct device_attribute *attr,
-	char *buf)
-{ return 0; }
-
-static ssize_t null_store(struct device *sysfs_dev, struct device_attribute *attr,
-	const char *buf, size_t count)
-{ return count; }
 
 static DEVICE_ATTR(vphy_log,  0444, vphy_log_show, NULL/*null_store*/);
 static DEVICE_ATTR(vphy_info, 0444, vphy_info_show, NULL/*null_store*/);
