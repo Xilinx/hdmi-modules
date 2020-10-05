@@ -750,11 +750,16 @@ static void RxConnectCallback(void *CallbackRef)
 {
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)CallbackRef;
 	XV_HdmiRxSs *HdmiRxSsPtr = &xhdmi->xv_hdmirxss;
-	XVphy *VphyPtr = xhdmi->xvphy;
-	XHdmiphy1 *XGtPhyPtr = xhdmi->xgtphy;
+	XVphy *VphyPtr;
+	XHdmiphy1 *XGtPhyPtr;
 
-	if (!xhdmi || !HdmiRxSsPtr || (xhdmi->isvphy && !VphyPtr) ||
-		(!xhdmi->isvphy && !XGtPhyPtr))
+	if (!xhdmi || !HdmiRxSsPtr)
+		return;
+
+	VphyPtr = xhdmi->xvphy;
+	XGtPhyPtr = xhdmi->xgtphy;
+
+	if ((xhdmi->isvphy && !VphyPtr) || (!xhdmi->isvphy && !XGtPhyPtr))
 		return;
 
 	xhdmi->cable_is_connected = !!HdmiRxSsPtr->IsStreamConnected;
@@ -798,13 +803,18 @@ static void RxStreamInitCallback(void *CallbackRef)
 {
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)CallbackRef;
 	XV_HdmiRxSs *HdmiRxSsPtr = &xhdmi->xv_hdmirxss;
-	XVphy *VphyPtr = xhdmi->xvphy;
-	XHdmiphy1 *XGtPhyPtr = xhdmi->xgtphy;
+	XVphy *VphyPtr;
+	XHdmiphy1 *XGtPhyPtr;
 	XVidC_VideoStream *HdmiRxSsVidStreamPtr;
 	u32 Status;
 
-	if (!xhdmi || !HdmiRxSsPtr || (xhdmi->isvphy && !VphyPtr) ||
-		(!xhdmi->isvphy && !XGtPhyPtr))
+	if (!xhdmi || !HdmiRxSsPtr)
+		return;
+
+	VphyPtr = xhdmi->xvphy;
+	XGtPhyPtr = xhdmi->xgtphy;
+
+	if ((xhdmi->isvphy && !VphyPtr) || (!xhdmi->isvphy && !XGtPhyPtr))
 		return;
 
 	dev_dbg(xhdmi->dev,"RxStreamInitCallback\r\n");
@@ -1097,11 +1107,16 @@ static void VphyHdmiRxInitCallback(void *CallbackRef)
 {
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)CallbackRef;
 	XV_HdmiRxSs *HdmiRxSsPtr = &xhdmi->xv_hdmirxss;
-	XVphy *VphyPtr = xhdmi->xvphy;
-	XHdmiphy1 *XGtPhyPtr = xhdmi->xgtphy;
+	XVphy *VphyPtr;
+	XHdmiphy1 *XGtPhyPtr;
 
-	if ((!xhdmi) || (xhdmi->isvphy && !VphyPtr) ||
-		(!xhdmi->isvphy && !XGtPhyPtr))
+	if (!xhdmi)
+		return;
+
+	VphyPtr = xhdmi->xvphy;
+	XGtPhyPtr = xhdmi->xgtphy;
+
+	if ((xhdmi->isvphy && !VphyPtr) || (!xhdmi->isvphy && !XGtPhyPtr))
 		return;
 
 	dev_dbg(xhdmi->dev,"VphyHdmiRxInitCallback()\n");
@@ -1128,13 +1143,18 @@ static void VphyHdmiRxInitCallback(void *CallbackRef)
 static void VphyHdmiRxReadyCallback(void *CallbackRef)
 {
 	struct xhdmi_device *xhdmi = (struct xhdmi_device *)CallbackRef;
-	XVphy *VphyPtr = xhdmi->xvphy;
+	XVphy *VphyPtr;
 	XVphy_PllType RxPllType;
-	XHdmiphy1 *XGtPhyPtr = xhdmi->xgtphy;
+	XHdmiphy1 *XGtPhyPtr;
 	XHdmiphy1_PllType GtRxPllType;
 
-	if ((!xhdmi) || (xhdmi->isvphy && !VphyPtr) ||
-		(!xhdmi->isvphy && !XGtPhyPtr))
+	if (!xhdmi)
+		return;
+
+	VphyPtr = xhdmi->xvphy;
+	XGtPhyPtr = xhdmi->xgtphy;
+
+	if ((xhdmi->isvphy && !VphyPtr) || (!xhdmi->isvphy && !XGtPhyPtr))
 		return;
 
 	dev_dbg(xhdmi->dev,"VphyHdmiRxReadyCallback()\n");
