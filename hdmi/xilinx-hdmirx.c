@@ -293,7 +293,8 @@ static int xhdmi_get_edid(struct v4l2_subdev *subdev, struct v4l2_edid *edid) {
 	/* user EDID active? */
 	if (xhdmi->edid_user_blocks) {
 		if (do_copy)
-			memcpy(edid->edid, xhdmi->edid_user, 128 * xhdmi->edid_user_blocks);
+			memcpy(edid->edid, xhdmi->edid_user,
+			       128 * (u16)xhdmi->edid_user_blocks);
 		edid->blocks = xhdmi->edid_user_blocks;
 	} else {
 		if (do_copy)
@@ -343,7 +344,8 @@ static int xhdmi_set_edid(struct v4l2_subdev *subdev, struct v4l2_edid *edid) {
 
 	if (edid->blocks) {
 		memcpy(xhdmi->edid_user, edid->edid, 128 * edid->blocks);
-		XV_HdmiRxSs_LoadEdid(HdmiRxSsPtr, (u8 *)&xhdmi->edid_user, 128 * xhdmi->edid_user_blocks);
+		XV_HdmiRxSs_LoadEdid(HdmiRxSsPtr, (u8 *)&xhdmi->edid_user,
+				     128 * (u16)xhdmi->edid_user_blocks);
 		/* enable hotplug after 100 ms */
 		queue_delayed_work(xhdmi->work_queue,
 				&xhdmi->delayed_work_enable_hotplug, HZ / 10);
@@ -2235,8 +2237,10 @@ static int xhdmi_probe(struct platform_device *pdev)
 
 	if (xhdmi->edid_user_blocks) {
 		dev_info(xhdmi->dev, "Using %d EDID block%s (%d bytes) from '%s'.\n",
-			xhdmi->edid_user_blocks, xhdmi->edid_user_blocks > 1? "s":"", 128 * xhdmi->edid_user_blocks, fw_edid_name);
-		XV_HdmiRxSs_LoadEdid(HdmiRxSsPtr, (u8 *)&xhdmi->edid_user, 128 * xhdmi->edid_user_blocks);
+			xhdmi->edid_user_blocks, xhdmi->edid_user_blocks > 1? "s":"",
+			128 * (u16)xhdmi->edid_user_blocks, fw_edid_name);
+		XV_HdmiRxSs_LoadEdid(HdmiRxSsPtr, (u8 *)&xhdmi->edid_user,
+				     128 * (u16)xhdmi->edid_user_blocks);
 	} else {
 		dev_info(xhdmi->dev, "Using Xilinx built-in EDID.\n");
 		XV_HdmiRxSs_LoadDefaultEdid(HdmiRxSsPtr);
