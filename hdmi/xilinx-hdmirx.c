@@ -2043,7 +2043,11 @@ static int xhdmi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	clk_prepare_enable(xhdmi->clk);
+	ret = clk_prepare_enable(xhdmi->clk);
+	if (ret) {
+		dev_err(xhdmi->dev, "failed enable AXI4 stream clk\n");
+		return ret;
+	}
 
 	/* AXI lite register bus clock */
 	xhdmi->axi_lite_clk = devm_clk_get(xhdmi->dev, "s_axi_cpu_aclk");
@@ -2056,7 +2060,12 @@ static int xhdmi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	clk_prepare_enable(xhdmi->axi_lite_clk);
+	ret = clk_prepare_enable(xhdmi->axi_lite_clk);
+	if (ret) {
+		dev_err(xhdmi->dev, "failed enable axi-lite clk\n");
+		return ret;
+	}
+
 	axi_clk_rate = clk_get_rate(xhdmi->axi_lite_clk);
 	dev_dbg(xhdmi->dev,"AXI Lite clock rate = %lu Hz\n", axi_clk_rate);
 
