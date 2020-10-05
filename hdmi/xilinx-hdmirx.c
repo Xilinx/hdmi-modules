@@ -1719,7 +1719,7 @@ static ssize_t hdcp_key_store(struct device *sysfs_dev, struct device_attribute 
 	}
 	xhdmi->hdcp_password_accepted = 0;
 	/* decrypt the keys from the binary blob (buffer) into the C structures for keys */
-	if (XHdcp_LoadKeys(buf, xhdmi->hdcp_password,
+	if (XHdcp_LoadKeys((const u8*)buf, xhdmi->hdcp_password,
 		xhdmi->Hdcp22Lc128, sizeof(xhdmi->Hdcp22Lc128),
 		xhdmi->Hdcp22PrivateKey, sizeof(xhdmi->Hdcp22PrivateKey),
 		xhdmi->Hdcp14KeyA, sizeof(xhdmi->Hdcp14KeyA),
