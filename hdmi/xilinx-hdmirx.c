@@ -242,13 +242,18 @@ static int xhdmi_get_format(struct v4l2_subdev *subdev,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct xhdmi_device *xhdmi = to_xhdmi(subdev);
+	struct v4l2_mbus_framefmt *gfmt;
+
 	dev_dbg(xhdmi->dev, "xhdmi_get_format\n");
 
 	if (fmt->pad > 0)
 		return -EINVAL;
 
 	/* copy either try or currently-active (i.e. detected) format to caller */
-	fmt->format = *__xhdmi_get_pad_format_ptr(xhdmi, cfg, fmt->pad, fmt->which);
+	gfmt = __xhdmi_get_pad_format_ptr(xhdmi, cfg, fmt->pad, fmt->which);
+	if (!gfmt)
+		return -EINVAL;
+	fmt->format = *gfmt;
 
 	dev_dbg(xhdmi->dev, "xhdmi_get_format, height = %u\n", fmt->format.height);
 
@@ -1598,6 +1603,11 @@ static void Decrypt(const u8 *CipherBufferPtr/*src*/, u8 *PlainBufferPtr/*dst*/,
 
 	//Allocate local buffer that is 16Byte aligned
 	LocalBuf = kzalloc((size_t)(AesLength*16), GFP_KERNEL);
+	if (!LocalBuf) {
+		printk(KERN_ERR "%s - %s Unable to allocate memory!\n",
+		       __FILE__, __func__);
+		return;
+	}
 
 	// Copy cipher into local buffer
 	memcpy(LocalBuf, CipherBufferPtr, (AesLength*16));
@@ -2000,6 +2010,11 @@ static int xhdmi_probe(struct platform_device *pdev)
 		}
 
 		match = of_match_node(xlnx_hdmi_phy_id_table, xhdmi->phy[index]->dev.parent->of_node);
+		if (!match) {
+			dev_err(xhdmi->dev, "of_match_node failed for phy!\n");
+			goto error_phy;
+		}
+
 		if (strncmp(match->compatible, "xlnx,vid-phy-controller", 23) == 0)
 			xhdmi->isvphy = 1;
 		else
@@ -2015,6 +2030,10 @@ static int xhdmi_probe(struct platform_device *pdev)
 
 	/* get ownership of the HDMI RXSS MMIO register space resource */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(xhdmi->dev, "unable to get register space resource!\n");
+		return -EINVAL;
+	}
 	/* map the MMIO region */
 	xhdmi->iomem = devm_ioremap_resource(xhdmi->dev, res);
 	if (IS_ERR(xhdmi->iomem)) {
