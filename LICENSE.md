@@ -1,4 +1,4 @@
-Components: xhdmi 2020.1
+Components: xhdmi 2020.2
 
 
 		    GNU GENERAL PUBLIC LICENSE
@@ -351,7 +351,7 @@ Copyright 1989, 1991 Free Software Foundation Inc
 Copyright 2001 David Ireland D.I. Management Services Pty Ltd
 Copyright 2007 Hans Verkuil
 Copyright 2016-2017 Leon Woestenberg <leon@sidebranch.com>
-Copyright 2014-2019 Xilinx Inc
+Copyright 2014-2020 Xilinx Inc
 
 
 Components: di_bigdigits 2.5.0
