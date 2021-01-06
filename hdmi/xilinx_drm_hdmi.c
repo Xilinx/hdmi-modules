@@ -73,6 +73,10 @@
 #define TX_HDCP22_CIPHER_OFFSET		0x00000u
 #define TX_HDCP22_TIMER_OFFSET		0x10000u
 #define TX_HDCP22_RNG_OFFSET		0x20000u
+/* Tx subsystem video interface */
+#define XHDMI_AXI_STREAM		0
+#define XHDMI_NATIVE_VIDEO		1
+#define XHDMI_NATIVE_VIDEO_VDE		2
 
 /**
  * struct xlnx_drm_hdmi - Xilinx HDMI core
@@ -2592,12 +2596,28 @@ static int xlnx_drm_hdmi_parse_of(struct xlnx_drm_hdmi *xhdmi, XV_HdmiTxSs_Confi
 	config->HdmiTx.AbsAddr = TXSS_TX_OFFSET;
 	XV_HdmiTx_ConfigTable[instance].DeviceId = TX_DEVICE_ID_BASE + instance;
 	XV_HdmiTx_ConfigTable[instance].BaseAddress = TXSS_TX_OFFSET;
+
+	rc = of_property_read_u32(node, "xlnx,vid-interface", &val);
+	if (rc < 0)
+		goto error_dt;
+
+	if (val != XHDMI_AXI_STREAM && val != XHDMI_NATIVE_VIDEO &&
+	    val != XHDMI_NATIVE_VIDEO_VDE) {
+		dev_err(xhdmi->dev, "Unsupported video interface: %d", val);
+		return -EINVAL;
+	}
+
 	/*VTC Core */
-	config->Vtc.IsPresent = 1;
-	config->Vtc.DeviceId = TX_DEVICE_ID_BASE + instance;
-	config->Vtc.AbsAddr = TXSS_VTC_OFFSET;
-	XVtc_ConfigTable[instance].DeviceId = config->Vtc.DeviceId;
-	XVtc_ConfigTable[instance].BaseAddress = TXSS_VTC_OFFSET;
+	if (val == XHDMI_AXI_STREAM) {
+		config->Vtc.IsPresent = 1;
+		config->Vtc.DeviceId = TX_DEVICE_ID_BASE + instance;
+		config->Vtc.AbsAddr = TXSS_VTC_OFFSET;
+		XVtc_ConfigTable[instance].DeviceId = config->Vtc.DeviceId;
+		XVtc_ConfigTable[instance].BaseAddress = TXSS_VTC_OFFSET;
+	} else {
+		dev_dbg(xhdmi->dev, "Enabled native video interface\n");
+		config->Vtc.IsPresent = 0;
+	}
 
 	isHdcp14_en = of_property_read_bool(node, "xlnx,include-hdcp-1-4");
 	isHdcp22_en = of_property_read_bool(node, "xlnx,include-hdcp-2-2");
