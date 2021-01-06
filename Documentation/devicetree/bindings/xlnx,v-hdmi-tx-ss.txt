@@ -82,6 +82,10 @@ Required properties:
 		Needed only if "xlnx,audio-enabled" is included.
  - xlnx,xlnx-hdmi-acr-ctrl: Alias to audio clock recovery block.
 		Needed only if "xlnx,audio-enabled" is included.
+ - xlnx,vid-interface: Indicates the video interface mode (0, 1, 2)
+		0: AXI-stream
+		1: Native video
+		2: Native video (vectored DE)
 
 Sub-Node Properties:
 	The device tree will need to include a sub-node for the encoder endpoint
@@ -137,6 +141,7 @@ added to the device tree
 		xlnx,audio-enabled;
 		xlnx,xlnx-hdmi-acr-ctrl = <&hdmi_acr_ctrl_0>;
 		xlnx,snd-pcm = <&audio_ss_0_audio_formatter_0>;
+		xlnx,vid-interface = <0x1>;
 
 		ports {
 			#address-cells = <1>;
