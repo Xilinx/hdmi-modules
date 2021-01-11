@@ -587,6 +587,15 @@ void XHdmiphy1_ClkDetFreqReset(XHdmiphy1 *InstancePtr, u8 QuadId,
 			RegVal);
 }
 
+void XHdmiphy1_TxPllreset(XHdmiphy1 *InstancePtr)
+{
+	u32 RegVal;
+
+	RegVal = XHdmiphy1_ReadReg(InstancePtr->Config.BaseAddr, XHDMIPHY1_PLL_RESET_REG);
+	XHdmiphy1_WriteReg(InstancePtr->Config.BaseAddr, XHDMIPHY1_PLL_RESET_REG, RegVal | 0x1);
+	XHdmiphy1_WriteReg(InstancePtr->Config.BaseAddr, XHDMIPHY1_PLL_RESET_REG, RegVal & ~0x1);
+}
+
 /*****************************************************************************/
 /**
 * This function sets the clock detector frequency lock counter threshold value.

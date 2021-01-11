@@ -1190,10 +1190,14 @@ static void xlnx_drm_hdmi_encoder_enable(struct drm_encoder *encoder)
 {
 	struct xlnx_drm_hdmi *xhdmi = encoder_to_hdmi(encoder);
 	XV_HdmiTxSs *HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
+	XHdmiphy1 *XGtPhyPtr = xhdmi->xgtphy;
 
 	xlnx_drm_hdmi_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
 	/* Enable the EXT VRST which actually starts the bridge */
 	XV_HdmiTxSs_SYSRST(HdmiTxSsPtr, FALSE);
+
+	if (XGtPhyPtr)
+		XHdmiphy1_TxPllreset(XGtPhyPtr);
 }
 
 static void xlnx_drm_hdmi_encoder_disable(struct drm_encoder *encoder)

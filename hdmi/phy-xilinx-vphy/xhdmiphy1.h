@@ -973,6 +973,7 @@ u32 XHdmiphy1_Hdmi21Config(XHdmiphy1 *InstancePtr, u8 QuadId,
         XHdmiphy1_DirectionType Dir,
         u64 LineRate, u8 NChannels);
 void XHdmiphy1_RegisterDebug(XHdmiphy1 *InstancePtr);
+void XHdmiphy1_TxPllreset(XHdmiphy1 *InstancePtr);
 
 /******************* Macros (Inline Functions) Definitions ********************/
 

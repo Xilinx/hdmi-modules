@@ -189,6 +189,7 @@ EXPORT_SYMBOL_GPL(XHdmiphy1_SetHdmiTxParam);
 //EXPORT_SYMBOL_GPL(XHdmiphy1_IsBonded);
 EXPORT_SYMBOL_GPL(XHdmiphy1_ClkDetFreqReset);
 EXPORT_SYMBOL_GPL(XHdmiphy1_ClkDetGetRefClkFreqHz);
+EXPORT_SYMBOL_GPL(XHdmiphy1_TxPllreset);
 
 static void xvphy_intr_disable(struct xvphy_dev *vphydev)
 {
