@@ -19,12 +19,13 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_connector.h>
-#include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_sysfs.h>
 
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -36,7 +37,6 @@
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/phy/phy.h>
-#include <linux/phy/phy-zynqmp.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/sysfs.h>
@@ -1000,14 +1000,17 @@ static int xlnx_drm_hdmi_connector_mode_valid(struct drm_connector *connector,
 		 * 576i@100 from drm_edid.c file as this becomes the matching mode.
 		 * Seems like bug in the kernel code for handling of DRM_MODE_FLAG_DBLCLK flag.
 		 */
-		if(mode->vrefresh == 0)
+		if(drm_mode_vrefresh(mode) == 0)
 		{
+#if 0
+			/* TODO: Fix this */
 			if(mode->vdisplay == 240)
 				mode->vrefresh = 60;
 			else if (mode->vdisplay == 288)
 				mode->vrefresh = 50;
+#endif
 		}
-		dev_dbg(xhdmi->dev, "For DRM_MODE_FLAG_DBLCLK, multiply pixel_clk by 2, New pixel clock %d, refresh rate = %d\n", mode->clock, mode->vrefresh);
+		dev_dbg(xhdmi->dev, "For DRM_MODE_FLAG_DBLCLK, multiply pixel_clk by 2, New pixel clock %d, refresh rate = %d\n", mode->clock, drm_mode_vrefresh(mode));
 	}
 
 	drm_mode_debug_printmodeline(mode);
@@ -1388,7 +1391,7 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	dev_dbg(xhdmi->dev,"mode->vdisplay = %d\n", mode->vdisplay);
 	dev_dbg(xhdmi->dev,"mode->htotal = %d\n", mode->htotal);
 	dev_dbg(xhdmi->dev,"mode->vtotal = %d\n", mode->vtotal);
-	dev_dbg(xhdmi->dev,"mode->vrefresh = %d\n", mode->vrefresh);
+	dev_dbg(xhdmi->dev,"vrefresh = %d\n", drm_mode_vrefresh(mode));
 	dev_dbg(xhdmi->dev,"mode->flags = %d interlace = %d\n", mode->flags,
 			!!(mode->flags & DRM_MODE_FLAG_INTERLACE));
 
@@ -1401,8 +1404,8 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	vt.HSyncPolarity = !!(mode->flags & DRM_MODE_FLAG_PHSYNC);
 
 	/* Enable this code for debugging of NTSC and PAL resolution */
-	if((((mode->hdisplay == 720) && (mode->vdisplay == 240) && (mode->vrefresh == 60)) ||
-			((mode->hdisplay == 720) && (mode->vdisplay == 288) && (mode->vrefresh == 50)))
+	if((((mode->hdisplay == 720) && (mode->vdisplay == 240) && (drm_mode_vrefresh(mode) == 60)) ||
+			((mode->hdisplay == 720) && (mode->vdisplay == 288) && (drm_mode_vrefresh(mode) == 50)))
 			&& (mode->flags & DRM_MODE_FLAG_INTERLACE) && (mode->flags & DRM_MODE_FLAG_DBLCLK))
 	{
 		dev_dbg(xhdmi->dev,"NTSC/PAL\n");
@@ -1469,13 +1472,13 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	/* The isExtensive is made true to get the correct video timing by matching
 	 * all the parameters */
 	HdmiTxSsVidStreamPtr->VmId = XVidC_GetVideoModeIdExtensive(&vt,
-			mode->vrefresh, (u8)!!(mode->flags & DRM_MODE_FLAG_INTERLACE), (u8)TRUE);
+			drm_mode_vrefresh(mode), (u8)!!(mode->flags & DRM_MODE_FLAG_INTERLACE), (u8)TRUE);
 
 	dev_dbg(xhdmi->dev,"VmId = %d Interlaced = %d\n", HdmiTxSsVidStreamPtr->VmId, !!(mode->flags & DRM_MODE_FLAG_INTERLACE));
 	if (HdmiTxSsVidStreamPtr->VmId == XVIDC_VM_NOT_SUPPORTED) { //no match found in timing table
 		dev_dbg(xhdmi->dev,"Tx Video Mode not supported. Using DRM Timing\n");
 		HdmiTxSsVidStreamPtr->VmId = XVIDC_VM_CUSTOM;
-		HdmiTxSsVidStreamPtr->FrameRate = (XVidC_FrameRate)mode->vrefresh;
+		HdmiTxSsVidStreamPtr->FrameRate = (XVidC_FrameRate)drm_mode_vrefresh(mode);
 		HdmiTxSsVidStreamPtr->Timing = vt; //overwrite with drm detected timing
 		HdmiTxSsVidStreamPtr->IsInterlaced = (!!(mode->flags & DRM_MODE_FLAG_INTERLACE));
 #ifdef DEBUG
@@ -1495,7 +1498,7 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 			if ((xhdmi->xvidc_colordepth > XVIDC_BPC_8) &&
 				(mode->hdisplay >= 3840) &&
 				(mode->vdisplay >= 2160) &&
-				(mode->vrefresh >= XVIDC_FR_50HZ)) {
+				(drm_mode_vrefresh(mode) >= XVIDC_FR_50HZ)) {
 					dev_dbg(xhdmi->dev,"INFO> UHD only supports 24-bits color depth\n");
 					xhdmi->xvidc_colordepth = XVIDC_BPC_8;
 			}

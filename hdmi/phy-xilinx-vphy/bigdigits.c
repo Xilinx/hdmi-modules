@@ -858,8 +858,8 @@ int mpModulo(u32 r[], const u32 u[], size_t udigits,
 	/* Final r is only vdigits long */
 	mpSetEqual(r, rr, vdigits);
 
-	kzfree(rr);
-	kzfree(qq);
+	kfree(rr);
+	kfree(qq);
 
 	return 0;
 }
@@ -879,7 +879,7 @@ int mpModMult(u32 a[], const u32 x[], const u32 y[],
 	/* Then modulo (NOTE: a is OK at only ndigits long) */
 	mpModulo(a, p, ndigits * 2, m, ndigits);
 
-	kzfree(p);
+	kfree(p);
 
 	return 0;
 }
@@ -946,7 +946,7 @@ int mpModInv(u32 inv[], const u32 u[], const u32 v[], size_t ndigits)
 		result = 0;
 
 	/* Clear up */
-	kzfree(u1);
+	kfree(u1);
 
 	return result;
 }
@@ -1069,7 +1069,7 @@ int mpModExp(u32 yout[], const u32 x[], const u32 e[], u32 m[], size_t ndigits)
 	mpSetEqual(yout, y, ndigits);
 
 done:
-	kzfree(t1);
+	kfree(t1);
 
 	return 0;
 }
