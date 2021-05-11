@@ -31,6 +31,9 @@
  *            dd/mm/yy
  * ----- ---- -------- -----------------------------------------------
  * 1.0   gm   10/12/18 Initial release.
+ * 1.1   ku   17/05/20 Adding uniquification to avoid clash with vphy
+ * 1.1   ku   23/05/20 Corrected XHdmiphy1_Ch2Ids to set correct value
+ *                     for Id1
  * </pre>
  *
 *******************************************************************************/
