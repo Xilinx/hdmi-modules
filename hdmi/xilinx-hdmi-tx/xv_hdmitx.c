@@ -62,6 +62,7 @@
 *                           transaction
 *       EB     16/07/19 Replaced sampling rate of 4 with 2 at the API
 *                           XV_HdmiTx_SetSampleRate
+* 2.50  EB     02/12/18 Added 3D Audio Support
 * </pre>
 *
 ******************************************************************************/
@@ -1912,6 +1913,23 @@ int XV_HdmiTx_SetAudioChannels(XV_HdmiTx *InstancePtr, u8 Value)
     AudioCtrl &= ~((u32)XV_HDMITX_AUD_CTRL_RUN_MASK);
 
     switch (Value) {
+	// 32 Channels
+	case 32:
+            Data = 6;
+            Status = (XST_SUCCESS);
+            break;
+
+	// 24 Channels
+	case 24:
+            Data = 5;
+            Status = (XST_SUCCESS);
+            break;
+
+	// 12 Channels
+	case 12:
+            Data = 4;
+            Status = (XST_SUCCESS);
+            break;
 
         // 8 Channels
         case 8:
@@ -1988,7 +2006,12 @@ int XV_HdmiTx_SetAudioFormat(XV_HdmiTx *InstancePtr, XV_HdmiTx_AudioFormatType V
     u32 AudioCtrl;
     u32 Data;
 
+    if (Value > XV_HDMITX_AUDFMT_3D) {
+	    return XST_FAILURE;
+    }
+
     Data = Value;
+
     // Stop peripheral
     XV_HdmiTx_WriteReg((InstancePtr)->Config.BaseAddress,
         (XV_HDMITX_AUD_CTRL_CLR_OFFSET), (XV_HDMITX_AUD_CTRL_RUN_MASK));
