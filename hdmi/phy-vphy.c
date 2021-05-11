@@ -909,6 +909,7 @@ EXPORT_SYMBOL_GPL(XHdcp1x_GetTopologyKSVList);
 EXPORT_SYMBOL_GPL(XHdcp1x_DisableBlank);
 EXPORT_SYMBOL_GPL(XHdcp1x_EnableEncryption);
 EXPORT_SYMBOL_GPL(XHdcp1x_IsDwnstrmCapable);
+EXPORT_SYMBOL_GPL(XHdcp1x_LateInit);
 
 /* Global API's for XTmr */
 EXPORT_SYMBOL_GPL(XTmrCtr_CfgInitialize);
