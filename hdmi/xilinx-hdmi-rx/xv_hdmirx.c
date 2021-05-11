@@ -57,6 +57,7 @@
 *                       Updated XV_HdmiRx_GetVideoTiming to fix an issue where
 *                          video timing values may be incorrect
 *              06/08/19 Added Vic and Video Timing mismatch callback support
+* 2.50  EB     02/12/18 Added 3D Audio Support
 * </pre>
 *
 ******************************************************************************/
@@ -1535,8 +1536,10 @@ int XV_HdmiRx_GetVideoTiming(XV_HdmiRx *InstancePtr)
     }
 
 	if (IsInterlaced == 1) {
-		if (F1VTotal != (VActive + F1VFrontPorch +
-				F1VSyncWidth + F1VBackPorch)) {
+		if ((!F1VTotal || !VActive || !F1VFrontPorch ||
+			!F1VSyncWidth || !F1VBackPorch) ||
+			(F1VTotal != (VActive + F1VFrontPorch +
+				F1VSyncWidth + F1VBackPorch))) {
 			Match = FALSE;
 		}
 	} else {
@@ -1620,10 +1623,6 @@ int XV_HdmiRx_GetVideoTiming(XV_HdmiRx *InstancePtr)
     }
 
     if (F0PVTotal != (VActive + F0PVFrontPorch + F0PVSyncWidth +F0PVBackPorch)) {
-        Match = FALSE;
-    }
-
-    if ((IsInterlaced == 1) && (F1VTotal != (VActive + F1VFrontPorch + F1VSyncWidth +F1VBackPorch))) {
         Match = FALSE;
     }
 

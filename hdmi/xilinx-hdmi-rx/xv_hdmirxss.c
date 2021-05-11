@@ -163,9 +163,6 @@ static void XV_HdmiRxSs_ReportSubcoreVersion(XV_HdmiRxSs *InstancePtr);
 
 static void XV_HdmiRxSs_ConfigBridgeMode(XV_HdmiRxSs *InstancePtr);
 
-/***************** Macros (Inline Functions) Definitions *********************/
-/*****************************************************************************/
-
 /************************** Function Definition ******************************/
 
 void XV_HdmiRxSs_ReportInfo(XV_HdmiRxSs *InstancePtr)
@@ -563,6 +560,7 @@ int XV_HdmiRxSs_CfgInitializeHdcp(XV_HdmiRxSs *InstancePtr,
   /* Default value */
   HdmiRxSsPtr->HdcpIsReady = (FALSE);
   XV_HdmiRxSs_HdcpSetCapability(HdmiRxSsPtr, XV_HDMIRXSS_HDCP_BOTH);
+  HdmiRxSsPtr->UserHdcpProt = XV_HDMIRXSS_HDCP_NOUSERPREF;
 #endif
 
 #if defined(XPAR_XHDCP_NUM_INSTANCES) && defined(XPAR_XHDCP22_RX_NUM_INSTANCES)
@@ -601,6 +599,8 @@ int XV_HdmiRxSs_CfgInitializeHdcp(XV_HdmiRxSs *InstancePtr,
     XV_HdmiRxSs_HdcpSetProtocol(HdmiRxSsPtr, XV_HDMIRXSS_HDCP_22);
   }
 #endif
+
+  XV_HdmiRxSs_Reset(HdmiRxSsPtr);
 
   return(XST_SUCCESS);
 }
@@ -910,7 +910,6 @@ static void XV_HdmiRxSs_AuxCallback(void *CallbackRef)
 	  // Parse Aux to retrieve HDR InfoFrame
 	  XV_HdmiC_ParseDRMIF(AuxPtr, DrmInfoFramePtr);
   }
-
 
   // Check if user callback has been registered
   if (HdmiRxSsPtr->AuxCallback) {
@@ -2102,15 +2101,19 @@ static void XV_HdmiRxSs_ReportAudio(XV_HdmiRxSs *InstancePtr)
   xil_printf("Format   : ");
   switch (XV_HdmiRxSs_GetAudioFormat(InstancePtr)) {
 	  case 0:
-		  xil_printf("Unknown\r\n");
-		  break;
+		xil_printf("Unknown\r\n");
+		break;
 	  case 1:
-		  xil_printf("L-PCM\r\n");
-		  break;
+		xil_printf("L-PCM\r\n");
+		break;
 	  case 2:
-		  xil_printf("HBR\r\n");
+		xil_printf("HBR\r\n");
+		break;
+	  case 3:
+		xil_printf("3D\r\n");
+		break;
 	  default:
-		  break;
+		break;
   }
   xil_printf("Channels : %d\r\n",
   XV_HdmiRx_GetAudioChannels(InstancePtr->HdmiRxPtr));
