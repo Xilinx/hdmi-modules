@@ -57,6 +57,8 @@ extern "C" {
 #define AUX_AVI_INFOFRAME_TYPE 0x82
 #define AUX_GENERAL_CONTROL_PACKET_TYPE 0x3
 #define AUX_AUDIO_INFOFRAME_TYPE 0x84
+#define AUX_AUDIO_METADATA_PACKET_TYPE 0x0D
+#define AUX_SPD_INFOFRAME_TYPE 0x83
 #define AUX_DRM_INFOFRAME_TYPE 0x87
 
 /****************************** Type Definitions ******************************/
@@ -348,6 +350,23 @@ typedef struct {
 } XHdmiC_FrlRate;
 
 typedef enum {
+	XHDMIC_SPD_UNKNOWN = 0x0,
+	XHDMIC_SPD_DIGITAL_STB,
+	XHDMIC_SPD_DVD_PLAYER,
+	XHDMIC_SPD_DVHS,
+	XHDMIC_SPD_HDD_VIDEORECORDER,
+	XHDMIC_SPD_DVC,
+	XHDMIC_SPD_DSC,
+	XHDMIC_SPD_VIDEOCD,
+	XHDMIC_SPD_GAME,
+	XHDMIC_SPD_PC_GENERAL,
+	XHDMIC_SPD_BLURAY_DISC,
+	XHDMIC_SPD_SUPER_AUDIO_CD,
+	XHDMIC_SPD_HD_DVD,
+	XHDMIC_SPD_PMP
+} XHdmiC_SPD_SourceInfo;
+
+typedef enum {
 	XHDMIC_DRM_TRADITIONAL_GAMMA_SDR = 0x0,
 	XHDMIC_DRM_TRADITIONAL_GAMMA_HDR,
 	XHDMIC_DRM_SMPTE_ST_2084,
@@ -412,6 +431,109 @@ typedef struct XHdmiC_Audio_InfoFrame {
 	unsigned char Downmix_Inhibit;
 } XHdmiC_AudioInfoFrame;
 
+/**
+ * This typedef contains the data structure for Audio Metadata Infoframe
+ */
+typedef struct XHdmiC_Audio_Metadata_Packet {
+	u8 Audio3D;
+	u8 Num_Audio_Str;
+	u8 Num_Views;
+	u8 Audio3D_ChannelCount; /* 5 bits */
+	u8 ACAT; /* 4 bits - Audio Channel Allication Standard */
+	u8 Audio3D_ChannelAllocation; /* 8 bits */
+} XHdmiC_AudioMetadata;
+
+/**
+ * This typedef contains the data structure for Source Product Descriptor
+ * Infoframe
+ */
+typedef struct XHdmiC_SPD_InfoFrame {
+	unsigned char Version;
+	unsigned char VN1;
+	unsigned char VN2;
+	unsigned char VN3;
+	unsigned char VN4;
+	unsigned char VN5;
+	unsigned char VN6;
+	unsigned char VN7;
+	unsigned char VN8;
+	unsigned char PD1;
+	unsigned char PD2;
+	unsigned char PD3;
+	unsigned char PD4;
+	unsigned char PD5;
+	unsigned char PD6;
+	unsigned char PD7;
+	unsigned char PD8;
+	unsigned char PD9;
+	unsigned char PD10;
+	unsigned char PD11;
+	unsigned char PD12;
+	unsigned char PD13;
+	unsigned char PD14;
+	unsigned char PD15;
+	unsigned char PD16;
+	XHdmiC_SPD_SourceInfo SourceInfo;
+} XHdmiC_SPDInfoFrame;
+
+/**
+* This typedef contains Video Timing Extended Metadata
+* specific data structure.
+*/
+typedef struct {
+	u8	VRREnabled;
+	u8 	MConstEnabled;
+	u8	FVAFactorMinus1;
+	u8	BaseVFront;
+	u16	BaseRefreshRate;
+	u8	RBEnabled;
+} XV_HdmiC_VideoTimingExtMeta;
+
+typedef struct {
+	u8	Version;
+	u8	FreeSyncSupported;
+	u8	FreeSyncEnabled;
+	u8	FreeSyncActive;
+	u8	FreeSyncMinRefreshRate;
+	u8	FreeSyncMaxRefreshRate;
+} XV_HdmiC_FreeSync;
+
+typedef struct {
+	XV_HdmiC_FreeSync FreeSync;
+	u8	NativeColorSpaceActive;
+	u8	BrightnessControlActive;
+	u8	LocalDimControlActive;
+	u8	sRGBEOTFActive;
+	u8	BT709EOTFActive;
+	u8	Gamma22EOTFActive;
+	u8	Gamma26EOTFActive;
+	u8	PQEOTFActive;
+	u8	BrightnessControl;
+} XV_HdmiC_FreeSyncPro;
+
+/**
+* This typedef contains AMD Source Product Descriptor Infoframe
+* specific data structure.
+*/
+typedef union {
+	XV_HdmiC_FreeSync FreeSync;
+	XV_HdmiC_FreeSyncPro FreeSyncPro;
+} XV_HdmiC_SrcProdDescIF;
+
+typedef enum {
+	XV_HDMIC_VRRINFO_TYPE_NONE,
+	XV_HDMIC_VRRINFO_TYPE_VTEM,
+	XV_HDMIC_VRRINFO_TYPE_SPDIF,
+} XV_HdmiC_VrrInfoframeType;
+
+typedef struct {
+	XV_HdmiC_VrrInfoframeType VrrIfType;
+	union {
+		XV_HdmiC_VideoTimingExtMeta VidTimingExtMeta;
+		XV_HdmiC_SrcProdDescIF SrcProdDescIF;
+	};
+} XV_HdmiC_VrrInfoFrame;
+
 /*************************** Variable Declarations ****************************/
 extern const XHdmiC_VicTable VicTable[VICTABLE_SIZE];
 extern const XHdmiC_FrlRate FrlRateTable[];
@@ -431,6 +553,9 @@ XHdmiC_Aux
 	XV_HdmiC_AudioIF_GeneratePacket(XHdmiC_AudioInfoFrame *AudioInfoFrame);
 XHdmiC_Colorspace
 		XV_HdmiC_XVidC_To_IfColorformat(XVidC_ColorFormat ColorFormat);
+XHdmiC_Aux XV_HdmiC_AudioMetadata_GeneratePacket(XHdmiC_AudioMetadata
+		*AudMetadata);
+XHdmiC_Aux XV_HdmiC_SPDIF_GeneratePacket(XHdmiC_SPDInfoFrame *SPDInfoFrame);
 void XV_HdmiC_DRMIF_GeneratePacket(struct v4l2_hdr10_payload *DRMInfoFrame,
 					XHdmiC_Aux *aux);
 XVidC_AspectRatio XV_HdmiC_IFAspectRatio_To_XVidC(XHdmiC_PicAspectRatio AR);
@@ -443,7 +568,7 @@ XHdmiC_SamplingFrequencyVal
 	XHdmiC_FRL_GetAudSampFreq(XHdmiC_FRLCharRate FRLCharRate,
 		u32 CTS, u32 N);
 XHdmiC_SamplingFrequency XHdmiC_TMDS_GetAudSampFreq(u32 TMDSCharRate,
-		u32 N);
+		u32 N, u32 CTSVal);
 XHdmiC_SamplingFrequency
 	XHdmiC_GetAudIFSampFreq (XHdmiC_SamplingFrequencyVal AudSampFreqVal);
 XHdmiC_SamplingFrequencyVal

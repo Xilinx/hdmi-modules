@@ -278,29 +278,67 @@ u32 XHdmiC_TMDS_GetNVal(u32 TMDSCharRate,
 
 /**
 * This returns the Audio Sampling Rate and TMDS
-* Character Rate
+* Character Rate.
+*
+* This function is not expected to be called for CTS/N as 0.
 */
 XHdmiC_SamplingFrequency XHdmiC_TMDS_GetAudSampFreq(u32 TMDSCharRate,
-		u32 N)
+		u32 N, u32 CTSVal)
 {
   XHdmiC_TMDS_N_Table const *item;
   u8 i = 0;
   u8 j = 0;
+  u64 fs;
+  u32 FsTol = 1000; /* Max Fs tolerance limit */
 
+  /* Look for standard TMDS rates */
   for(i = 0; i < sizeof(TMDSChar_N_Table)/sizeof(XHdmiC_TMDS_N_Table); i++) {
 		item = &TMDSChar_N_Table[i];
 		if(TMDSCharRate <= (item->TMDSCharRate + 10000) &&
 			(TMDSCharRate >= (item->TMDSCharRate - 10000))) {
 			for (j = 0; j < 7; j++) {
 				if(N == item->ACR_NVal[j]) {
-					return j;
+					/*
+					 * starts from
+					 * XHDMIC_SAMPLING_FREQUENCY_32K
+					 */
+					return (j + 1);
 					break;
 				}
 			}
 		}
   }
-  /* Return non-valid sample frequency */
-  return XHDMIC_SAMPLING_FREQUENCY;
+
+  if (!CTSVal)
+          return XHDMIC_SAMPLING_FREQUENCY;
+
+ /* compute and approximate */
+  fs = ((u64)TMDSCharRate * (u64)N) ;
+  fs = fs / (128 * CTSVal);
+
+  if (((XHDMIC_SAMPLING_FREQ_32K - FsTol) <= fs) &&
+		  (fs <= (XHDMIC_SAMPLING_FREQ_32K + FsTol)))
+	  return XHDMIC_SAMPLING_FREQUENCY_32K;
+  else if (((XHDMIC_SAMPLING_FREQ_44_1K - FsTol) <= fs) &&
+		  (fs <= (XHDMIC_SAMPLING_FREQ_44_1K + FsTol)))
+	  return XHDMIC_SAMPLING_FREQUENCY_44_1K;
+  else if (((XHDMIC_SAMPLING_FREQ_48K - FsTol) <= fs) &&
+		  (fs <= (XHDMIC_SAMPLING_FREQ_48K + FsTol)))
+	  return XHDMIC_SAMPLING_FREQUENCY_48K;
+  else if (((XHDMIC_SAMPLING_FREQ_88_2K - FsTol) <= fs) &&
+		  (fs <= (XHDMIC_SAMPLING_FREQ_88_2K + FsTol)))
+	  return XHDMIC_SAMPLING_FREQUENCY_88_2K;
+  else if (((XHDMIC_SAMPLING_FREQ_96K - FsTol) <= fs) &&
+		  (fs <= (XHDMIC_SAMPLING_FREQ_96K + FsTol)))
+	  return XHDMIC_SAMPLING_FREQUENCY_96K;
+  else if (((XHDMIC_SAMPLING_FREQ_176_4K - FsTol) <= fs) &&
+		  (fs <= (XHDMIC_SAMPLING_FREQ_176_4K + FsTol)))
+	  return XHDMIC_SAMPLING_FREQUENCY_176_4K;
+  else if (((XHDMIC_SAMPLING_FREQ_192K - FsTol) <= fs) &&
+		  (fs <= (XHDMIC_SAMPLING_FREQ_192K + FsTol)))
+	  return XHDMIC_SAMPLING_FREQUENCY_192K;
+  else
+	  return  XHDMIC_SAMPLING_FREQUENCY; /* invalid */
 }
 
 /**
@@ -361,11 +399,12 @@ u32 XHdmiC_FRL_GetNVal(XHdmiC_FRLCharRate FRLCharRate,
 	XHdmiC_FRL_CTS_N_Table_t const *item;
 	u8 SampleFreq;
 	u8 MultSampleFreq;
+	u8 FrlAudioCharRate = FRLCharRate;
 
 	/* Check for valid FRL Character Rate */
-	if (FRLCharRate < R_166_667 && FRLCharRate > R_666_667 ) {
+	if (FrlAudioCharRate > R_666_667 ) {
 		/* Since AudSampFreq not valid, return N Value = 0 */
-		FRLCharRate = R_166_667;
+		FrlAudioCharRate = R_166_667;
 	}
 
 	if (AudSampleFreqVal%XHDMIC_SAMPLING_FREQ_48K == 0) {
@@ -416,7 +455,7 @@ u32 XHdmiC_FRL_GetNVal(XHdmiC_FRLCharRate FRLCharRate,
 	}
 
 	item = &FRL_CTS_N_Table[SampleFreq];
-	return item->CTS_NVal[FRLCharRate].ACR_NVal[MultSampleFreq];
+	return item->CTS_NVal[FrlAudioCharRate].ACR_NVal[MultSampleFreq];
 
 }
 
@@ -567,78 +606,6 @@ XHdmiC_SamplingFrequencyVal
 	return ExtACRSampFreq;
 }
 
-/*****************************************************************************/
-/**
-*
-* This function retrieves the DRM Infoframes.
-*
-* @param  None.
-*
-* @return None.
-*
-* @note   None.
-*
-******************************************************************************/
-void XV_HdmiC_ParseDRMIF(XHdmiC_Aux *AuxPtr, struct v4l2_hdr10_payload *DRMInfoFrame)
-{
-	if (AuxPtr->Header.Byte[0] == AUX_DRM_INFOFRAME_TYPE) {
-
-		/* Vendor Name Characters */
-		DRMInfoFrame->eotf = AuxPtr->Data.Byte[1] & 0x7;
-
-		DRMInfoFrame->metadata_type =
-				AuxPtr->Data.Byte[2] & 0x7;
-
-		DRMInfoFrame->display_primaries[0].x =
-				(AuxPtr->Data.Byte[3] & 0xFF) |
-				(AuxPtr->Data.Byte[4] << 8);
-
-		DRMInfoFrame->display_primaries[0].y =
-				(AuxPtr->Data.Byte[5] & 0xFF) |
-				(AuxPtr->Data.Byte[6] << 8);
-
-		DRMInfoFrame->display_primaries[1].x =
-				(AuxPtr->Data.Byte[8] & 0xFF) |
-				(AuxPtr->Data.Byte[9] << 8);
-
-		DRMInfoFrame->display_primaries[1].y =
-				(AuxPtr->Data.Byte[10] & 0xFF) |
-				(AuxPtr->Data.Byte[11] << 8);
-
-		DRMInfoFrame->display_primaries[2].x =
-				(AuxPtr->Data.Byte[12] & 0xFF) |
-				(AuxPtr->Data.Byte[13] << 8);
-
-		DRMInfoFrame->display_primaries[2].y =
-				(AuxPtr->Data.Byte[14] & 0xFF) |
-				(AuxPtr->Data.Byte[16] << 8);
-
-		DRMInfoFrame->white_point.x =
-				(AuxPtr->Data.Byte[17] & 0xFF) |
-				(AuxPtr->Data.Byte[18] << 8);
-
-		DRMInfoFrame->white_point.y =
-				(AuxPtr->Data.Byte[19] & 0xFF) |
-				(AuxPtr->Data.Byte[20] << 8);
-
-		DRMInfoFrame->max_mdl =
-				(AuxPtr->Data.Byte[21] & 0xFF) |
-				(AuxPtr->Data.Byte[22] << 8);
-
-		DRMInfoFrame->min_mdl =
-				(AuxPtr->Data.Byte[24] & 0xFF) |
-				(AuxPtr->Data.Byte[25] << 8);
-
-		DRMInfoFrame->max_cll =
-				(AuxPtr->Data.Byte[26] & 0xFF) |
-				(AuxPtr->Data.Byte[27] << 8);
-
-		DRMInfoFrame->max_fall =
-				(AuxPtr->Data.Byte[28] & 0xFF) |
-				(AuxPtr->Data.Byte[29] << 8);
-	}
-}
-
 /*************************** Function Definitions *****************************/
 /**
 *
@@ -761,6 +728,166 @@ void XV_HdmiC_ParseAudioInfoFrame(XHdmiC_Aux *AuxPtr, XHdmiC_AudioInfoFrame *Aud
 		AudIFPtr->Downmix_Inhibit = (AuxPtr->Data.Byte[5] >> 7) & 0x1;
 		AudIFPtr->LevelShiftVal = (AuxPtr->Data.Byte[5] >> 4) & 0xf;
 		AudIFPtr->LFE_Playback_Level = AuxPtr->Data.Byte[5] & 0x3;
+	}
+}
+
+/*****************************************************************************/
+/**
+*
+* This function retrieves the Audio Metadata.
+*
+* @param  None.
+*
+* @return None.
+*
+* @note   None.
+*
+******************************************************************************/
+void XV_HdmiC_ParseAudioMetadata(XHdmiC_Aux *AuxPtr,
+		XHdmiC_AudioMetadata *AudMetadata)
+{
+	if (AuxPtr->Header.Byte[0] == AUX_AUDIO_METADATA_PACKET_TYPE) {
+		/* 3D Audio */
+		AudMetadata->Audio3D = AuxPtr->Header.Byte[1] & 0x1;
+
+		/* HB2 */
+		AudMetadata->Num_Audio_Str =
+				(AuxPtr->Header.Byte[2] >> 2) & 0x3;
+		AudMetadata->Num_Views = AuxPtr->Header.Byte[2] & 0x3;
+
+		/* PB0 */
+		AudMetadata->Audio3D_ChannelCount =
+				AuxPtr->Data.Byte[0] & 0x1F;
+
+		/* PB1 */
+		AudMetadata->ACAT = AuxPtr->Data.Byte[1] & 0x0F;
+
+		/* PB2 */
+		AudMetadata->Audio3D_ChannelAllocation =
+				AuxPtr->Data.Byte[2] & 0xFF;
+	}
+}
+
+/*****************************************************************************/
+/**
+ *
+ * This function retrieves the SPD Infoframes.
+ *
+ * @param  None.
+ *
+ * @return None.
+ *
+ * @note   None.
+ *
+******************************************************************************/
+void XV_HdmiC_ParseSPDIF(XHdmiC_Aux *AuxPtr, XHdmiC_SPDInfoFrame *SPDInfoFrame)
+{
+	if (AuxPtr->Header.Byte[0] == AUX_SPD_INFOFRAME_TYPE) {
+		/* 3D Audio */
+		SPDInfoFrame->Version = AuxPtr->Header.Byte[1];
+
+		/* Vendor Name Characters */
+		SPDInfoFrame->VN1 = AuxPtr->Data.Byte[1];
+		SPDInfoFrame->VN2 = AuxPtr->Data.Byte[2];
+		SPDInfoFrame->VN3 = AuxPtr->Data.Byte[3];
+		SPDInfoFrame->VN4 = AuxPtr->Data.Byte[4];
+		SPDInfoFrame->VN5 = AuxPtr->Data.Byte[5];
+		SPDInfoFrame->VN6 = AuxPtr->Data.Byte[6];
+		SPDInfoFrame->VN7 = AuxPtr->Data.Byte[8];
+		SPDInfoFrame->VN8 = AuxPtr->Data.Byte[9];
+
+		/* Product Description Character */
+		SPDInfoFrame->PD1 = AuxPtr->Data.Byte[10];
+		SPDInfoFrame->PD2 = AuxPtr->Data.Byte[11];
+		SPDInfoFrame->PD3 = AuxPtr->Data.Byte[12];
+		SPDInfoFrame->PD4 = AuxPtr->Data.Byte[13];
+		SPDInfoFrame->PD5 = AuxPtr->Data.Byte[14];
+		SPDInfoFrame->PD6 = AuxPtr->Data.Byte[16];
+		SPDInfoFrame->PD7 = AuxPtr->Data.Byte[17];
+		SPDInfoFrame->PD8 = AuxPtr->Data.Byte[18];
+		SPDInfoFrame->PD9 = AuxPtr->Data.Byte[19];
+		SPDInfoFrame->PD10 = AuxPtr->Data.Byte[20];
+		SPDInfoFrame->PD11 = AuxPtr->Data.Byte[21];
+		SPDInfoFrame->PD12 = AuxPtr->Data.Byte[22];
+		SPDInfoFrame->PD13 = AuxPtr->Data.Byte[24];
+		SPDInfoFrame->PD14 = AuxPtr->Data.Byte[25];
+		SPDInfoFrame->PD15 = AuxPtr->Data.Byte[26];
+		SPDInfoFrame->PD16 = AuxPtr->Data.Byte[27];
+
+		/* Source Information */
+		SPDInfoFrame->SourceInfo = AuxPtr->Data.Byte[28];
+	}
+}
+
+/*****************************************************************************/
+/**
+*
+* This function retrieves the DRM Infoframes.
+*
+* @param  None.
+*
+* @return None.
+*
+* @note   None.
+*
+******************************************************************************/
+void XV_HdmiC_ParseDRMIF(XHdmiC_Aux *AuxPtr, struct v4l2_hdr10_payload *DRMInfoFrame)
+{
+	if (AuxPtr->Header.Byte[0] == AUX_DRM_INFOFRAME_TYPE) {
+
+		/* Vendor Name Characters */
+		DRMInfoFrame->eotf = AuxPtr->Data.Byte[1] & 0x7;
+
+		DRMInfoFrame->metadata_type =
+				AuxPtr->Data.Byte[2] & 0x7;
+
+		DRMInfoFrame->display_primaries[0].x =
+				(AuxPtr->Data.Byte[3] & 0xFF) |
+				(AuxPtr->Data.Byte[4] << 8);
+
+		DRMInfoFrame->display_primaries[0].y =
+				(AuxPtr->Data.Byte[5] & 0xFF) |
+				(AuxPtr->Data.Byte[6] << 8);
+
+		DRMInfoFrame->display_primaries[1].x =
+				(AuxPtr->Data.Byte[8] & 0xFF) |
+				(AuxPtr->Data.Byte[9] << 8);
+
+		DRMInfoFrame->display_primaries[1].y =
+				(AuxPtr->Data.Byte[10] & 0xFF) |
+				(AuxPtr->Data.Byte[11] << 8);
+
+		DRMInfoFrame->display_primaries[2].x =
+				(AuxPtr->Data.Byte[12] & 0xFF) |
+				(AuxPtr->Data.Byte[13] << 8);
+
+		DRMInfoFrame->display_primaries[2].y =
+				(AuxPtr->Data.Byte[14] & 0xFF) |
+				(AuxPtr->Data.Byte[16] << 8);
+
+		DRMInfoFrame->white_point.x =
+				(AuxPtr->Data.Byte[17] & 0xFF) |
+				(AuxPtr->Data.Byte[18] << 8);
+
+		DRMInfoFrame->white_point.y =
+				(AuxPtr->Data.Byte[19] & 0xFF) |
+				(AuxPtr->Data.Byte[20] << 8);
+
+		DRMInfoFrame->max_mdl =
+				(AuxPtr->Data.Byte[21] & 0xFF) |
+				(AuxPtr->Data.Byte[22] << 8);
+
+		DRMInfoFrame->min_mdl =
+				(AuxPtr->Data.Byte[24] & 0xFF) |
+				(AuxPtr->Data.Byte[25] << 8);
+
+		DRMInfoFrame->max_cll =
+				(AuxPtr->Data.Byte[26] & 0xFF) |
+				(AuxPtr->Data.Byte[27] << 8);
+
+		DRMInfoFrame->max_fall =
+				(AuxPtr->Data.Byte[28] & 0xFF) |
+				(AuxPtr->Data.Byte[29] << 8);
 	}
 }
 
@@ -955,6 +1082,142 @@ XHdmiC_Aux XV_HdmiC_AudioIF_GeneratePacket(XHdmiC_AudioInfoFrame *AudioInfoFrame
 
 /*****************************************************************************/
 /**
+*
+* This function generates and sends Audio Metadata Packet
+*
+* @param  InstancePtr is a pointer to the HDMI TX Subsystem instance.
+*
+* @return None.
+*
+* @note   None.
+*
+******************************************************************************/
+XHdmiC_Aux XV_HdmiC_AudioMetadata_GeneratePacket(XHdmiC_AudioMetadata
+		*AudMetadata)
+{
+	u8 Index;
+	XHdmiC_Aux aux;
+
+	(void)memset((void *)&aux, 0, sizeof(XHdmiC_Aux));
+
+	/* Header, Packet Type */
+	aux.Header.Byte[0] = AUX_AUDIO_METADATA_PACKET_TYPE;
+
+	/* 3D Audio */
+	aux.Header.Byte[1] = AudMetadata->Audio3D & 0x1;
+
+	/* HB2 */
+	aux.Header.Byte[2] = ((AudMetadata->Num_Audio_Str & 0x3) << 2) |
+			(AudMetadata->Num_Views & 0x3);
+
+	/* HB3 */
+	aux.Header.Byte[3] = 0;
+
+	/* PB0 */
+	aux.Data.Byte[0] = AudMetadata->Audio3D_ChannelCount & 0x1F;
+
+	/* PB1 */
+	aux.Data.Byte[1] = AudMetadata->ACAT & 0x0F;
+
+	/* PB2 */
+	aux.Data.Byte[2] = AudMetadata->Audio3D_ChannelAllocation & 0xFF;
+
+	for (Index = 3; Index < 32; Index++)
+		aux.Data.Byte[Index] = 0;
+
+	return aux;
+}
+
+/*****************************************************************************/
+/**
+ *
+ * This function generates and sends SPD Infoframes
+ *
+ * @param  InstancePtr is a pointer to the HDMI TX Subsystem instance.
+ *
+ * @return None.
+ *
+ * @note   None.
+ *
+******************************************************************************/
+XHdmiC_Aux XV_HdmiC_SPDIF_GeneratePacket(XHdmiC_SPDInfoFrame *SPDInfoFrame)
+{
+	u8 Index;
+	u8 Crc;
+	XHdmiC_Aux aux;
+
+	(void)memset((void *)&aux, 0, sizeof(XHdmiC_Aux));
+
+	/* Header, Packet Type */
+	aux.Header.Byte[0] = AUX_SPD_INFOFRAME_TYPE;
+
+	/* 3D Audio */
+	aux.Header.Byte[1] = SPDInfoFrame->Version;
+
+	/* Length of SPD InfoFrame */
+	aux.Header.Byte[2] = 25;
+
+	/* HB3 */
+	aux.Header.Byte[3] = 0; /* CRC */
+
+	/* Vendor Name Characters */
+	aux.Data.Byte[0] = 0; /* CRC */
+	aux.Data.Byte[1] = SPDInfoFrame->VN1;
+	aux.Data.Byte[2] = SPDInfoFrame->VN2;
+	aux.Data.Byte[3] = SPDInfoFrame->VN3;
+	aux.Data.Byte[4] = SPDInfoFrame->VN4;
+	aux.Data.Byte[5] = SPDInfoFrame->VN5;
+	aux.Data.Byte[6] = SPDInfoFrame->VN6;
+	aux.Data.Byte[7] = 0; /* ECC */
+	aux.Data.Byte[8] = SPDInfoFrame->VN7;
+	aux.Data.Byte[9] = SPDInfoFrame->VN8;
+
+	/* Product Description Character */
+	aux.Data.Byte[10] = SPDInfoFrame->PD1;
+	aux.Data.Byte[11] = SPDInfoFrame->PD2;
+	aux.Data.Byte[12] = SPDInfoFrame->PD3;
+	aux.Data.Byte[13] = SPDInfoFrame->PD4;
+	aux.Data.Byte[14] = SPDInfoFrame->PD5;
+	aux.Data.Byte[15] = 0; /* ECC */
+	aux.Data.Byte[16] = SPDInfoFrame->PD6;
+	aux.Data.Byte[17] = SPDInfoFrame->PD7;
+	aux.Data.Byte[18] = SPDInfoFrame->PD8;
+	aux.Data.Byte[19] = SPDInfoFrame->PD9;
+	aux.Data.Byte[20] = SPDInfoFrame->PD10;
+	aux.Data.Byte[21] = SPDInfoFrame->PD11;
+	aux.Data.Byte[22] = SPDInfoFrame->PD12;
+	aux.Data.Byte[23] = 0; /* ECC */
+	aux.Data.Byte[24] = SPDInfoFrame->PD13;
+	aux.Data.Byte[25] = SPDInfoFrame->PD14;
+	aux.Data.Byte[26] = SPDInfoFrame->PD15;
+	aux.Data.Byte[27] = SPDInfoFrame->PD16;
+
+	/* Source Information */
+	aux.Data.Byte[28] = SPDInfoFrame->SourceInfo;
+	aux.Data.Byte[29] = 0;
+	aux.Data.Byte[30] = 0;
+	aux.Data.Byte[31] = 0; /* ECC */
+
+	/* Calculate SPD infoframe checksum */
+	Crc = 0;
+
+	/* Header */
+	for (Index = 0; Index < 3; Index++)
+		Crc += aux.Header.Byte[Index];
+
+	/* Data */
+	for (Index = 1; Index < aux.Header.Byte[2] + 4; Index++)
+		Crc += aux.Data.Byte[Index];
+
+	Crc = 256 - Crc;
+
+	aux.Data.Byte[0] = Crc;
+
+	return aux;
+}
+
+/*****************************************************************************/
+/**
  *
  * This function generates and sends DRM Infoframes
  *
@@ -1040,7 +1303,7 @@ void XV_HdmiC_DRMIF_GeneratePacket(struct v4l2_hdr10_payload *DRMInfoFrame, XHdm
 		Crc += aux->Header.Byte[Index];
 
 	/* Data */
-	for (Index = 1; Index < aux->Header.Byte[2] + 1; Index++)
+	for (Index = 1; Index < aux->Header.Byte[2] + 4; Index++)
 		Crc += aux->Data.Byte[Index];
 
 	Crc = 256 - Crc;
