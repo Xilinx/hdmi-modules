@@ -997,26 +997,6 @@ static int xlnx_drm_hdmi_connector_mode_valid(struct drm_connector *connector,
 		dev_dbg(xhdmi->dev, "For DRM_MODE_FLAG_INTERLACE, divide mode->vdisplay %d\n", mode->vdisplay);
 	}
 
-	if((mode->flags & DRM_MODE_FLAG_DBLCLK) && (mode->flags & DRM_MODE_FLAG_INTERLACE)) {
-		mode->clock *= 2;
-		/* This logic is needed because the value of vrefresh is coming as zero for 480i@60 and 576i@50
-		 * because of which after multiplying the pixel clock by 2, the mode getting selected is 480i@120
-		 * 576i@100 from drm_edid.c file as this becomes the matching mode.
-		 * Seems like bug in the kernel code for handling of DRM_MODE_FLAG_DBLCLK flag.
-		 */
-		if(drm_mode_vrefresh(mode) == 0)
-		{
-#if 0
-			/* TODO: Fix this */
-			if(mode->vdisplay == 240)
-				mode->vrefresh = 60;
-			else if (mode->vdisplay == 288)
-				mode->vrefresh = 50;
-#endif
-		}
-		dev_dbg(xhdmi->dev, "For DRM_MODE_FLAG_DBLCLK, multiply pixel_clk by 2, New pixel clock %d, refresh rate = %d\n", mode->clock, drm_mode_vrefresh(mode));
-	}
-
 	drm_mode_debug_printmodeline(mode);
 	hdmi_mutex_lock(&xhdmi->hdmi_mutex);
 	/* HDMI 2.0 sink connected? */
