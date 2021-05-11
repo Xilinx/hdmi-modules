@@ -951,6 +951,7 @@ EXPORT_SYMBOL_GPL(XHdcp22Rx_Enable);
 EXPORT_SYMBOL_GPL(XHdcp22Rx_SetTopologyReceiverIdList);
 EXPORT_SYMBOL_GPL(XHdcp22Rx_SetLinkError);
 EXPORT_SYMBOL_GPL(XHdcp22Rx_IsEncryptionEnabled);
+EXPORT_SYMBOL_GPL(XHdcp22Rx_SetBroadcast);
 
 /* Global API's for xhdcp22Tx */
 EXPORT_SYMBOL_GPL(XHdcp22Tx_IsInProgress);
