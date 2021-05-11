@@ -76,13 +76,13 @@ u32 XHdmiphy1_Mmcme5DividerEncoding(XHdmiphy1_MmcmDivType DivType, u16 Div)
     u16 Divide = Div;
 
     if (DivType == XHDMIPHY1_MMCM_CLKOUT_DIVIDE) {
-    	/* Div is an odd number */
+	/* Div is an odd number */
 		if (Div % 2) {
-	    	Divide = (Div / 2);
+		Divide = (Div / 2);
 		}
 		/* Div is an even number */
 		else {
-	    	Divide = (Div / 2) + (Div % 2);
+		Divide = (Div / 2) + (Div % 2);
 		}
     }
 
@@ -299,7 +299,7 @@ u32 XHdmiphy1_Mmcme5CpResEncoding(u16 Mult)
          break;
 	 default:
          cp = 13; res = 8;
- 	     break;
+	     break;
 	}
 
     /* Construct the return value */

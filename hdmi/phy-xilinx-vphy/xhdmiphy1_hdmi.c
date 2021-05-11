@@ -2126,7 +2126,6 @@ u32 XHdmiphy1_SetHdmiTxParam(XHdmiphy1 *InstancePtr, u8 QuadId,
 	else {
 		Status = (XST_FAILURE);
 	}
-
 	return Status;
 }
 

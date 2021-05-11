@@ -34,7 +34,7 @@
  * 1.1   ku   17/05/20 Adding uniquification to avoid clash with vphy
  * </pre>
  *
- * @addtogroup xhdmiphy1_v2_1
+ * @addtogroup xhdmiphy1_v2_2
  * @{
 *******************************************************************************/
 

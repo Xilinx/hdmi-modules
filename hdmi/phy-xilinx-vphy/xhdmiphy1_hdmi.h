@@ -31,9 +31,12 @@
  *            dd/mm/yy
  * ----- ---- -------- -----------------------------------------------
  * 1.0   gm   10/12/18 Initial release.
+ * 1.1   ku   24/07/20 Removed GTHE3 parameters
+ *                     Added MMCM parameters to support MAX Rate
+ * 1.2   ku   28/04/21 Updated Min Max limits for DRU Refclk
  * </pre>
  *
- * @addtogroup xhdmiphy1_v1_0
+ * @addtogroup xhdmiphy1_v2_2
  * @{
 *******************************************************************************/
 
@@ -55,8 +58,8 @@ extern "C" {
 #define XHDMIPHY1_HDMI_GTYE5_DRU_REFCLK1_MIN     124990000LL
 #define XHDMIPHY1_HDMI_GTYE5_DRU_REFCLK1_MAX     125010000LL
 #define XHDMIPHY1_HDMI_GTYE5_DRU_REFCLK2         400000000LL
-#define XHDMIPHY1_HDMI_GTYE5_DRU_REFCLK2_MIN     399990000LL
-#define XHDMIPHY1_HDMI_GTYE5_DRU_REFCLK2_MAX     400010000LL
+#define XHDMIPHY1_HDMI_GTYE5_DRU_REFCLK2_MIN     399980000LL
+#define XHDMIPHY1_HDMI_GTYE5_DRU_REFCLK2_MAX     400020000LL
 #define XHDMIPHY1_HDMI_GTYE5_PLL_SCALE           1000
 #define XHDMIPHY1_HDMI_GTYE5_LCPLL_REFCLK_MIN    120000000LL
 #define XHDMIPHY1_HDMI_GTYE5_RPLL_REFCLK_MIN     120000000LL
@@ -72,8 +75,8 @@ extern "C" {
 #define XHDMIPHY1_HDMI_GTYE4_DRU_REFCLK_MIN      156240000LL
 #define XHDMIPHY1_HDMI_GTYE4_DRU_REFCLK_MAX      156260000LL
 #define XHDMIPHY1_HDMI_GTYE4_DRU_REFCLK2         400000000LL
-#define XHDMIPHY1_HDMI_GTYE4_DRU_REFCLK2_MIN     399990000LL
-#define XHDMIPHY1_HDMI_GTYE4_DRU_REFCLK2_MAX     400010000LL
+#define XHDMIPHY1_HDMI_GTYE4_DRU_REFCLK2_MIN     399980000LL
+#define XHDMIPHY1_HDMI_GTYE4_DRU_REFCLK2_MAX     400020000LL
 #define XHDMIPHY1_HDMI_GTYE4_PLL_SCALE           1000
 #define XHDMIPHY1_HDMI_GTYE4_QPLL0_REFCLK_MIN    61250000LL
 #define XHDMIPHY1_HDMI_GTYE4_QPLL1_REFCLK_MIN    50000000LL

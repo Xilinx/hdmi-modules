@@ -33,9 +33,10 @@
  *            dd/mm/yy
  * ----- ---- -------- -----------------------------------------------
  * 1.0   gm   10/12/18 Initial release.
+ * 1.1   ku   17/05/20 Adding uniquification to avoid clash with vphy
  * </pre>
  *
- * @addtogroup xhdmiphy1_v1_0
+ * @addtogroup xhdmiphy1_v2_2
  * @{
 *******************************************************************************/
 
