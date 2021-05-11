@@ -566,6 +566,21 @@ typedef struct {
 } XVidC_3DInfo;
 
 /**
+ * Electro Optical Transfer Function
+ *
+ * Based on CTA861-G
+ */
+typedef enum {
+	/* TG - Traditional Gamma */
+	XVIDC_EOTF_TG_SDR = 0,
+	XVIDC_EOTF_TG_HDR,
+	XVIDC_EOTF_SMPTE2084,
+	XVIDC_EOTF_HLG,
+	XVIDC_EOTF_NUM_SUPPORTED,
+	XVIDC_EOTF_UNKNOWN,
+} XVidC_Eotf;
+
+/**
  * Video stream structure.
  */
 typedef struct {
@@ -579,6 +594,10 @@ typedef struct {
 	XVidC_3DInfo		  Info_3D;
 	XVidC_VideoMode		  VmId;
 	XVidC_VideoTiming	  Timing;
+	XVidC_Eotf		Eotf;
+	XVidC_ColorStd		ColorStd;
+	XVidC_FrameRate		  BaseFrameRate;
+	XVidC_VideoTiming	  BaseTiming;
 } XVidC_VideoStream;
 
 /**
@@ -596,7 +615,7 @@ typedef struct {
  */
 typedef struct {
 	XVidC_VideoMode		VmId;
-	const char		    Name[21];
+	char			Name[21];
 	XVidC_FrameRate		FrameRate;
 	XVidC_VideoTiming	Timing;
 } XVidC_VideoTimingMode;
