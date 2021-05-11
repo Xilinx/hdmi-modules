@@ -32,6 +32,8 @@
 *		      definitions.
 * 2.03a rvo  11/30/10 Added check to see if interrupt is enabled before further
 *		      processing for CR 584557.
+* 4.8   dp   02/12/21 Fix compilation errors that arise when -Werror=conversion
+*                     is enabled in compilation flags.
 * </pre>
 *
 ******************************************************************************/
@@ -147,7 +149,6 @@ void XTmrCtr_InterruptHandler(void *InstancePtr)
 				TmrCtrPtr->Stats.Interrupts++;
 				TmrCtrPtr->Handler(TmrCtrPtr->CallBackRef,
 						   TmrCtrNumber);
-						   
 				/*
 				 * Read the new Control/Status Register content.
 				 */
@@ -174,7 +175,7 @@ void XTmrCtr_InterruptHandler(void *InstancePtr)
 						 * interrupt to be acknowledged
 						 */
 						ControlStatusReg &=
-							~XTC_CSR_ENABLE_TMR_MASK;
+							(u32)~XTC_CSR_ENABLE_TMR_MASK;
 
 						XTmrCtr_WriteReg(
 							TmrCtrPtr->BaseAddress,
