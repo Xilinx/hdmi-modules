@@ -2925,11 +2925,9 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 	/* initialize hw */
 	xlnx_drm_hdmi_initialize(xhdmi);
 
-	/* probe has succeeded for this instance, increment instance index */
-	instance++;
-
 	if (xhdmi->audio_enabled && xhdmi->tx_audio_data->acr_base) {
-		xhdmi->audio_pdev = hdmitx_register_aud_dev(xhdmi->dev);
+		xhdmi->audio_pdev = hdmitx_register_aud_dev(xhdmi->dev,
+							    instance);
 		if (IS_ERR(xhdmi->audio_pdev)) {
 			xhdmi->audio_init = false;
 			dev_err(xhdmi->dev, "hdmi tx audio init failed\n");
@@ -2938,6 +2936,10 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 			dev_info(xhdmi->dev, "hdmi tx audio initialized\n");
 		}
 	}
+
+	/* probe has succeeded for this instance, increment instance index */
+	instance++;
+
 	dev_info(xhdmi->dev, "probe successful\n");
 	return component_add(xhdmi->dev, &xlnx_drm_hdmi_component_ops);
 
