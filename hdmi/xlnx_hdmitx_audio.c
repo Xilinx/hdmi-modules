@@ -257,7 +257,8 @@ static const struct hdmi_codec_ops audio_ops = {
  *
  * Return: platform device
  */
-struct platform_device *hdmitx_register_aud_dev(struct device *dev)
+struct platform_device *hdmitx_register_aud_dev(struct device *dev,
+						int instance)
 {
 	struct platform_device *audio_pdev;
 	struct hdmi_codec_pdata codec_pdata = {
@@ -267,7 +268,8 @@ struct platform_device *hdmitx_register_aud_dev(struct device *dev)
 	};
 
 	audio_pdev = platform_device_register_data(dev, HDMI_CODEC_DRV_NAME,
-		0, &codec_pdata, sizeof(codec_pdata));
+						   instance, &codec_pdata,
+						   sizeof(codec_pdata));
 
 	return audio_pdev;
 }

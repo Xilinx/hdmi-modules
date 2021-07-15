@@ -27,7 +27,8 @@ struct xlnx_hdmitx_audio_data {
 
 struct xlnx_hdmitx_audio_data *hdmitx_get_audio_data(struct device *dev);
 void __iomem *hdmitx_parse_aud_dt(struct device *dev);
-struct platform_device *hdmitx_register_aud_dev(struct device *dev);
+struct platform_device *hdmitx_register_aud_dev(struct device *dev,
+						int instance);
 
 void hdmitx_audio_startup(struct device *dev);
 void hdmitx_audio_hw_params(struct device *dev,
