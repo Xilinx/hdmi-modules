@@ -71,10 +71,13 @@ static int dp159_program(struct i2c_client *client, unsigned long rate)
 		*/
 		r |= dp159_write(client, 0x0B, 0x9A);
 
-		/* VSWING_DATA & VSWING_CLK to +14%%
-		 *            Reg0Ch[7:2] = 100100
-		 *  PRE_SEL   Reg0Ch[1:0] = 01 (labeled HDMI_TWPST)
-		*/
+		/*
+		 * Set the 0x0C register to
+		 * - increase VSWING_DATA and VSWING_CLK by 14%.
+		 * - set HDMI_TWPST1 to 2 dB de-emphasis.
+		 * Refer to DP159 datasheet below for details
+		 * https://www.ti.com/lit/ds/symlink/sn65dp159.pdf
+		 */
 		r |= dp159_write(client, 0x0C, 0x49);
 		r |= dp159_write(client, 0x0D, 0x00);
 		r |= dp159_write(client, 0x0A, 0x36); // Automatic retimer for HDMI 2.0
