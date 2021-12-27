@@ -35,6 +35,7 @@
 ******************************************************************************/
 
 /***************************** Include Files *********************************/
+#include <linux/version.h>
 #include "xv_hdmitxss.h"
 /************************** Constant Definitions *****************************/
 
@@ -1551,7 +1552,11 @@ int XV_HdmiTxSs_HdcpInfo(XV_HdmiTxSs *InstancePtr, char *buff, int buff_size)
           XHdcp1x_Info(InstancePtr->Hdcp14Ptr);
           XDebug_SetDebugBufPrintf(NULL,0, NULL);
           // Route debug output to xil_printf
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
           XDebug_SetDebugPrintf((void *)printk);
+#else
+          XDebug_SetDebugPrintf((void *)_printk);
+#endif
         }
         else {
           strSize = scnprintf(buff+strSize, buff_size-strSize,
@@ -1574,7 +1579,11 @@ int XV_HdmiTxSs_HdcpInfo(XV_HdmiTxSs *InstancePtr, char *buff, int buff_size)
           XHdcp22Tx_Info(InstancePtr->Hdcp22Ptr);
           XDebug_SetDebugBufPrintf(NULL,0, NULL);
           // Route debug output to xil_printf
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
           XDebug_SetDebugPrintf((void *)printk);
+#else
+          XDebug_SetDebugPrintf((void *)_printk);
+#endif
         }
         else {
           strSize = scnprintf(buff+strSize, buff_size-strSize,
@@ -1615,7 +1624,11 @@ void XV_HdmiTxSs_HdcpSetInfoDetail(XV_HdmiTxSs *InstancePtr, u8 Verbose)
 #ifdef XPAR_XHDCP_NUM_INSTANCES
     // HDCP 1.4
     if (InstancePtr->Hdcp14Ptr) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
       XHdcp1x_SetDebugLogMsg((void *)printk);
+#else
+      XHdcp1x_SetDebugLogMsg((void *)_printk);
+#endif
     }
 #endif
 

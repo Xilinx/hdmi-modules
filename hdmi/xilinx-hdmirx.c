@@ -25,6 +25,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/hdmi.h>
+#include <linux/version.h>
 #include <media/hdr-ctrls.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
@@ -221,13 +222,21 @@ static int xhdmi_s_stream(struct v4l2_subdev *subdev, int enable)
 /* https://linuxtv.org/downloads/v4l-dvb-apis/vidioc-subdev-g-fmt.html */
 static struct v4l2_mbus_framefmt *
 __xhdmi_get_pad_format_ptr(struct xhdmi_device *xhdmi,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
 		struct v4l2_subdev_pad_config *cfg,
+#else
+		struct v4l2_subdev_state *sd_state,
+#endif
 		unsigned int pad, u32 which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
 		dev_dbg(xhdmi->dev, "__xhdmi_get_pad_format(): V4L2_SUBDEV_FORMAT_TRY\n");
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
 		return v4l2_subdev_get_try_format(&xhdmi->subdev, cfg, pad);
+#else
+		return v4l2_subdev_get_try_format(&xhdmi->subdev, sd_state, pad);
+#endif
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		dev_dbg(xhdmi->dev, "__xhdmi_get_pad_format(): V4L2_SUBDEV_FORMAT_ACTIVE\n");
 		dev_dbg(xhdmi->dev, "detected_format->width = %u\n", xhdmi->detected_format.width);
@@ -238,7 +247,11 @@ __xhdmi_get_pad_format_ptr(struct xhdmi_device *xhdmi,
 }
 
 static int xhdmi_get_format(struct v4l2_subdev *subdev,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
 			   struct v4l2_subdev_pad_config *cfg,
+#else
+			   struct v4l2_subdev_state *sd_state,
+#endif
 			   struct v4l2_subdev_format *fmt)
 {
 	struct xhdmi_device *xhdmi = to_xhdmi(subdev);
@@ -250,7 +263,11 @@ static int xhdmi_get_format(struct v4l2_subdev *subdev,
 		return -EINVAL;
 
 	/* copy either try or currently-active (i.e. detected) format to caller */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
 	gfmt = __xhdmi_get_pad_format_ptr(xhdmi, cfg, fmt->pad, fmt->which);
+#else
+	gfmt = __xhdmi_get_pad_format_ptr(xhdmi, sd_state, fmt->pad, fmt->which);
+#endif
 	if (!gfmt)
 		return -EINVAL;
 	fmt->format = *gfmt;
@@ -262,7 +279,11 @@ static int xhdmi_get_format(struct v4l2_subdev *subdev,
 
 /* we must modify the requested format to match what the hardware can provide */
 static int xhdmi_set_format(struct v4l2_subdev *subdev,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
 			   struct v4l2_subdev_pad_config *cfg,
+#else
+			   struct v4l2_subdev_state *sd_state,
+#endif
 			   struct v4l2_subdev_format *fmt)
 {
 	struct xhdmi_device *xhdmi = to_xhdmi(subdev);
@@ -359,7 +380,11 @@ static int xhdmi_set_edid(struct v4l2_subdev *subdev, struct v4l2_edid *edid) {
  */
 
 static int xhdmi_enum_frame_size(struct v4l2_subdev *subdev,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
 				struct v4l2_subdev_pad_config *cfg,
+#else
+				struct v4l2_subdev_state *sd_state,
+#endif
 				struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->pad > 0)
@@ -372,7 +397,7 @@ static int xhdmi_enum_frame_size(struct v4l2_subdev *subdev,
 /**
  * xhdmi_enum_mbus_code - Enumerate the media format code
  * @subdev: V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @code: returning media bus code
  *
  * Enumerate the media bus code of the subdevice. Return the corresponding
@@ -384,7 +409,11 @@ static int xhdmi_enum_frame_size(struct v4l2_subdev *subdev,
  * is not valid.
  */
 int xhdmi_enum_mbus_code(struct v4l2_subdev *subdev,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
 		struct v4l2_subdev_pad_config *cfg,
+#else
+		struct v4l2_subdev_state *sd_state,
+#endif
 		struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct v4l2_mbus_framefmt *format;
@@ -398,7 +427,11 @@ int xhdmi_enum_mbus_code(struct v4l2_subdev *subdev,
 	if (code->index)
 		return -EINVAL;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
 	format = v4l2_subdev_get_try_format(subdev, cfg, code->pad);
+#else
+	format = v4l2_subdev_get_try_format(subdev, sd_state, code->pad);
+#endif
 
 	code->code = format->code;
 
