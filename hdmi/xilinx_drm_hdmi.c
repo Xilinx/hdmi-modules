@@ -768,7 +768,7 @@ static void TxVsCallback(void *CallbackRef)
 							&aud_aux_fifo);
 	}
 
-	if (!state->gen_hdr_output_metadata)
+	if (!state || !state->gen_hdr_output_metadata)
 		return;
 
 	drm_hdmi_infoframe_set_gen_hdr_metadata(&frame, state);
