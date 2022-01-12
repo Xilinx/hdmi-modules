@@ -34,6 +34,7 @@
 #include <linux/mutex.h>
 #include <linux/component.h>
 #include <linux/device.h>
+#include <linux/hdmi.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/phy/phy.h>
@@ -41,6 +42,8 @@
 #include <linux/pm.h>
 #include <linux/sysfs.h>
 #include <linux/workqueue.h>
+#include <uapi/linux/media-bus-format.h>
+#include "../drivers/gpu/drm/xlnx/xlnx_bridge.h"
 
 #include "linux/phy/phy-vphy.h"
 
@@ -77,6 +80,14 @@
 #define XHDMI_AXI_STREAM		0
 #define XHDMI_NATIVE_VIDEO		1
 #define XHDMI_NATIVE_VIDEO_VDE		2
+/** HDMI 2.0 suppors minimum resolution of 640x480 and
+ *  maximum resolution of 4096x2160. VPSS scaling values
+ *  should be configured accordingly.
+ */
+#define XHDMI_VPSS_MIN_WIDTH		640
+#define XHDMI_VPSS_MIN_HEIGHT		480
+#define XHDMI_VPSS_MAX_WIDTH		4096
+#define XHDMI_VPSS_MAX_HEIGHT		2160
 
 /**
  * struct xlnx_drm_hdmi - Xilinx HDMI core
@@ -124,6 +135,17 @@
  * @audio_init: flag to indicate audio is initialized
  * @tx_audio_data: audio data to be shared with audio module
  * @audio_pdev: audio platform device
+ * @bridge: bridge structure
+ * @height_out: configurable bridge output height parameter
+ * @height_out_prop_val: configurable bridge output height parameter value
+ * @width_out: configurable bridge output width parameter
+ * @width_out_prop_val: configurable bridge output width parameter value
+ * @in_fmt: configurable bridge input media format
+ * @in_fmt_prop_val: configurable media bus format value
+ * @out_fmt: configurable bridge output media format
+ * @out_fmt_prop_val: configurable media bus format value
+ * @aspect_ratio: configurable aspect ratio parameter
+ * @aspect_ratio_prop_val: configurable aspect ratio value
  */
 struct xlnx_drm_hdmi {
 	struct drm_encoder encoder;
@@ -203,7 +225,17 @@ struct xlnx_drm_hdmi {
 	bool audio_init;
 	struct xlnx_hdmitx_audio_data *tx_audio_data;
 	struct platform_device *audio_pdev;
-
+	struct xlnx_bridge *bridge;
+	struct drm_property *height_out;
+	u32 height_out_prop_val;
+	struct drm_property *width_out;
+	u32 width_out_prop_val;
+	struct drm_property *in_fmt;
+	u32 in_fmt_prop_val;
+	struct drm_property *out_fmt;
+	u32 out_fmt_prop_val;
+	struct drm_property *aspect_ratio;
+	u32 aspect_ratio_prop_val;
 	/*
 	 * Map of v4l2_hdmi_rx_colorimetry.
 	 * AVI infoframe values are derived in driver reverse of how the
@@ -941,6 +973,16 @@ static int xlnx_drm_hdmi_set_property(struct drm_connector *connector,
 		xhdmi->xfer_func_val = (u32)val;
 	else if (property == xhdmi->quantization)
 		xhdmi->quantization_val = (u32)val;
+	else if (property == xhdmi->height_out)
+		xhdmi->height_out_prop_val = (u32)val;
+	else if (property == xhdmi->width_out)
+		xhdmi->width_out_prop_val = (u32)val;
+	else if (property == xhdmi->in_fmt)
+		xhdmi->in_fmt_prop_val = (u32)val;
+	else if (property == xhdmi->out_fmt)
+		xhdmi->out_fmt_prop_val = (u32)val;
+	else if (property == xhdmi->aspect_ratio)
+		xhdmi->aspect_ratio_prop_val = (u32)val;
 	else
 		return -EINVAL;
 
@@ -961,6 +1003,16 @@ static int xlnx_drm_hdmi_get_property(struct drm_connector *connector,
 		*val = xhdmi->xfer_func_val;
 	else if (property == xhdmi->quantization)
 		*val = xhdmi->quantization_val;
+	else if (property == xhdmi->height_out)
+		*val = xhdmi->height_out_prop_val;
+	else if (property == xhdmi->width_out)
+		*val = xhdmi->width_out_prop_val;
+	else if (property == xhdmi->in_fmt)
+		*val = xhdmi->in_fmt_prop_val;
+	else if (property == xhdmi->out_fmt)
+		*val = xhdmi->out_fmt_prop_val;
+	else if (property == xhdmi->aspect_ratio)
+		*val = xhdmi->aspect_ratio_prop_val;
 	else
 		return -EINVAL;
 
@@ -1148,6 +1200,9 @@ static void xlnx_drm_hdmi_encoder_disable(struct drm_encoder *encoder)
 {
 	struct xlnx_drm_hdmi *xhdmi = encoder_to_hdmi(encoder);
 	XV_HdmiTxSs *HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
+
+	if (xhdmi->bridge)
+		xlnx_bridge_disable(xhdmi->bridge);
 
 	xlnx_drm_hdmi_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
 	/* Disable the EXT VRST which actually starts the bridge */
@@ -1346,6 +1401,9 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	u32 Result;
 	u32 drm_fourcc;
 	int ret;
+	int i, frame_rate;
+	XVidC_VideoMode vic_id = 0;
+	XHdmiC_VicTable const *entry;
 
 	dev_dbg(xhdmi->dev,"%s\n", __func__);
 	HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
@@ -1379,6 +1437,38 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	dev_dbg(xhdmi->dev,"vrefresh = %d\n", drm_mode_vrefresh(mode));
 	dev_dbg(xhdmi->dev,"mode->flags = %d interlace = %d\n", mode->flags,
 			!!(mode->flags & DRM_MODE_FLAG_INTERLACE));
+
+	/* Set bridge input and output parameters */
+	if (xhdmi->bridge) {
+		xlnx_bridge_set_input(xhdmi->bridge, adjusted_mode->hdisplay,
+				      adjusted_mode->vdisplay,
+				      xhdmi->in_fmt_prop_val);
+		xlnx_bridge_set_output(xhdmi->bridge, xhdmi->width_out_prop_val,
+				       xhdmi->height_out_prop_val,
+				       xhdmi->out_fmt_prop_val);
+		xlnx_bridge_enable(xhdmi->bridge);
+
+		frame_rate = drm_mode_vrefresh(adjusted_mode);
+
+		for (i = 0; i < VICTABLE_SIZE; i++) {
+			entry = &VicTable[i];
+			if (entry->Width == xhdmi->width_out_prop_val &&
+			    entry->Height == xhdmi->height_out_prop_val &&
+			    entry->AspectRatio == xhdmi->aspect_ratio_prop_val &&
+			    entry->FrameRate == frame_rate) {
+				vic_id = entry->Vic;
+				break;
+			}
+
+		}
+
+		if (vic_id){
+			mode = drm_display_mode_from_cea_vic(encoder->dev, vic_id);
+		} else {
+			dev_err(xhdmi->dev, "Unsupported Vic Id %d\n", vic_id);
+			return;
+		}
+	}
 
 	/* see slide 20 of http://events.linuxfoundation.org/sites/events/files/slides/brezillon-drm-kms.pdf */
 	vt.HActive = mode->hdisplay;
@@ -1545,10 +1635,15 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 		return;
 	}
 
-	if (xhdmi->isvphy)
-		adjusted_mode->clock = VphyPtr->HdmiTxRefClkHz / 1000;
-	else
-		adjusted_mode->clock = XGtPhyPtr->HdmiTxRefClkHz / 1000;
+	if (!xhdmi->bridge) {
+		if (xhdmi->isvphy)
+			adjusted_mode->clock = VphyPtr->HdmiTxRefClkHz / 1000;
+		else
+			adjusted_mode->clock = XGtPhyPtr->HdmiTxRefClkHz / 1000;
+	}
+	else {
+		adjusted_mode->clock = mode->clock;
+	}
 
 	dev_dbg(xhdmi->dev,"adjusted_mode->clock = %u Hz\n", adjusted_mode->clock);
 
@@ -2343,6 +2438,24 @@ static void xlnx_drm_hdmi_create_connector_property(
 		drm_property_create_range(dev, 0, "xfer_func", 0, 7);
 	xhdmi->quantization =
 		drm_property_create_range(dev, 0, "quantization", 0, 2);
+	xhdmi->height_out = drm_property_create_range(dev, 0, "height_out",
+						      XHDMI_VPSS_MIN_HEIGHT,
+						      XHDMI_VPSS_MAX_HEIGHT);
+	xhdmi->width_out = drm_property_create_range(dev, 0, "width_out",
+						     XHDMI_VPSS_MIN_WIDTH,
+						     XHDMI_VPSS_MAX_WIDTH);
+	/**
+	 *  in_fmt & out_fmt range is defined as per the VPSS scaler only
+	 *  supported media bus format values
+	 */
+	xhdmi->in_fmt = drm_property_create_range(dev, 0, "in_fmt",
+						  MEDIA_BUS_FMT_RGB888_1X24,
+						  MEDIA_BUS_FMT_VYYUYY8_1X24);
+	xhdmi->out_fmt = drm_property_create_range(dev, 0, "out_fmt",
+						   MEDIA_BUS_FMT_RGB888_1X24,
+						   MEDIA_BUS_FMT_VYYUYY8_1X24);
+	xhdmi->aspect_ratio = drm_property_create_range(dev, 0, "aspect_ratio",
+							XVIDC_AR_4_3, XVIDC_AR_256_135);
 }
 
 static void xlnx_drm_hdmi_attach_connector_property(
@@ -2359,6 +2472,16 @@ static void xlnx_drm_hdmi_attach_connector_property(
 		drm_object_attach_property(obj, xhdmi->xfer_func, 0);
 	if (xhdmi->quantization)
 		drm_object_attach_property(obj, xhdmi->quantization, 0);
+	if (xhdmi->height_out)
+		drm_object_attach_property(obj, xhdmi->height_out, 0);
+	if (xhdmi->width_out)
+		drm_object_attach_property(obj, xhdmi->width_out, 0);
+	if (xhdmi->in_fmt)
+		drm_object_attach_property(obj, xhdmi->in_fmt, 0);
+	if (xhdmi->out_fmt)
+		drm_object_attach_property(obj, xhdmi->out_fmt, 0);
+	if (xhdmi->aspect_ratio)
+		drm_object_attach_property(obj, xhdmi->aspect_ratio, 0);
 }
 
 static int xlnx_drm_hdmi_create_connector(struct drm_encoder *encoder)
@@ -2440,6 +2563,8 @@ static void xlnx_drm_hdmi_unbind(struct device *dev, struct device *master,
 {
 	struct xlnx_drm_hdmi *xhdmi = dev_get_drvdata(dev);
 
+	if (xhdmi->bridge)
+		xlnx_bridge_disable(xhdmi->bridge);
 	xlnx_drm_hdmi_encoder_dpms(&xhdmi->encoder, DRM_MODE_DPMS_OFF);
 	drm_encoder_cleanup(&xhdmi->encoder);
 	drm_connector_cleanup(&xhdmi->connector);
@@ -2690,6 +2815,7 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 	int ret;
 	unsigned int index;
 	struct resource *res;
+	struct device_node *vpss_node;
 	unsigned long axi_clk_rate;
 
 	dev_info(&pdev->dev, "probe started\n");
@@ -2730,6 +2856,17 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 	ret = xlnx_drm_hdmi_parse_of(xhdmi, &xhdmi->config);
 	if (ret < 0)
 		return ret;
+
+	/* VPSS Bridge support */
+	vpss_node = of_parse_phandle(xhdmi->dev->of_node, "xlnx,vpss", 0);
+	if (vpss_node) {
+		xhdmi->bridge = of_xlnx_bridge_get(vpss_node);
+		if (!xhdmi->bridge) {
+			dev_info(xhdmi->dev, "Didn't get bridge instance\n");
+			return -EPROBE_DEFER;
+		}
+	}
+
 	dev_dbg(xhdmi->dev,"DT parse done\n");
 
 	/* acquire vphy lanes */
