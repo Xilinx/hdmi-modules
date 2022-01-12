@@ -467,7 +467,9 @@ typedef enum {
  */
 typedef enum {
 	XVIDC_AR_4_3 = 0,
-	XVIDC_AR_16_9 = 1
+	XVIDC_AR_16_9 = 1,
+	XVIDC_AR_64_27 = 2,
+	XVIDC_AR_256_135 = 3
 } XVidC_AspectRatio;
 
 /**
