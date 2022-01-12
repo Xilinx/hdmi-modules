@@ -87,6 +87,9 @@ Required properties:
 		1: Native video
 		2: Native video (vectored DE)
 
+Optional Properties:
+ - xlnx,vpss: vpss phandle. Requied only when vpss is connected to HDMI as bridge.
+
 Sub-Node Properties:
 	The device tree will need to include a sub-node for the encoder endpoint
 	interface. This port will bind the hdmi encoder with the crtc being used
@@ -142,6 +145,7 @@ added to the device tree
 		xlnx,xlnx-hdmi-acr-ctrl = <&hdmi_acr_ctrl_0>;
 		xlnx,snd-pcm = <&audio_ss_0_audio_formatter_0>;
 		xlnx,vid-interface = <0x1>;
+		xlnx,vpss = <&v_proc_ss_0>;
 
 		ports {
 			#address-cells = <1>;
@@ -172,3 +176,6 @@ added to the device tree
 
 	Documentation of "audio_ss_0_audio_formatter_0" node is located
 	at Documentation/devicetree/bindings/sound/xlnx,audio-formatter.txt
+
+	Documentation of "v_proc_ss_0" node is located at
+	Documentation/devicetree/bindings/display/xlnx/xlnx,vpss-scaler.txt
