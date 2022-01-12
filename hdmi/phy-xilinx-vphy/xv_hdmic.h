@@ -69,6 +69,10 @@ extern "C" {
 typedef struct {
 	XVidC_VideoMode VmId;	/**< Video mode/Resolution ID */
 	u8 Vic;			/**< Video Identification code */
+	u32 Width;		/**< Width of the Video Resolution */
+	u32 Height;		/**< Height of the Video Resolution */
+	u16 FrameRate;		/**< Frame Rate */
+	u16 AspectRatio;	/**< Aspect Ratio of Video */
 } XHdmiC_VicTable;
 
 typedef union {
