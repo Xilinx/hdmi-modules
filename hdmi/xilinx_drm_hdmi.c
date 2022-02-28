@@ -1238,6 +1238,7 @@ static XVidC_ColorFormat hdmitx_find_media_bus(struct xlnx_drm_hdmi *xhdmi,
 		return XVIDC_CSF_YCRCB_444;
 	case DRM_FORMAT_XVUY2101010:
 	case DRM_FORMAT_Y10:
+	case DRM_FORMAT_X403:
 		xhdmi->xvidc_colordepth = XVIDC_BPC_10;
 		return XVIDC_CSF_YCRCB_444;
 
