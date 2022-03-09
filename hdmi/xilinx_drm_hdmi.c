@@ -134,7 +134,6 @@
  * @audio_enabled: flag to indicate audio is enabled in device tree
  * @audio_init: flag to indicate audio is initialized
  * @tx_audio_data: audio data to be shared with audio module
- * @audio_pdev: audio platform device
  * @bridge: bridge structure
  * @height_out: configurable bridge output height parameter
  * @height_out_prop_val: configurable bridge output height parameter value
@@ -224,7 +223,6 @@ struct xlnx_drm_hdmi {
 	bool audio_enabled;
 	bool audio_init;
 	struct xlnx_hdmitx_audio_data *tx_audio_data;
-	struct platform_device *audio_pdev;
 	struct xlnx_bridge *bridge;
 	struct drm_property *height_out;
 	u32 height_out_prop_val;
@@ -3069,9 +3067,7 @@ static int xlnx_drm_hdmi_probe(struct platform_device *pdev)
 	xlnx_drm_hdmi_initialize(xhdmi);
 
 	if (xhdmi->audio_enabled && xhdmi->tx_audio_data->acr_base) {
-		xhdmi->audio_pdev = hdmitx_register_aud_dev(xhdmi->dev,
-							    instance);
-		if (IS_ERR(xhdmi->audio_pdev)) {
+		if (hdmitx_register_aud_dev(xhdmi->dev, instance)) {
 			xhdmi->audio_init = false;
 			dev_err(xhdmi->dev, "hdmi tx audio init failed\n");
 		} else {
@@ -3104,7 +3100,8 @@ static int xlnx_drm_hdmi_remove(struct platform_device *pdev)
 	struct xlnx_drm_hdmi *xhdmi = platform_get_drvdata(pdev);
 
 	if (xhdmi->audio_init)
-		platform_device_unregister(xhdmi->audio_pdev);
+		hdmitx_unregister_aud_dev(&pdev->dev);
+
 	sysfs_remove_group(&pdev->dev.kobj, &attr_group);
 	component_del(&pdev->dev, &xlnx_drm_hdmi_component_ops);
 	return 0;
