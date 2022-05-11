@@ -324,6 +324,46 @@ static int __maybe_unused hdmitx_pm_resume(struct device *dev)
 	return 0;
 }
 
+/* callback function for drm_do_get_edid(), used in xlnx_drm_hdmi_get_modes()
+ * through drm_do_get_edid() from drm/drm_edid.c.
+ *
+ * called with hdmi_mutex taken
+ *
+ * Return 0 on success, !0 otherwise
+ */
+static int xlnx_drm_hdmi_get_edid_block(void *data, u8 *buf, unsigned int block,
+				  size_t len)
+{
+	u8 *buffer;
+	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)data;
+	XV_HdmiTxSs *HdmiTxSsPtr;
+	int ret;
+
+	/* out of bounds? */
+	if (((block * 128) + len) > 256) return -EINVAL;
+
+	buffer = kzalloc(256, GFP_KERNEL);
+	if (!buffer) return -ENOMEM;
+
+	HdmiTxSsPtr = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
+	if (!HdmiTxSsPtr->IsStreamConnected) {
+		dev_dbg(xhdmi->dev, "xlnx_drm_hdmi_get_edid_block() stream is not connected\n");
+	}
+	/* first obtain edid in local buffer */
+	ret = XV_HdmiTxSs_ReadEdid(HdmiTxSsPtr, buffer);
+	if (ret == XST_FAILURE) {
+		kfree(buffer);
+		dev_dbg(xhdmi->dev, "xlnx_drm_hdmi_get_edid_block() failed reading EDID\n");
+		return -EINVAL;
+	}
+
+	/* then copy the requested 128-byte block(s) */
+	memcpy(buf, buffer + block * 128, len);
+	/* free our local buffer */
+	kfree(buffer);
+	return 0;
+}
+
 /* XV_HdmiTx_IntrHandler */
 static irqreturn_t hdmitx_irq_handler(int irq, void *dev_id)
 {
@@ -581,6 +621,7 @@ static void TxConnectCallback(void *CallbackRef)
 	XV_HdmiTxSs *HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
 	XVphy *VphyPtr = xhdmi->xvphy;
 	XHdmiphy1 *XGtPhyPtr = xhdmi->xgtphy;
+	struct edid *edid = NULL;
 
 	dev_dbg(xhdmi->dev,"%s()\n", __func__);
 	xvphy_mutex_lock(xhdmi->phy[0]);
@@ -588,6 +629,11 @@ static void TxConnectCallback(void *CallbackRef)
 		int xst_hdmi20;
 		xhdmi->cable_connected = 1;
 		xhdmi->connector.status = connector_status_connected;
+		edid = drm_do_get_edid(&xhdmi->connector, xlnx_drm_hdmi_get_edid_block, xhdmi);
+		if (edid) {
+			xhdmi->have_edid = 1;
+			kfree(edid);
+		}
 		/* Check HDMI sink version */
 		xst_hdmi20 = XV_HdmiTxSs_DetectHdmi20(HdmiTxSsPtr);
 		dev_dbg(xhdmi->dev,"TxConnectCallback(): TX connected to HDMI %s Sink Device\n",
@@ -1057,46 +1103,6 @@ static int xlnx_drm_hdmi_connector_mode_valid(struct drm_connector *connector,
 		status = MODE_CLOCK_HIGH;
 	hdmi_mutex_unlock(&xhdmi->hdmi_mutex);
 	return status;
-}
-
-/* callback function for drm_do_get_edid(), used in xlnx_drm_hdmi_get_modes()
- * through drm_do_get_edid() from drm/drm_edid.c.
- *
- * called with hdmi_mutex taken
- *
- * Return 0 on success, !0 otherwise
- */
-static int xlnx_drm_hdmi_get_edid_block(void *data, u8 *buf, unsigned int block,
-				  size_t len)
-{
-	u8 *buffer;
-	struct xlnx_drm_hdmi *xhdmi = (struct xlnx_drm_hdmi *)data;
-	XV_HdmiTxSs *HdmiTxSsPtr;
-	int ret;
-
-	/* out of bounds? */
-	if (((block * 128) + len) > 256) return -EINVAL;
-
-	buffer = kzalloc(256, GFP_KERNEL);
-	if (!buffer) return -ENOMEM;
-
-	HdmiTxSsPtr = (XV_HdmiTxSs *)&xhdmi->xv_hdmitxss;
-	if (!HdmiTxSsPtr->IsStreamConnected) {
-		dev_dbg(xhdmi->dev, "xlnx_drm_hdmi_get_edid_block() stream is not connected\n");
-	}
-	/* first obtain edid in local buffer */
-	ret = XV_HdmiTxSs_ReadEdid(HdmiTxSsPtr, buffer);
-	if (ret == XST_FAILURE) {
-		kfree(buffer);
-		dev_dbg(xhdmi->dev, "xlnx_drm_hdmi_get_edid_block() failed reading EDID\n");
-		return -EINVAL;
-	}
-
-	/* then copy the requested 128-byte block(s) */
-	memcpy(buf, buffer + block * 128, len);
-	/* free our local buffer */
-	kfree(buffer);
-	return 0;
 }
 
 static int xlnx_drm_hdmi_connector_get_modes(struct drm_connector *connector)
