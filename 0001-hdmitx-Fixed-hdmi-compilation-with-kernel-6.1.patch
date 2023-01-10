@@ -1,0 +1,82 @@
+From e968b8474696505494759e1d1f8cd4ef404a629a Mon Sep 17 00:00:00 2001
+From: Ramakant Muddu <muddu.ramakant@amd.com>
+Date: Tue, 10 Jan 2023 22:21:57 +0530
+Subject: [LINUX PATCH] hdmitx: Fixed hdmi compilation with kernel 6.1
+
+Fix compilation errors
+CR : CR-1148858
+
+Signed-off-by: Muddu Ramakant <muddu.ramakant@xilinx.com>
+---
+ hdmi/phy-xilinx-vphy/xdebug.c | 2 +-
+ hdmi/xilinx_drm_hdmi.c        | 2 ++
+ hdmi/xlnx_hdmitx_audio.c      | 1 +
+ misc/dp159.c                  | 3 +--
+ 4 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/hdmi/phy-xilinx-vphy/xdebug.c b/hdmi/phy-xilinx-vphy/xdebug.c
+index 4d2e9cc..c41896a 100644
+--- a/hdmi/phy-xilinx-vphy/xdebug.c
++++ b/hdmi/phy-xilinx-vphy/xdebug.c
+@@ -14,7 +14,7 @@
+ *
+ ******************************************************************************/
+ #include <linux/kernel.h>
+-#include <stdarg.h>
++#include <linux/stdarg.h>
+ #include "xil_types.h"
+ #include "xdebug.h"
+ 
+diff --git a/hdmi/xilinx_drm_hdmi.c b/hdmi/xilinx_drm_hdmi.c
+index 311baf0..8a4b1f1 100644
+--- a/hdmi/xilinx_drm_hdmi.c
++++ b/hdmi/xilinx_drm_hdmi.c
+@@ -20,12 +20,14 @@
+ #include <drm/drm_atomic_helper.h>
+ #include <drm/drm_connector.h>
+ #include <drm/drm_crtc.h>
++#include <drm/drm_framebuffer.h>
+ #include <drm/drm_crtc_helper.h>
+ #include <drm/drm_edid.h>
+ #include <drm/drm_fourcc.h>
+ #include <drm/drm_of.h>
+ #include <drm/drm_probe_helper.h>
+ #include <drm/drm_sysfs.h>
++#include <drm/display/drm_hdmi_helper.h>
+ 
+ #include <linux/clk.h>
+ #include <linux/delay.h>
+diff --git a/hdmi/xlnx_hdmitx_audio.c b/hdmi/xlnx_hdmitx_audio.c
+index ee7c23f..c703e76 100644
+--- a/hdmi/xlnx_hdmitx_audio.c
++++ b/hdmi/xlnx_hdmitx_audio.c
+@@ -16,6 +16,7 @@
+  */
+ 
+ #include <drm/drm_crtc.h> /* This is only to get MAX_ELD_BYTES */
++#include <drm/drm_edid.h> /* This is only to get MAX_ELD_BYTES */
+ #include <linux/hdmi.h>
+ #include <linux/of_address.h>
+ #include <sound/soc.h>
+diff --git a/misc/dp159.c b/misc/dp159.c
+index 356ea65..0a923d6 100644
+--- a/misc/dp159.c
++++ b/misc/dp159.c
+@@ -192,13 +192,12 @@ static int dp159_probe(struct i2c_client *client,
+ 	return 0;
+ }
+ 
+-static int dp159_remove(struct i2c_client *client)
++static void dp159_remove(struct i2c_client *client)
+ {
+ 	struct clk_tx_linerate *clk_tx;
+ 	clk_tx = (struct clk_tx_linerate *)i2c_get_clientdata(client);
+ 	if (clk_tx)
+ 		clk_unregister(clk_tx->clk);
+-	return 0;
+ }
+ 
+ static const struct i2c_device_id dp159_id[] = {
+-- 
+1.8.3.1
+
