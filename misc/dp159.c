@@ -192,13 +192,12 @@ static int dp159_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int dp159_remove(struct i2c_client *client)
+static void dp159_remove(struct i2c_client *client)
 {
 	struct clk_tx_linerate *clk_tx;
 	clk_tx = (struct clk_tx_linerate *)i2c_get_clientdata(client);
 	if (clk_tx)
 		clk_unregister(clk_tx->clk);
-	return 0;
 }
 
 static const struct i2c_device_id dp159_id[] = {

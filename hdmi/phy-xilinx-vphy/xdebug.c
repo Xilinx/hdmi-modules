@@ -14,7 +14,7 @@
 *
 ******************************************************************************/
 #include <linux/kernel.h>
-#include <stdarg.h>
+#include <linux/stdarg.h>
 #include "xil_types.h"
 #include "xdebug.h"
 

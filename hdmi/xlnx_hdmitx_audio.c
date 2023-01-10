@@ -16,6 +16,7 @@
  */
 
 #include <drm/drm_crtc.h> /* This is only to get MAX_ELD_BYTES */
+#include <drm/drm_edid.h> /* This is only to get MAX_ELD_BYTES */
 #include <linux/hdmi.h>
 #include <linux/of_address.h>
 #include <sound/soc.h>
