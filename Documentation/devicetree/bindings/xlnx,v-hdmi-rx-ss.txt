@@ -89,7 +89,7 @@ added to the device tree
 		clock-names = "s_axi_cpu_aclk", "link_clk", "s_axis_audio_aclk", "video_clk", "s_axis_video_aclk";
 		clocks = <&zynqmp_clk 71>, <&misc_clk_1>, <&zynqmp_clk 71>, <&misc_clk_2>, <&zynqmp_clk 72>;
 		phy-names = "hdmi-phy0", "hdmi-phy1", "hdmi-phy2";
-		phys = <&vphy_lane0 0 1 1 0>, <&vphy_lane1 0 1 1 0>, <&vphy_lane2 0 1 1 0>;
+		phys = <&rxphy_lane0 0 1 1 0>, <&rxphy_lane1 0 1 1 0>, <&rxphy_lane2 0 1 1 0>;
 
 		xlnx,input-pixels-per-clock = <0x2>;
 		xlnx,max-bits-per-component = <0xa>;
