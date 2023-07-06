@@ -95,16 +95,22 @@ sharing VPHYs, and are therefore subject to change.)
 		xlnx,transceiver-width = <0x2>;
 		xlnx,use-gt-ch4-hdmi = <0>;
 
-		vphy_lane0: vphy_lane@0 {
+		rxphy_lane0: vphy_lane@0 {
 			#phy-cells = <4>;
 		};
-		vphy_lane1: vphy_lane@1 {
+		rxphy_lane1: vphy_lane@1 {
 			#phy-cells = <4>;
 		};
-		vphy_lane2: vphy_lane@2 {
+		rxphy_lane2: vphy_lane@2 {
 			#phy-cells = <4>;
 		};
-		vphy_lane3: vphy_lane@3 {
+		txphy_lane0: vphy_lane@0 {
+			#phy-cells = <4>;
+		};
+		txphy_lane1: vphy_lane@1 {
+			#phy-cells = <4>;
+		};
+		txphy_lane2: vphy_lane@2 {
 			#phy-cells = <4>;
 		};
 	};
@@ -138,16 +144,22 @@ sharing VPHYs, and are therefore subject to change.)
 			xlnx,tx-protocol = <1>;
 			xlnx,tx-refclk-sel = <1>;
 			xlnx,use-gt-ch4-hdmi = <1>;
-			vphy_lane0: vphy_lane@0 {
+			rxphy_lane0: vphy_lane@0 {
 				#phy-cells = <4>;
 			};
-			vphy_lane1: vphy_lane@1 {
+			rxphy_lane1: vphy_lane@1 {
 				#phy-cells = <4>;
 			};
-			vphy_lane2: vphy_lane@2 {
+			rxphy_lane2: vphy_lane@2 {
 				#phy-cells = <4>;
 			};
-			vphy_lane3: vphy_lane@3 {
+			txphy_lane0: vphy_lane@0 {
+				#phy-cells = <4>;
+			};
+			txphy_lane1: vphy_lane@1 {
+				#phy-cells = <4>;
+			};
+			txphy_lane2: vphy_lane@2 {
 				#phy-cells = <4>;
 			};
 		};
