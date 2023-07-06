@@ -65,6 +65,7 @@
 #define XVPHY_DRU_REF_CLK_HZ	156250000
 /* TODO - [Versal] - This needs to be changed for versal */
 #define XHDMIPHY1_DRU_REF_CLK_HZ	200000000
+#define XVPHY_MAX_LANES			6
 
 #define hdmi_mutex_lock(x) mutex_lock(x)
 #define hdmi_mutex_unlock(x) mutex_unlock(x)
@@ -106,7 +107,7 @@ struct xvphy_dev {
 	int irq;
 	/* protects the XVphy/XHdmiphy1 baseline against concurrent access */
 	struct mutex xvphy_mutex;
-	struct xvphy_lane *lanes[4];
+	struct xvphy_lane *lanes[XVPHY_MAX_LANES];
 	/* bookkeeping for the baseline subsystem driver instance */
 	XVphy xvphy;
 	XHdmiphy1 xgtphy;
@@ -621,8 +622,9 @@ static int xvphy_probe(struct platform_device *pdev)
 		/* Disable lane sharing as default */
 		vphy_lane->share_laneclk = -1;
 
-		if (port >= 4) {
-			dev_err(&pdev->dev, "MAX 4 PHY Lanes are supported\n");
+		if (port >= XVPHY_MAX_LANES) {
+			dev_err(&pdev->dev, "MAX %d PHY Lanes are supported\n",
+				XVPHY_MAX_LANES);
 			return -E2BIG;
 		}
 
