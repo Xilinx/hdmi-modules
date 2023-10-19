@@ -863,6 +863,7 @@ static void XV_HdmiRxSs_AuxCallback(void *CallbackRef)
   XHdmiC_GeneralControlPacket *GeneralControlPacketPtr;
   XHdmiC_AudioInfoFrame *AudioInfoFramePtr;
   struct v4l2_hdr10_payload *DrmInfoFramePtr;
+  static int count;
 
   AviInfoFramePtr = XV_HdmiRxSs_GetAviInfoframe(HdmiRxSsPtr);
   AviInfoFramePrevPtr = XV_HdmiRxSs_GetAviInfoframePrev(HdmiRxSsPtr);
@@ -904,12 +905,21 @@ static void XV_HdmiRxSs_AuxCallback(void *CallbackRef)
 	  (void)memset((void *)AudioInfoFramePtr, 0, sizeof(XHdmiC_AudioInfoFrame));
 	  // Parse Aux to retrieve Audio InfoFrame
 	  XV_HdmiC_ParseAudioInfoFrame(AuxPtr, AudioInfoFramePtr);
+	  HdmiRxSsPtr->HdmiRxPtr->Stream.Audio.Active = (TRUE);
+	  count = 0;
   } else if(AuxPtr->Header.Byte[0] == AUX_DRM_INFOFRAME_TYPE) {
 	  // Reset HDR InfoFrame
 	  (void)memset((void *)DrmInfoFramePtr, 0, sizeof(struct v4l2_hdr10_payload));
 	  // Parse Aux to retrieve HDR InfoFrame
 	  XV_HdmiC_ParseDRMIF(AuxPtr, DrmInfoFramePtr);
   }
+	if(AuxPtr->Header.Byte[0] != AUX_AUDIO_INFOFRAME_TYPE) {
+		if (count > 10) {
+			HdmiRxSsPtr->HdmiRxPtr->Stream.Audio.Active = (FALSE);
+			count = 0;
+		}
+		count++;
+	}
 
   // Check if user callback has been registered
   if (HdmiRxSsPtr->AuxCallback) {
@@ -2356,19 +2366,33 @@ int XV_HdmiRxSs_ShowInfo(XV_HdmiRxSs *InstancePtr, char *buff, int buff_size)
 		strSize += scnprintf(buff+strSize, buff_size-strSize,
 				"\r\nAudio\r\n" \
 				"------\r\n");
-		strSize += scnprintf(buff+strSize, buff_size-strSize,
-				"Format   : %s\r\n",
-				((AudioFormat < 3) ? AudioFormatStr[AudioFormat]
-								  : "Invalid"));
-		strSize += scnprintf(buff+strSize, buff_size-strSize,
-				"Channels : %d\r\n",
-				XV_HdmiRx_GetAudioChannels(InstancePtr->HdmiRxPtr));
-		strSize += scnprintf(buff+strSize, buff_size-strSize,
-				"ACR CTS  : %d\r\n",
-				XV_HdmiRx_GetAcrCts(InstancePtr->HdmiRxPtr));
-		strSize += scnprintf(buff+strSize, buff_size-strSize,
-				"ACR N    : %d\r\n\r\n",
-				XV_HdmiRx_GetAcrN(InstancePtr->HdmiRxPtr));
+		if (XV_HdmiRx_IsAudioActive(InstancePtr->HdmiRxPtr)) {
+			strSize += scnprintf(buff+strSize, buff_size-strSize,
+					"Format   : %s\r\n",
+					((AudioFormat < 3) ? AudioFormatStr[AudioFormat]
+									  : "Invalid"));
+			strSize += scnprintf(buff+strSize, buff_size-strSize,
+					"Channels : %d\r\n",
+					XV_HdmiRx_GetAudioChannels(InstancePtr->HdmiRxPtr));
+			strSize += scnprintf(buff+strSize, buff_size-strSize,
+					"ACR CTS  : %d\r\n",
+					XV_HdmiRx_GetAcrCts(InstancePtr->HdmiRxPtr));
+			strSize += scnprintf(buff+strSize, buff_size-strSize,
+					"ACR N    : %d\r\n\r\n",
+					XV_HdmiRx_GetAcrN(InstancePtr->HdmiRxPtr));
+		} else {
+			strSize += scnprintf(buff+strSize, buff_size-strSize,
+					"Format   : %s\r\n",
+					((AudioFormat < 3) ? AudioFormatStr[0]
+									  : "Invalid"));
+			strSize += scnprintf(buff+strSize, buff_size-strSize,
+					"Channels : %d\r\n",
+					XV_HdmiRx_GetAudioChannels(InstancePtr->HdmiRxPtr));
+			strSize += scnprintf(buff+strSize, buff_size-strSize,
+					"ACR CTS  : 0\r\n");
+			strSize += scnprintf(buff+strSize, buff_size-strSize,
+					"ACR N    : 0\r\n\r\n");
+		}
     } else {
 		strSize += scnprintf(buff+strSize, buff_size-strSize,
 				"Status: No input stream detected\r\n");
