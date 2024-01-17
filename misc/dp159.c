@@ -133,8 +133,7 @@ struct clk_ops clk_tx_rate_ops = {
 	.round_rate		= &clk_tx_round_rate,
 };
 
-static int dp159_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int dp159_probe(struct i2c_client *client)
 {
 	struct clk_tx_linerate *clk_tx;
 	struct clk *clk;
