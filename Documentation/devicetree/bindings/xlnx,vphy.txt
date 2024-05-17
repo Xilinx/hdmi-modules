@@ -51,6 +51,10 @@ Required Properties:
                       If selected in GUI, then value will be 1)
  - xlnx,rx-frl-refclk-sel: Reference clock for Rx in FRL mode in Versal only
  - xlnx,tx-frl-refclk-sel: Reference clock for Tx in FRL mode in Versal only
+ - xlnx,rx-clk-primitive: Rx clock primitive(0=MMCM, 1=PLL) type that IP
+			  is configured with.
+ - xlnx,tx-clk-primitive: Tx clock primitive(0=MMCM, 1=PLL) type that IP
+			  is configured with.
 
  - lane<n>: (port (child) nodes)
 	lane0:
@@ -94,6 +98,8 @@ sharing VPHYs, and are therefore subject to change.)
 		xlnx,tx-buffer-bypass = <0x1>;
 		xlnx,transceiver-width = <0x2>;
 		xlnx,use-gt-ch4-hdmi = <0>;
+		xlnx,tx-clk-primitive = <0>;
+		xlnx,rx-clk-primitive = <0>;
 
 		rxphy_lane0: vphy_lane@0 {
 			#phy-cells = <4>;
@@ -144,6 +150,8 @@ sharing VPHYs, and are therefore subject to change.)
 			xlnx,tx-protocol = <1>;
 			xlnx,tx-refclk-sel = <1>;
 			xlnx,use-gt-ch4-hdmi = <1>;
+			xlnx,rx-clk-primitive = <0>;
+			xlnx,tx-clk-primitive = <0>;
 			rxphy_lane0: vphy_lane@0 {
 				#phy-cells = <4>;
 			};
