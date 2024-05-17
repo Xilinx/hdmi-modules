@@ -469,7 +469,12 @@ u32 XVphy_MmcmWriteParameters(XVphy *InstancePtr, u8 QuadId,
 
 
 	/* Write Power Register Value */
-	XVphy_DrpWr(InstancePtr, QuadId, ChId, 0x27, 0xFFFF);
+	if (((Dir == XVPHY_DIR_RX) && (InstancePtr->Config.RxClkPrimitive == 0)) ||
+			((Dir == XVPHY_DIR_TX) && (InstancePtr->Config.TxClkPrimitive == 0))) {
+		XVphy_DrpWr(InstancePtr, QuadId, ChId, 0x27, 0xFFFF);
+	} else {
+		XVphy_DrpWr(InstancePtr, QuadId, ChId, 0x27, 0x4401);
+	}
 
 	/* Write CLKFBOUT Reg1 & Reg2 Values */
 	DrpVal32 = XVphy_Mmcme4DividerEncoding(MMCM_CLKFBOUT_MULT_F,

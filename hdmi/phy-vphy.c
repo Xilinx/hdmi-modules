@@ -536,6 +536,22 @@ static int vphy_parse_of(struct xvphy_dev *vphydev, void *c)
 		xgtphycfg->TxFrlRefClkSel = val;
 	}
 
+	rc = of_property_read_u32(node, "xlnx,rx-clk-primitive", &val);
+	if (rc < 0)
+		goto error_dt;
+	if (vphydev->isvphy)
+		vphycfg->RxClkPrimitive = val;
+	else
+		xgtphycfg->RxClkPrimitive = val;
+
+	rc = of_property_read_u32(node, "xlnx,tx-clk-primitive", &val);
+	if (rc < 0)
+		goto error_dt;
+	if (vphydev->isvphy)
+		vphycfg->TxClkPrimitive = val;
+	else
+		xgtphycfg->TxClkPrimitive = val;
+
 	return 0;
 
 error_dt:
