@@ -136,6 +136,12 @@ typedef enum {
 	XVPHY_DIR_TX
 } XVphy_DirectionType;
 
+/* This typedef enumerates is used to specify MMCM/PLL Clock Primitive information. */
+typedef enum {
+	XVPHY_MMCM = 0,
+	XVPHY_PLL = 1,
+} XVphy_ClkPrimitive;
+
 /**
  * This typedef enumerates the list of available interrupt handler types. The
  * values are used as parameters to the XVphy_SetIntrHandler function.
@@ -681,6 +687,8 @@ typedef struct {
 	u32 AxiLiteClkFreq;	    /**< AXI Lite Clock Frequency in Hz */
 	u32 DrpClkFreq;	        /**< DRP Clock Frequency in Hz */
 	u8  UseGtAsTxTmdsClk;	/**< Use 4th GT channel as TX TMDS clock */
+	XVphy_ClkPrimitive TxClkPrimitive; /* TX Clock Primitive */
+	XVphy_ClkPrimitive RxClkPrimitive; /* RX Clock Primitive */
 } XVphy_Config;
 
 /* Forward declaration. */

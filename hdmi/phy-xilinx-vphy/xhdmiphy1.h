@@ -658,6 +658,12 @@ typedef struct {
     u8 NChannels;       /**< No of Channels. */
 } XHdmiphy1_Hdmi21Cfg;
 
+/* This typedef enumerates is used to specify MMCM/PLL Clock Primitive information. */
+typedef enum {
+	XHDMIPHY1_MMCM = 0,
+	XHDMIPHY1_PLL = 1,
+} XHdmiphy1_ClkPrimitive;
+
 /**
  * This typedef contains configuration information for the Video PHY core.
  */
@@ -691,6 +697,8 @@ typedef struct {
     u8  UseGtAsTxTmdsClk;   /**< Use 4th GT channel as TX TMDS clock */
     u8  RxMaxRate;          /**< Max rate of RX */
     u8  TxMaxRate;          /**< Max rate of TX */
+    XHdmiphy1_ClkPrimitive TxClkPrimitive; /* TX Clock Primitive */
+    XHdmiphy1_ClkPrimitive RxClkPrimitive; /* RX Clock Primitive */
 } XHdmiphy1_Config;
 
 /* Forward declaration. */
