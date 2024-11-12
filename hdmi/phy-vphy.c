@@ -537,16 +537,22 @@ static int vphy_parse_of(struct xvphy_dev *vphydev, void *c)
 	}
 
 	rc = of_property_read_u32(node, "xlnx,rx-clk-primitive", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "unable to parse %s property\n",
+			"xlnx,rx-clk-primitive. Make MMCM as default value");
+		val = XVPHY_MMCM;
+	}
 	if (vphydev->isvphy)
 		vphycfg->RxClkPrimitive = val;
 	else
 		xgtphycfg->RxClkPrimitive = val;
 
 	rc = of_property_read_u32(node, "xlnx,tx-clk-primitive", &val);
-	if (rc < 0)
-		goto error_dt;
+	if (rc < 0) {
+		dev_err(vphydev->dev, "unable to parse %s property\n",
+			"xlnx,tx-clk-primitive. Make MMCM as default value");
+		val = XVPHY_MMCM;
+	}
 	if (vphydev->isvphy)
 		vphycfg->TxClkPrimitive = val;
 	else
