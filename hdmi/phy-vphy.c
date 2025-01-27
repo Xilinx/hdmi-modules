@@ -36,6 +36,7 @@
 #include <dt-bindings/phy/phy.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/version.h>
 #include <linux/interrupt.h>
 
 #include "linux/phy/phy-vphy.h"
@@ -323,7 +324,11 @@ static int xvphy_phy_init(struct phy *phy)
  *
  */
 static struct phy *xvphy_xlate(struct device *dev,
-				   struct of_phandle_args *args)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
+				struct of_phandle_args *args)
+#else
+			       const struct of_phandle_args *args)
+#endif
 {
 	struct xvphy_dev *vphydev = dev_get_drvdata(dev);
 	struct xvphy_lane *vphy_lane = NULL;
