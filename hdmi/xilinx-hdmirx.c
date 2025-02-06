@@ -234,8 +234,10 @@ __xhdmi_get_pad_format_ptr(struct xhdmi_device *xhdmi,
 		dev_dbg(xhdmi->dev, "__xhdmi_get_pad_format(): V4L2_SUBDEV_FORMAT_TRY\n");
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
 		return v4l2_subdev_get_try_format(&xhdmi->subdev, cfg, pad);
-#else
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 		return v4l2_subdev_get_try_format(&xhdmi->subdev, sd_state, pad);
+#else
+		return v4l2_subdev_state_get_format(sd_state, pad);
 #endif
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		dev_dbg(xhdmi->dev, "__xhdmi_get_pad_format(): V4L2_SUBDEV_FORMAT_ACTIVE\n");
@@ -429,8 +431,10 @@ int xhdmi_enum_mbus_code(struct v4l2_subdev *subdev,
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
 	format = v4l2_subdev_get_try_format(subdev, cfg, code->pad);
-#else
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	format = v4l2_subdev_get_try_format(subdev, sd_state, code->pad);
+#else
+	format = v4l2_subdev_state_get_format(sd_state, code->pad);
 #endif
 
 	code->code = format->code;
@@ -455,7 +459,11 @@ static int xhdmi_dv_timings_cap(struct v4l2_subdev *subdev,
 	return 0;
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 static int xhdmi_query_dv_timings(struct v4l2_subdev *subdev,
+#else
+static int xhdmi_query_dv_timings(struct v4l2_subdev *subdev, unsigned int pad,
+#endif
 			struct v4l2_dv_timings *timings)
 {
 	struct xhdmi_device *xhdmi = to_xhdmi(subdev);
@@ -551,13 +559,18 @@ static struct v4l2_subdev_core_ops xhdmi_core_ops = {
 
 static struct v4l2_subdev_video_ops xhdmi_video_ops = {
 	.s_stream = xhdmi_s_stream,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	.query_dv_timings = xhdmi_query_dv_timings,
+#endif
 };
 
 /* If the subdev driver intends to process video and integrate with the media framework,
  * it must implement format related functionality using v4l2_subdev_pad_ops instead of
  * v4l2_subdev_video_ops. */
 static struct v4l2_subdev_pad_ops xhdmi_pad_ops = {
+#if (LINUX_VERSION_CODE == KERNEL_VERSION(6, 12, 0))
+	.query_dv_timings = xhdmi_query_dv_timings,
+#endif
 	.enum_mbus_code		= xhdmi_enum_mbus_code,
 	.enum_frame_size	= xhdmi_enum_frame_size,
 	.get_fmt			= xhdmi_get_format,
@@ -2476,7 +2489,7 @@ static int xhdmi_probe(struct platform_device *pdev)
 	v4l2_subdev_init(subdev, &xhdmi_ops);
 	subdev->dev = &pdev->dev;
 	subdev->internal_ops = &xhdmi_internal_ops;
-	strlcpy(subdev->name, dev_name(&pdev->dev), sizeof(subdev->name));
+	strscpy(subdev->name, dev_name(&pdev->dev), sizeof(subdev->name));
 	v4l2_set_subdevdata(subdev, xhdmi);
 	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 
@@ -2592,7 +2605,11 @@ error_resource:
 	return ret;
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 static int xhdmi_remove(struct platform_device *pdev)
+#else
+static void xhdmi_remove(struct platform_device *pdev)
+#endif
 {
 	struct xhdmi_device *xhdmi = platform_get_drvdata(pdev);
 	struct v4l2_subdev *subdev = &xhdmi->subdev;
@@ -2614,7 +2631,9 @@ static int xhdmi_remove(struct platform_device *pdev)
 	if (xhdmi->audio_init)
 		hdmirx_unregister_aud_dev(&pdev->dev);
 	dev_dbg(xhdmi->dev,"removed.\n");
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif
 }
 
 static const struct dev_pm_ops xhdmirx_pm_ops = {
