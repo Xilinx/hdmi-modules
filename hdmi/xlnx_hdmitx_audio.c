@@ -17,6 +17,10 @@
 
 #include <drm/drm_crtc.h> /* This is only to get MAX_ELD_BYTES */
 #include <drm/drm_edid.h> /* This is only to get MAX_ELD_BYTES */
+#include <linux/version.h>
+#if (LINUX_VERSION_CODE == KERNEL_VERSION(6, 12, 0))
+#include <drm/drm_eld.h>
+#endif
 #include <linux/hdmi.h>
 #include <linux/of_address.h>
 #include <sound/soc.h>

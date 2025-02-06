@@ -43,9 +43,14 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/sysfs.h>
+#include <linux/version.h>
 #include <linux/workqueue.h>
 #include <uapi/linux/media-bus-format.h>
 #include "../drivers/gpu/drm/xlnx/xlnx_bridge.h"
+
+#if (LINUX_VERSION_CODE == KERNEL_VERSION(6, 12, 0))
+#include <drm/drm_eld.h>
+#endif
 
 #include "linux/phy/phy-vphy.h"
 
@@ -623,6 +628,7 @@ static void TxConnectCallback(void *CallbackRef)
 	XV_HdmiTxSs *HdmiTxSsPtr = &xhdmi->xv_hdmitxss;
 	XVphy *VphyPtr = xhdmi->xvphy;
 	XHdmiphy1 *XGtPhyPtr = xhdmi->xgtphy;
+	const struct drm_edid *drm_edid;
 	struct edid *edid = NULL;
 
 	dev_dbg(xhdmi->dev,"%s()\n", __func__);
@@ -631,8 +637,9 @@ static void TxConnectCallback(void *CallbackRef)
 		int xst_hdmi20;
 		xhdmi->cable_connected = 1;
 		xhdmi->connector.status = connector_status_connected;
-		edid = drm_do_get_edid(&xhdmi->connector, xlnx_drm_hdmi_get_edid_block, xhdmi);
-		if (edid) {
+		drm_edid = drm_edid_read_custom(&xhdmi->connector, xlnx_drm_hdmi_get_edid_block, xhdmi);
+		drm_edid_connector_update(&xhdmi->connector, drm_edid);
+		if (!drm_edid) {
 			xhdmi->have_edid = 1;
 			kfree(edid);
 		}
@@ -1110,6 +1117,7 @@ static int xlnx_drm_hdmi_connector_mode_valid(struct drm_connector *connector,
 static int xlnx_drm_hdmi_connector_get_modes(struct drm_connector *connector)
 {
 	struct xlnx_drm_hdmi *xhdmi = connector_to_hdmi(connector);
+	const struct drm_edid *drm_edid;
 	struct edid *edid = NULL;
 	int ret;
 	bool is_hdmi_sink;
@@ -1123,17 +1131,17 @@ static int xlnx_drm_hdmi_connector_get_modes(struct drm_connector *connector)
 	 */
 
 	/* private data hdmi is passed to xlnx_drm_hdmi_get_edid_block(data, ...) */
-	edid = drm_do_get_edid(connector, xlnx_drm_hdmi_get_edid_block, xhdmi);
+	drm_edid = drm_edid_read_custom(connector, xlnx_drm_hdmi_get_edid_block, xhdmi);
 
 	hdmi_mutex_unlock(&xhdmi->hdmi_mutex);
-	if (!edid) {
+	drm_edid_connector_update(connector, drm_edid);
+	if (!drm_edid) {
 		xhdmi->have_edid = 0;
 		dev_err(xhdmi->dev, "xlnx_drm_hdmi_get_modes() could not obtain edid, assume <= 1024x768 works.\n");
-		drm_connector_update_edid_property(connector, NULL);
 		return 0;
 	}
 	xhdmi->have_edid = 1;
-
+	edid = drm_edid_raw(drm_edid);
 	/* If the sink is non HDMI, set the stream type to DVI else HDMI */
 	is_hdmi_sink = drm_detect_hdmi_monitor(edid);
 	if(is_hdmi_sink) {
@@ -1145,7 +1153,7 @@ static int xlnx_drm_hdmi_connector_get_modes(struct drm_connector *connector)
 	}
 
 	drm_connector_update_edid_property(connector, edid);
-	ret = drm_add_edid_modes(connector, edid);
+	ret = drm_edid_connector_add_modes(connector);
 	kfree(edid);
 	dev_dbg(xhdmi->dev, "xlnx_drm_hdmi_get_modes() done\n");
 	return ret;
@@ -3103,7 +3111,11 @@ error_phy:
 	return ret;
 }
 
+#if (KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE)
 static int xlnx_drm_hdmi_remove(struct platform_device *pdev)
+#else
+static void xlnx_drm_hdmi_remove(struct platform_device *pdev)
+#endif
 {
 	struct xlnx_drm_hdmi *xhdmi = platform_get_drvdata(pdev);
 
@@ -3112,7 +3124,10 @@ static int xlnx_drm_hdmi_remove(struct platform_device *pdev)
 
 	sysfs_remove_group(&pdev->dev.kobj, &attr_group);
 	component_del(&pdev->dev, &xlnx_drm_hdmi_component_ops);
+
+#if (KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE)
 	return 0;
+#endif
 }
 
 struct xlnx_hdmitx_audio_data *hdmitx_get_audio_data(struct device *dev)
