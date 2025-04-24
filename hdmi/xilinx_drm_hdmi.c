@@ -48,7 +48,7 @@
 #include <uapi/linux/media-bus-format.h>
 #include "../drivers/gpu/drm/xlnx/xlnx_bridge.h"
 
-#if (LINUX_VERSION_CODE == KERNEL_VERSION(6, 12, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
 #include <drm/drm_eld.h>
 #endif
 
