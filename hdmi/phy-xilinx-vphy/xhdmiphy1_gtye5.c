@@ -60,7 +60,6 @@ u32 XHdmiphy1_Gtye5TxChReconfig(XHdmiphy1 *InstancePtr, u8 QuadId,
 #define XHDMIPHY1_RPLL_MIN_REFCLK  		120000000LL
 #define XHDMIPHY1_HDMI_GTYE5_DRU_LRATE  3000000000U
 
-
 const XHdmiphy1_GtConfig Gtye5Config = {
 /*  .CfgSetCdr = XHdmiphy1_Gtye4CfgSetCdr,
     .CheckPllOpRange = XHdmiphy1_Gtye4CheckPllOpRange,
@@ -111,6 +110,10 @@ u32 XHdmiphy1_HdmiLcpllParam(XHdmiphy1 *InstancePtr, u8 QuadId,
 	u8 TmdsClockRatio = 0;
 	u8 IsHdmi21 = 0;
 	u64 LineRate = 0;
+	int LR1 = 0;
+	int LR2 = 0;
+	int LR3 = 0;
+	int LR4 = 0;
 
 	/* Suppress Warning Messages */
 	ChId = ChId;
@@ -197,6 +200,26 @@ u32 XHdmiphy1_HdmiLcpllParam(XHdmiphy1 *InstancePtr, u8 QuadId,
 
 	}
 
+	if (((Dir == XHDMIPHY1_DIR_RX) &&
+			(InstancePtr->Config.RxProtocol == 1) &&
+			(InstancePtr->Config.DruIsPresent == 1)) ||
+			((InstancePtr->Config.RxProtocol == 2) ||
+					(InstancePtr->Config.TxProtocol == 2))) {
+		LR1 = 1;
+		LR2 = 2;
+		LR3 = 3;
+		LR4 = 4;
+	} else if (((Dir == XHDMIPHY1_DIR_RX) &&
+			(InstancePtr->Config.RxProtocol == 1) &&
+			(InstancePtr->Config.DruIsPresent == 0)) ||
+			((Dir == XHDMIPHY1_DIR_TX) &&
+					(InstancePtr->Config.TxProtocol == 1))) {
+		LR1 = 0;
+		LR2 = 1;
+		LR3 = 2;
+		LR4 = 3;
+	}
+
 	/* Check for DRU mode */
 	if ((Dir == XHDMIPHY1_DIR_RX) &&
 		(InstancePtr->HdmiRxDruIsEnabled)) {
@@ -208,12 +231,12 @@ u32 XHdmiphy1_HdmiLcpllParam(XHdmiphy1 *InstancePtr, u8 QuadId,
 		if (!TmdsClockRatio) {
 			if ((119990000 <= (*RefClkPtr)) &&
 					((*RefClkPtr) <= 204687500)) {
-				InstancePtr->Quads[0].Lcpll.LineRateCfg = 1;
+				InstancePtr->Quads[0].Lcpll.LineRateCfg = LR1;
 			}
 			else if ((204687500 <= (*RefClkPtr)) &&
 						/* 297 MHz + 0.5% + 10 KHz error */
 						((*RefClkPtr) <= 298500000)) {
-				InstancePtr->Quads[0].Lcpll.LineRateCfg = 2;
+				InstancePtr->Quads[0].Lcpll.LineRateCfg = LR2;
 			}
 			else{
 				Status = XST_FAILURE;
@@ -223,11 +246,11 @@ u32 XHdmiphy1_HdmiLcpllParam(XHdmiphy1 *InstancePtr, u8 QuadId,
 		else {
 			if ((84570000 <= (*RefClkPtr)) &&
 						((*RefClkPtr) <= 102343750)) {
-				InstancePtr->Quads[0].Lcpll.LineRateCfg = 3;
+				InstancePtr->Quads[0].Lcpll.LineRateCfg = LR3;
 			}
 			else if ((102343750 <= (*RefClkPtr)) &&
 						((*RefClkPtr) <= 149500000)) {
-				InstancePtr->Quads[0].Lcpll.LineRateCfg = 4;
+				InstancePtr->Quads[0].Lcpll.LineRateCfg = LR4;
 			}
 			else{
 				Status = XST_FAILURE;
@@ -295,6 +318,10 @@ u32 XHdmiphy1_HdmiRpllParam(XHdmiphy1 *InstancePtr, u8 QuadId,
 	u8 TmdsClockRatio = 0;
 	u8 IsHdmi21 = 0;
 	u64 LineRate = 0;
+	int LR1 = 0;
+	int LR2 = 0;
+	int LR3 = 0;
+	int LR4 = 0;
 
 	/* Suppress Warning Messages */
 	ChId = ChId;
@@ -381,6 +408,26 @@ u32 XHdmiphy1_HdmiRpllParam(XHdmiphy1 *InstancePtr, u8 QuadId,
 
 	}
 
+	if (((Dir == XHDMIPHY1_DIR_RX) &&
+			(InstancePtr->Config.RxProtocol == 1) &&
+			(InstancePtr->Config.DruIsPresent == 1)) ||
+			((InstancePtr->Config.RxProtocol == 2) ||
+					(InstancePtr->Config.TxProtocol == 2))) {
+		LR1 = 1;
+		LR2 = 2;
+		LR3 = 3;
+		LR4 = 4;
+	} else if (((Dir == XHDMIPHY1_DIR_RX) &&
+			(InstancePtr->Config.RxProtocol == 1) &&
+			(InstancePtr->Config.DruIsPresent == 0)) ||
+			((Dir == XHDMIPHY1_DIR_TX) &&
+					(InstancePtr->Config.TxProtocol == 1))) {
+		LR1 = 0;
+		LR2 = 1;
+		LR3 = 2;
+		LR4 = 3;
+	}
+
 	/* Check for DRU mode */
 	if ((Dir == XHDMIPHY1_DIR_RX) &&
 		(InstancePtr->HdmiRxDruIsEnabled)) {
@@ -392,12 +439,12 @@ u32 XHdmiphy1_HdmiRpllParam(XHdmiphy1 *InstancePtr, u8 QuadId,
 		if (!TmdsClockRatio) {
 			if ((119990000 <= (*RefClkPtr)) &&
 					((*RefClkPtr) <= 200000000)) {
-				InstancePtr->Quads[0].Rpll.LineRateCfg = 1;
+				InstancePtr->Quads[0].Rpll.LineRateCfg = LR1;
 			}
 			else if ((200000000 <= (*RefClkPtr)) &&
 						/* 297 MHz + 0.5% + 10 KHz error */
 						((*RefClkPtr) <= 298500000)) {
-				InstancePtr->Quads[0].Rpll.LineRateCfg = 2;
+				InstancePtr->Quads[0].Rpll.LineRateCfg = LR2;
 			}
 			else{
 				Status = XST_FAILURE;
@@ -407,11 +454,11 @@ u32 XHdmiphy1_HdmiRpllParam(XHdmiphy1 *InstancePtr, u8 QuadId,
 		else {
 			if ((84570000 <= (*RefClkPtr)) &&
 						((*RefClkPtr) <= 100000000)) {
-				InstancePtr->Quads[0].Rpll.LineRateCfg = 3;
+				InstancePtr->Quads[0].Rpll.LineRateCfg = LR3;
 			}
 			else if ((100000000 <= (*RefClkPtr)) &&
 						((*RefClkPtr) <= 149500000)) {
-				InstancePtr->Quads[0].Rpll.LineRateCfg = 4;
+				InstancePtr->Quads[0].Rpll.LineRateCfg = LR4;
 			}
 			else{
 				Status = XST_FAILURE;
