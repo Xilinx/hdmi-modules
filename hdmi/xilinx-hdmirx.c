@@ -1303,7 +1303,7 @@ static void RxAuxCallback(void *CallbackRef)
 	//ToDO: Insert registered ALSA driver callback
 }
 
-/* Called from non-interrupt context with xvphy mutex locked
+/* Called from non-interrupt context
  */
 static void VphyHdmiRxInitCallback(void *CallbackRef)
 {
@@ -1323,11 +1323,7 @@ static void VphyHdmiRxInitCallback(void *CallbackRef)
 
 	dev_dbg(xhdmi->dev,"VphyHdmiRxInitCallback()\n");
 
-	/* a pair of mutexes must be locked in fixed order to prevent deadlock,
-	 * and the order is RX SS then XVPHY, so first unlock XVPHY then lock both */
-	xvphy_mutex_unlock(xhdmi->phy[0]);
 	hdmi_mutex_lock(&xhdmi->xhdmi_mutex);
-	xvphy_mutex_lock(xhdmi->phy[0]);
 
 	XV_HdmiRxSs_RefClockChangeInit(HdmiRxSsPtr);
 	/* @NOTE maybe implement xvphy_set_hdmirx_tmds_clockratio(); */
@@ -1340,7 +1336,7 @@ static void VphyHdmiRxInitCallback(void *CallbackRef)
 	hdmi_mutex_unlock(&xhdmi->xhdmi_mutex);
 }
 
-/* Called from non-interrupt context with xvphy mutex locked
+/* Called from non-interrupt context
  */
 static void VphyHdmiRxReadyCallback(void *CallbackRef)
 {
@@ -1361,11 +1357,7 @@ static void VphyHdmiRxReadyCallback(void *CallbackRef)
 
 	dev_dbg(xhdmi->dev,"VphyHdmiRxReadyCallback()\n");
 
-	/* a pair of mutexes must be locked in fixed order to prevent deadlock,
-	 * and the order is RX SS then XVPHY, so first unlock XVPHY then lock both */
-	xvphy_mutex_unlock(xhdmi->phy[0]);
 	hdmi_mutex_lock(&xhdmi->xhdmi_mutex);
-	xvphy_mutex_lock(xhdmi->phy[0]);
 
 	if (xhdmi->isvphy) {
 		RxPllType = XVphy_GetPllType(VphyPtr, 0, XVPHY_DIR_RX,
