@@ -1084,23 +1084,19 @@ static const struct drm_connector_funcs xlnx_drm_hdmi_connector_funcs = {
 	.atomic_get_property = xlnx_drm_hdmi_get_property,
 };
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+static int xlnx_drm_hdmi_connector_mode_valid(struct drm_connector *connector,
+				    const struct drm_display_mode *mode)
+#else
 static int xlnx_drm_hdmi_connector_mode_valid(struct drm_connector *connector,
 				    struct drm_display_mode *mode)
+#endif
 {
 	struct xlnx_drm_hdmi *xhdmi = connector_to_hdmi(connector);
 	int max_rate = 340 * 1000;
 	enum drm_mode_status status = MODE_OK;
 
 	dev_dbg(xhdmi->dev, "%s\n", __func__);
-
-	/* This is done to make the functionality similar as BM code in which the
-	 * timing table has vdisplay value of 540 for 1080i usecase.
-	 * By this change, doing modetest -M xlnx, will give vdisplay 540 instead of
-	 * 1080 */
-	if(mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		mode->vdisplay = mode->vdisplay / 2;
-		dev_dbg(xhdmi->dev, "For DRM_MODE_FLAG_INTERLACE, divide mode->vdisplay %d\n", mode->vdisplay);
-	}
 
 	drm_mode_debug_printmodeline(mode);
 	hdmi_mutex_lock(&xhdmi->hdmi_mutex);
@@ -1457,6 +1453,11 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	dev_dbg(xhdmi->dev,"mode->flags = %d interlace = %d\n", mode->flags,
 			!!(mode->flags & DRM_MODE_FLAG_INTERLACE));
 
+
+	bool interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE;
+	u32 vdisplay_full = mode->vdisplay;
+	u32 vdisplay_field = interlaced ? vdisplay_full / 2 : vdisplay_full;
+
 	/* Set bridge input and output parameters */
 	if (xhdmi->bridge) {
 		xlnx_bridge_set_input(xhdmi->bridge, adjusted_mode->hdisplay,
@@ -1489,6 +1490,11 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 		}
 	}
 
+	/* Recompute interlace and per-field values if mode was overridden by VIC mapping */
+	interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE;
+	vdisplay_full = mode->vdisplay;
+	vdisplay_field = interlaced ? vdisplay_full / 2 : vdisplay_full;
+
 	/* see slide 20 of http://events.linuxfoundation.org/sites/events/files/slides/brezillon-drm-kms.pdf */
 	vt.HActive = mode->hdisplay;
 	vt.HFrontPorch = mode->hsync_start - mode->hdisplay;
@@ -1498,9 +1504,9 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	vt.HSyncPolarity = !!(mode->flags & DRM_MODE_FLAG_PHSYNC);
 
 	/* Enable this code for debugging of NTSC and PAL resolution */
-	if((((mode->hdisplay == 720) && (mode->vdisplay == 240) && (drm_mode_vrefresh(mode) == 60)) ||
-			((mode->hdisplay == 720) && (mode->vdisplay == 288) && (drm_mode_vrefresh(mode) == 50)))
-			&& (mode->flags & DRM_MODE_FLAG_INTERLACE) && (mode->flags & DRM_MODE_FLAG_DBLCLK))
+	if((((mode->hdisplay == 720) && (vdisplay_field == 240) && (drm_mode_vrefresh(mode) == 60)) ||
+			((mode->hdisplay == 720) && (vdisplay_field == 288) && (drm_mode_vrefresh(mode) == 50)))
+			&& interlaced && (mode->flags & DRM_MODE_FLAG_DBLCLK))
 	{
 		dev_dbg(xhdmi->dev,"NTSC/PAL\n");
 		vt.HActive *= 2;
@@ -1510,9 +1516,9 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 		vt.HTotal *= 2;
 	}
 
-	vt.VActive = mode->vdisplay;
+	vt.VActive = vdisplay_field;
 	/* Progressive timing data is stored in field 0 */
-	vt.F0PVFrontPorch = mode->vsync_start - mode->vdisplay;
+	vt.F0PVFrontPorch = mode->vsync_start - vdisplay_full;
 	vt.F0PVSyncWidth = mode->vsync_end - mode->vsync_start;
 	vt.F0PVBackPorch = mode->vtotal - mode->vsync_end;
 	vt.F0PVTotal = mode->vtotal;
@@ -1520,22 +1526,20 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	if(mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		dev_dbg(xhdmi->dev,"Programming fields for interlace");
 
-		vt.VActive = mode->vdisplay;
 
-		vt.F0PVFrontPorch = (mode->vsync_start - (mode->vdisplay * 2)) / 2;
+		vt.F0PVFrontPorch = (mode->vsync_start - (vdisplay_full)) / 2;
 		vt.F0PVSyncWidth = (mode->vsync_end - mode->vsync_start) / 2;
-		vt.F0PVBackPorch = (mode->vtotal - mode->vsync_end) / 2;
-		vt.F0PVTotal = mode->vdisplay + vt.F0PVFrontPorch + vt.F0PVSyncWidth
-				+ vt.F0PVBackPorch;
+		vt.F0PVTotal = mode->vtotal / 2;
+		vt.F0PVBackPorch = vt.F0PVTotal - vdisplay_field - vt.F0PVFrontPorch - vt.F0PVSyncWidth;
 
 		if((mode->vtotal - mode->vsync_end) % 2)
-			vt.F1VFrontPorch = 1 + (mode->vsync_start - (mode->vdisplay * 2)) / 2;
+			 vt.F1VFrontPorch = vt.F0PVFrontPorch + 1;
 		else
-			vt.F1VFrontPorch = (mode->vsync_start - (mode->vdisplay * 2)) / 2;
-		vt.F1VSyncWidth = (mode->vsync_end - mode->vsync_start) / 2;
-		vt.F1VBackPorch = (mode->vtotal - mode->vsync_end) / 2;
-		vt.F1VTotal = mode->vdisplay + vt.F1VFrontPorch + vt.F1VSyncWidth
-				+ vt.F1VBackPorch;
+			vt.F1VFrontPorch = vt.F0PVFrontPorch;
+
+		vt.F1VSyncWidth  = vt.F0PVSyncWidth;
+		vt.F1VTotal      = (mode->vtotal / 2) + (mode->vtotal % 2);
+		vt.F1VBackPorch  = vt.F1VTotal - vdisplay_field - vt.F1VFrontPorch - vt.F1VSyncWidth;
 	}
 
 	vt.VSyncPolarity = !!(mode->flags & DRM_MODE_FLAG_PVSYNC);
