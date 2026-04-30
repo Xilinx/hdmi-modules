@@ -1658,17 +1658,14 @@ static void xlnx_drm_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 		return;
 	}
 
-	if (!xhdmi->bridge) {
-		if (xhdmi->isvphy)
-			adjusted_mode->clock = VphyPtr->HdmiTxRefClkHz / 1000;
-		else
-			adjusted_mode->clock = XGtPhyPtr->HdmiTxRefClkHz / 1000;
-	}
-	else {
-		adjusted_mode->clock = mode->clock;
-	}
+	/* Use HdmiTxRefClkHz, not mode->clock: includes HDMI 2.0 scrambling /4. */
+	if (xhdmi->isvphy)
+		adjusted_mode->clock = VphyPtr->HdmiTxRefClkHz / 1000;
+	else
+		adjusted_mode->clock = XGtPhyPtr->HdmiTxRefClkHz / 1000;
 
-	dev_dbg(xhdmi->dev,"adjusted_mode->clock = %u Hz\n", adjusted_mode->clock);
+	dev_dbg(xhdmi->dev, "adjusted_mode->clock = %u kHz\n",
+		adjusted_mode->clock);
 
 	/* request required tmds clock rate */
 	ret = clk_set_rate(xhdmi->tmds_clk,
