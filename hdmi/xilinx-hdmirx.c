@@ -366,7 +366,7 @@ static int xhdmi_set_edid(struct v4l2_subdev *subdev, struct v4l2_edid *edid) {
 	xhdmi_set_hpd(xhdmi, 0);
 
 	if (edid->blocks) {
-		memcpy(xhdmi->edid_user, edid->edid, 128 * edid->blocks);
+		memcpy(xhdmi->edid_user, edid->edid, 128 * min_t(unsigned int, edid->blocks, xhdmi->edid_blocks_max));
 		XV_HdmiRxSs_LoadEdid(HdmiRxSsPtr, (u8 *)&xhdmi->edid_user,
 				     128 * (u16)xhdmi->edid_user_blocks);
 		/* enable hotplug after 100 ms */
